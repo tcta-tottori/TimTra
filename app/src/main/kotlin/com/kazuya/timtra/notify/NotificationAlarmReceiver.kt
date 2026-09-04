@@ -8,6 +8,10 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.kazuya.timtra.MainActivity
 import com.kazuya.timtra.R
+import com.kazuya.timtra.widget.CommuteWidgetUpdater
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /** AlarmManager から起こされ、予約時に確定した文面をそのまま表示する。 */
 class NotificationAlarmReceiver : BroadcastReceiver() {
@@ -17,6 +21,15 @@ class NotificationAlarmReceiver : BroadcastReceiver() {
     ) {
         if (intent.action != ACTION_SHOW) return
         val content = readContent(intent) ?: return
+        // 通知の時刻は状況が変わる節目なので、ウィジェットもここで描き直す（常駐せずに更新する機会）
+        val pending = goAsync()
+        CoroutineScope(Dispatchers.Default).launch {
+            try {
+                CommuteWidgetUpdater.updateAll(context)
+            } finally {
+                pending.finish()
+            }
+        }
         val manager = NotificationManagerCompat.from(context)
         if (!manager.areNotificationsEnabled()) return
 

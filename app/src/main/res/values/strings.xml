@@ -144,6 +144,16 @@
     <string name="perm_granted">設定済み</string>
     <string name="perm_action">設定する</string>
 
+    <!-- ウィジェット -->
+    <string name="widget_label">TimTra 出発</string>
+    <string name="widget_description">家を出る時刻と残り時間、乗り継ぎの状態を表示します</string>
+    <string name="widget_refresh">更新</string>
+    <string name="widget_updated_at">%1$s 更新</string>
+    <string name="widget_bus_jr_outbound">バス %1$s → JR %2$s</string>
+    <string name="widget_bus_jr_inbound">JR %1$s → バス %2$s</string>
+    <string name="widget_no_journey">運行なし</string>
+    <string name="widget_day_off">今日は休み</string>
+
     <!-- このアプリについて -->
     <string name="about_title">このアプリについて</string>
     <string name="about_description">日ノ丸バス（用瀬智頭線）と JR 山陰本線を乗り継ぐ通勤のための個人用アプリです。</string>

@@ -49,6 +49,19 @@
             android:name=".notify.NotificationAlarmReceiver"
             android:exported="false" />
 
+        <!-- ホーム画面ウィジェット -->
+        <receiver
+            android:name=".widget.CommuteWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/commute_widget_info" />
+        </receiver>
+
         <!-- 再起動・アプリ更新・時刻変更のあとに予約を作り直す -->
         <receiver
             android:name=".notify.RescheduleReceiver"

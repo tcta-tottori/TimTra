@@ -16,6 +16,7 @@ import com.kazuya.timtra.data.repository.JrTimetableRepository
 import com.kazuya.timtra.data.repository.NotificationPlanSummary
 import com.kazuya.timtra.data.repository.SettingsRepository
 import com.kazuya.timtra.sync.WearSyncPublisher
+import com.kazuya.timtra.widget.CommuteWidgetUpdater
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Duration
 import java.time.LocalDateTime
@@ -79,8 +80,9 @@ class NotificationScheduler
                     exactAlarms = alarms.canScheduleExact,
                 ),
             )
-            // 設定変更・起動・夜間ジョブのたびに時計へも設定を配る
+            // 設定変更・起動・夜間ジョブのたびに時計へも設定を配り、ウィジェットも描き直す
             wearSync.publishSettings(appSettings)
+            CommuteWidgetUpdater.updateAll(context)
             return plans
         }
 

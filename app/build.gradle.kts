@@ -60,6 +60,10 @@ dependencies {
     implementation(libs.androidx.hilt.work)
     ksp(libs.androidx.hilt.compiler)
 
+    // ホーム画面ウィジェット（Glance）
+    implementation(libs.glance.appwidget)
+    implementation(libs.glance.material3)
+
     // Wear への設定同期（Wearable Data Layer）
     implementation(libs.play.services.wearable)
     implementation(libs.kotlinx.coroutines.play.services)

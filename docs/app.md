@@ -42,7 +42,7 @@ AGP 9 系を採用した。AGP 9 では `org.jetbrains.kotlin.android` を適用
 - 現在時刻は `data/di/AppClock` 経由で取得する（スマホ・Wear 共通。テストで差し替え可能）。
 - アプリアイコンは `docs/assets/icon-512.png` を元に、adaptive icon（背景色 + 中央 72% に縮小した前景 PNG）として
   `res/mipmap-*/` に生成している。差し替えるときは同じ手順で前景を作り直す。
-- 通知まわりは `notify/`（docs/notify.md）。
+- 通知まわりは `notify/`（docs/notify.md）。ウィジェットは `widget/`（docs/widget.md）。
 - サンプル時刻表で動いている間はホームに警告バナーを出す（`BusTimetable.isSampleData` / JR version が `sample` で始まる）。
 
 ## 未検証の点（重要）
