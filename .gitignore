@@ -1,0 +1,23 @@
+# Gradle / Android
+.gradle/
+build/
+local.properties
+*.apk
+*.aab
+*.ap_
+captures/
+.externalNativeBuild/
+.cxx/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# 取得した GTFS-JP の ZIP は管理しない（生成した .db はコミットする）
+tools/gtfs/

@@ -1,0 +1,4 @@
+﻿route_id,agency_id,route_short_name,route_long_name,route_desc,route_type,jp_parent_route_id
+R_MOCHIGASE_91,HINOMARU,91,用瀬智頭線,鳥取駅～用瀬～智頭,3,P_MOCHIGASE
+R_MOCHIGASE_93,HINOMARU,93,用瀬智頭線,鳥取駅～用瀬,3,P_MOCHIGASE
+R_KOYAMA_20,HINOMARU,20,湖山線,鳥取駅南口～湖山,3,P_KOYAMA

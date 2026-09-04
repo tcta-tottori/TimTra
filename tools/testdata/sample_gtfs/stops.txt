@@ -1,0 +1,8 @@
+﻿stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station,platform_code
+S_MINAMIYOSHINARI,南吉成,35.4700,134.2000,0,,
+S_YOSHINARI,吉成,35.4750,134.2050,0,,
+S_TOTTORI_EKI_1,鳥取駅,35.4938,134.2226,0,,1
+S_TOTTORI_EKI_5,鳥取駅,35.4940,134.2228,0,,5
+S_TOTTORI_MINAMIGUCHI,鳥取駅南口,35.4920,134.2220,0,,
+S_MOCHIGASE,用瀬,35.3600,134.2100,0,,
+S_KOYAMA,湖山,35.5100,134.1700,0,,

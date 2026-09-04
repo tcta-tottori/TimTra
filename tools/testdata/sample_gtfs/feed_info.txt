@@ -1,0 +1,2 @@
+﻿feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date,feed_version
+サンプルデータ（実データではない）,https://example.invalid/,ja,20260401,20270331,sample-2026-04
