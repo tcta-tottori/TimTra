@@ -8,7 +8,7 @@
 - [x] 1. `tools/gtfs_import.py` — GTFS-JP から対象路線・停留所を抽出して DB 化（[tools/README.md](tools/README.md)）
 - [x] 2. core/journey 乗り継ぎ計算 + ユニットテスト（[docs/journey.md](docs/journey.md)）
 - [x] 3. スマホ ホーム画面 + 時刻表一覧 + 設定 + このアプリについて（[docs/app.md](docs/app.md)、**実機ビルド未確認**）
-- [ ] 4. 通知スケジューラ
+- [x] 4. 通知スケジューラ（[docs/notify.md](docs/notify.md)、**実機ビルド未確認**）
 - [ ] 5. Wear OS タイル + コンプリケーション
 - [ ] 6. GTFS-RT 連携
 - [ ] 7. ホーム画面ウィジェット
@@ -31,6 +31,7 @@ Android Studio で開く場合は AGP 9.1 / Gradle 9.5 / compileSdk 37 に対応
 - [docs/db_schema.md](docs/db_schema.md) — プリパッケージ DB のスキーマ（Room エンティティと 1:1）
 - [docs/journey.md](docs/journey.md) — 乗り継ぎ計算エンジンの仕様と設計判断
 - [docs/app.md](docs/app.md) — Android モジュール構成（data / app）と画面
+- [docs/notify.md](docs/notify.md) — 通知スケジューラ（WorkManager + AlarmManager）と権限導線
 
 ## 出典
 

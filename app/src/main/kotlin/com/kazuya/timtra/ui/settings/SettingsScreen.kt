@@ -35,10 +35,14 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kazuya.timtra.R
+import com.kazuya.timtra.core.notify.SuppressReason
 import com.kazuya.timtra.data.repository.AppSettings
+import com.kazuya.timtra.data.repository.NotificationPlanSummary
 import com.kazuya.timtra.ui.common.hhmm
 import java.time.Duration
+import java.time.LocalDate
 import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,6 +51,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val planSummary by viewModel.planSummary.collectAsStateWithLifecycle()
     Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.settings_title)) }) }) { padding ->
         val current = settings
         if (current == null) {
@@ -56,6 +61,7 @@ fun SettingsScreen(
         } else {
             SettingsContent(
                 settings = current,
+                planSummary = planSummary,
                 dayOffToday = viewModel.isDayOffToday,
                 viewModel = viewModel,
                 onOpenAbout = onOpenAbout,
@@ -68,6 +74,7 @@ fun SettingsScreen(
 @Composable
 private fun SettingsContent(
     settings: AppSettings,
+    planSummary: NotificationPlanSummary,
     dayOffToday: Boolean,
     viewModel: SettingsViewModel,
     onOpenAbout: () -> Unit,
@@ -115,6 +122,22 @@ private fun SettingsContent(
             onCheckedChange = viewModel::setDayOffToday,
         )
 
+        SectionTitle(stringResource(R.string.settings_section_notify_timing))
+        val t = settings.notificationTiming
+        DurationRow(R.string.settings_notify_before_leave, t.beforeLeave) { viewModel.adjust(NotifyField.BEFORE_LEAVE, it) }
+        DurationRow(
+            R.string.settings_notify_before_first_leg,
+            t.beforeFirstLegDeparture,
+        ) { viewModel.adjust(NotifyField.BEFORE_FIRST_LEG, it) }
+        DurationRow(R.string.settings_notify_before_transfer, t.beforeTransferArrival) { viewModel.adjust(NotifyField.BEFORE_TRANSFER, it) }
+
+        SectionTitle(stringResource(R.string.settings_plan_status))
+        PlanStatus(planSummary)
+        Row {
+            TextButton(onClick = viewModel::replanNow) { Text(stringResource(R.string.settings_replan)) }
+            TextButton(onClick = viewModel::sendTestNotification) { Text(stringResource(R.string.settings_test_notification)) }
+        }
+
         Spacer(Modifier.height(16.dp))
         TextButton(onClick = viewModel::resetToDefaults) { Text(stringResource(R.string.settings_reset)) }
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -129,6 +152,67 @@ private fun SettingsContent(
         Spacer(Modifier.height(16.dp))
     }
 }
+
+private val planDateFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("M/d(E)")
+
+@Composable
+private fun PlanStatus(summary: NotificationPlanSummary) {
+    if (summary.computedAt == null) {
+        Text(stringResource(R.string.settings_plan_not_computed), style = MaterialTheme.typography.bodyMedium)
+        return
+    }
+    Column {
+        Text(
+            text = stringResource(R.string.settings_plan_today, summary.today.label(), planLine(summary.todayCount, summary.todayReason)),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            text =
+                stringResource(
+                    R.string.settings_plan_tomorrow,
+                    summary.tomorrow.label(),
+                    planLine(summary.tomorrowCount, summary.tomorrowReason),
+                ),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            text = stringResource(R.string.settings_plan_computed_at, summary.computedAt.hhmm()),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (!summary.exactAlarms) {
+            Text(
+                text = stringResource(R.string.settings_plan_inexact),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
+private fun LocalDate?.label(): String = this?.format(planDateFormat) ?: "-"
+
+@Composable
+private fun planLine(
+    count: Int,
+    reason: String?,
+): String {
+    val suppress = reason?.let { name -> SuppressReason.entries.firstOrNull { it.name == name } }
+    return when {
+        suppress != null -> stringResource(suppress.labelRes())
+        count > 0 -> stringResource(R.string.settings_plan_count, count)
+        else -> stringResource(R.string.settings_plan_none)
+    }
+}
+
+private fun SuppressReason.labelRes(): Int =
+    when (this) {
+        SuppressReason.DISABLED -> R.string.suppress_disabled
+        SuppressReason.DAY_OFF -> R.string.suppress_day_off
+        SuppressReason.NOT_WORKDAY -> R.string.suppress_not_workday
+        SuppressReason.NO_BUS_SERVICE -> R.string.suppress_no_bus_service
+        SuppressReason.NO_JOURNEY -> R.string.suppress_no_journey
+    }
 
 @Composable
 private fun SectionTitle(text: String) {

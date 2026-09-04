@@ -1,5 +1,6 @@
 package com.kazuya.timtra.ui.home
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kazuya.timtra.core.journey.CommuteSettings
@@ -12,7 +13,10 @@ import com.kazuya.timtra.data.repository.JourneyRepository
 import com.kazuya.timtra.data.repository.JrTimetableRepository
 import com.kazuya.timtra.data.repository.SettingsRepository
 import com.kazuya.timtra.di.AppClock
+import com.kazuya.timtra.notify.NotificationScheduler
+import com.kazuya.timtra.notify.PermissionStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,6 +45,8 @@ sealed interface HomeUiState {
         val settings: CommuteSettings,
         /** 合成サンプルの時刻表で動いているか。 */
         val sampleData: Boolean,
+        /** 通知に必要な権限の状態。欠けていれば案内カードを出す。 */
+        val permissions: PermissionStatus,
     ) : HomeUiState
 }
 
@@ -49,10 +55,12 @@ sealed interface HomeUiState {
 class HomeViewModel
     @Inject
     constructor(
+        @ApplicationContext private val context: Context,
         private val journeys: JourneyRepository,
         private val settingsRepository: SettingsRepository,
         private val busTimetable: BusTimetableRepository,
         private val jrTimetable: JrTimetableRepository,
+        private val scheduler: NotificationScheduler,
         private val clock: AppClock,
     ) : ViewModel() {
         private val manualBound = MutableStateFlow<Bound?>(null)
@@ -72,6 +80,11 @@ class HomeViewModel
                 .mapLatest { (settings, manual) -> compute(settings, manual) }
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), HomeUiState.Loading)
 
+        init {
+            // 夜間ジョブの登録と、起動時点での予約の作り直し
+            scheduler.ensureScheduled()
+        }
+
         private suspend fun compute(
             settings: AppSettings,
             manual: Bound?,
@@ -89,6 +102,7 @@ class HomeViewModel
                 dayOff = settings.isDayOff(now.toLocalDate()),
                 settings = settings.commute,
                 sampleData = sample,
+                permissions = PermissionStatus.check(context),
             )
         }
 
@@ -97,6 +111,7 @@ class HomeViewModel
             manualBound.value = bound
         }
 
+        /** 手動更新と、権限画面から戻ったときの状態再取得。 */
         fun refresh() {
             refreshCount.value += 1
         }

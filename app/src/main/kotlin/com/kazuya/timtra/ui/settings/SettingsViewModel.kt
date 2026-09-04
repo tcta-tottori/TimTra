@@ -1,12 +1,21 @@
 package com.kazuya.timtra.ui.settings
 
+import android.content.Context
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kazuya.timtra.R
 import com.kazuya.timtra.core.journey.CommuteSettings
+import com.kazuya.timtra.core.notify.NotificationTiming
 import com.kazuya.timtra.data.repository.AppSettings
+import com.kazuya.timtra.data.repository.NotificationPlanSummary
 import com.kazuya.timtra.data.repository.SettingsRepository
 import com.kazuya.timtra.di.AppClock
+import com.kazuya.timtra.notify.NotificationChannels
+import com.kazuya.timtra.notify.NotificationScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -33,15 +42,27 @@ enum class TimeField {
     WORK_ENDS_AT,
 }
 
+/** 通知タイミング（分）。 */
+enum class NotifyField {
+    BEFORE_LEAVE,
+    BEFORE_FIRST_LEG,
+    BEFORE_TRANSFER,
+}
+
 @HiltViewModel
 class SettingsViewModel
     @Inject
     constructor(
+        @ApplicationContext private val context: Context,
         private val repository: SettingsRepository,
+        private val scheduler: NotificationScheduler,
         private val clock: AppClock,
     ) : ViewModel() {
         val settings: StateFlow<AppSettings?> =
             repository.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), null)
+
+        val planSummary: StateFlow<NotificationPlanSummary> =
+            repository.planSummary.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), NotificationPlanSummary())
 
         val isDayOffToday: Boolean
             get() = settings.value?.isDayOff(clock.now().toLocalDate()) == true
@@ -50,7 +71,7 @@ class SettingsViewModel
             field: DurationField,
             deltaMinutes: Long,
         ) {
-            viewModelScope.launch {
+            update {
                 repository.updateCommute { s ->
                     fun step(current: Duration) = current.plusMinutes(deltaMinutes).coerceIn(Duration.ZERO, MAX_DURATION)
                     when (field) {
@@ -74,7 +95,7 @@ class SettingsViewModel
             field: TimeField,
             deltaMinutes: Long,
         ) {
-            viewModelScope.launch {
+            update {
                 repository.updateCommute { s ->
                     fun step(current: LocalTime) = current.plusMinutes(deltaMinutes)
                     when (field) {
@@ -87,20 +108,70 @@ class SettingsViewModel
             }
         }
 
+        fun adjust(
+            field: NotifyField,
+            deltaMinutes: Long,
+        ) {
+            update {
+                repository.updateNotificationTiming { t ->
+                    fun step(current: Duration) = current.plusMinutes(deltaMinutes).coerceIn(Duration.ZERO, MAX_NOTIFY_LEAD)
+                    when (field) {
+                        NotifyField.BEFORE_LEAVE -> t.copy(beforeLeave = step(t.beforeLeave))
+                        NotifyField.BEFORE_FIRST_LEG -> t.copy(beforeFirstLegDeparture = step(t.beforeFirstLegDeparture))
+                        NotifyField.BEFORE_TRANSFER -> t.copy(beforeTransferArrival = step(t.beforeTransferArrival))
+                    }
+                }
+            }
+        }
+
         fun setNotificationsEnabled(enabled: Boolean) {
-            viewModelScope.launch { repository.setNotificationsEnabled(enabled) }
+            update { repository.setNotificationsEnabled(enabled) }
         }
 
         fun setDayOffToday(dayOff: Boolean) {
-            viewModelScope.launch { repository.setDayOff(if (dayOff) clock.now().toLocalDate() else null) }
+            update { repository.setDayOff(if (dayOff) clock.now().toLocalDate() else null) }
         }
 
         fun resetToDefaults() {
-            viewModelScope.launch { repository.updateCommute { CommuteSettings() } }
+            update {
+                repository.updateCommute { CommuteSettings() }
+                repository.updateNotificationTiming { NotificationTiming() }
+            }
+        }
+
+        fun replanNow() {
+            scheduler.requestReplan()
+        }
+
+        /** 通知チャンネルと権限の確認用。 */
+        fun sendTestNotification() {
+            val manager = NotificationManagerCompat.from(context)
+            if (!manager.areNotificationsEnabled()) return
+            val notification =
+                NotificationCompat
+                    .Builder(context, NotificationChannels.COMMUTE)
+                    .setSmallIcon(R.drawable.ic_notification)
+                    .setContentTitle(context.getString(R.string.notify_test_title))
+                    .setContentText(context.getString(R.string.notify_test_text))
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setAutoCancel(true)
+                    .build()
+            @Suppress("MissingPermission")
+            manager.notify(TEST_NOTIFICATION_ID, notification)
+        }
+
+        /** 設定を書き換えたら通知の予約も作り直す。 */
+        private fun update(block: suspend () -> Unit) {
+            viewModelScope.launch {
+                block()
+                scheduler.requestReplan()
+            }
         }
 
         private companion object {
             const val STOP_TIMEOUT_MILLIS = 5_000L
+            const val TEST_NOTIFICATION_ID = 9_999
             val MAX_DURATION: Duration = Duration.ofMinutes(120)
+            val MAX_NOTIFY_LEAD: Duration = Duration.ofMinutes(60)
         }
     }

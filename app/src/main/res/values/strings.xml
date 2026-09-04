@@ -84,12 +84,58 @@
     <string name="settings_work_ends_at">終業時刻</string>
     <string name="settings_section_notifications">通知</string>
     <string name="settings_notifications_enabled">通知を送る</string>
-    <string name="settings_notifications_note">前夜に翌日分を計算して予約します（手順4で有効化）</string>
+    <string name="settings_notifications_note">前夜に翌日分を計算して予約します。平日のみ（土日祝・年末年始・運休日は送りません）</string>
+    <string name="settings_section_notify_timing">通知タイミング</string>
+    <string name="settings_notify_before_leave">出発の何分前に予告するか</string>
+    <string name="settings_notify_before_first_leg">発車の何分前に「まもなく発車」</string>
+    <string name="settings_notify_before_transfer">鳥取駅到着の何分前に「次は鳥取駅」</string>
+    <string name="settings_plan_status">通知の予約状況</string>
+    <string name="settings_plan_today">今日（%1$s）: %2$s</string>
+    <string name="settings_plan_tomorrow">明日（%1$s）: %2$s</string>
+    <string name="settings_plan_count">%1$d 件予約済み</string>
+    <string name="settings_plan_none">予約なし</string>
+    <string name="settings_plan_computed_at">%1$s に計算</string>
+    <string name="settings_plan_not_computed">まだ計算していません</string>
+    <string name="settings_plan_inexact">正確なアラームが許可されていないため、通知が数分ずれることがあります</string>
+    <string name="settings_replan">今すぐ再計算</string>
+    <string name="settings_test_notification">テスト通知を送る</string>
+    <string name="suppress_disabled">通知OFF</string>
+    <string name="suppress_day_off">今日は休み</string>
+    <string name="suppress_not_workday">土日祝・年末年始</string>
+    <string name="suppress_no_bus_service">バス運休日</string>
+    <string name="suppress_no_journey">該当する便なし</string>
     <string name="settings_day_off">今日は休み</string>
     <string name="settings_day_off_note">有給・出張のとき。今日の通知を止め、翌日自動で解除されます</string>
     <string name="settings_decrease">減らす</string>
     <string name="settings_increase">増やす</string>
     <string name="settings_reset">既定値に戻す</string>
+
+    <!-- 通知 -->
+    <string name="notify_channel_name">通勤の通知</string>
+    <string name="notify_channel_description">出発時刻、乗り遅れ注意、乗り換え案内</string>
+    <string name="notify_title_outbound">TimTra 往路</string>
+    <string name="notify_title_inbound">TimTra 復路</string>
+    <string name="notify_leave_soon_outbound">あと%1$d分で出発。%2$sのバスです</string>
+    <string name="notify_leave_soon_inbound">あと%1$d分で出発。%2$sのJRです</string>
+    <string name="notify_leave_now">出発時刻です</string>
+    <string name="notify_bus_departing">まもなく%1$s発。乗り遅れ注意</string>
+    <string name="notify_jr_departing">まもなく宝木発。乗り遅れ注意</string>
+    <string name="notify_approaching_outbound">次は鳥取駅。JRは%1$s発</string>
+    <string name="notify_approaching_inbound">次は鳥取駅。バスは%1$s発</string>
+    <string name="notify_approaching_inbound_platform">次は鳥取駅。バスは%1$s発（%2$s番のりば）</string>
+    <string name="notify_summary_outbound">出発 %1$s / バス %2$s→%3$s / JR %4$s→%5$s / 余裕 %6$d分</string>
+    <string name="notify_summary_inbound">出発 %1$s / JR %2$s→%3$s / バス %4$s→%5$s / 余裕 %6$d分</string>
+    <string name="notify_test_title">テスト通知</string>
+    <string name="notify_test_text">通知はこのように届きます</string>
+
+    <!-- 権限の案内（初回起動時の導線） -->
+    <string name="perm_title">通知を時間どおりに届けるための設定</string>
+    <string name="perm_note">これらが無いと通知が遅れる、または届きません。</string>
+    <string name="perm_notifications">通知の許可</string>
+    <string name="perm_exact_alarm">正確な時刻の通知（アラームとリマインダー）</string>
+    <string name="perm_battery">バッテリー最適化の除外</string>
+    <string name="perm_granted">設定済み</string>
+    <string name="perm_action">設定する</string>
 
     <!-- このアプリについて -->
     <string name="about_title">このアプリについて</string>

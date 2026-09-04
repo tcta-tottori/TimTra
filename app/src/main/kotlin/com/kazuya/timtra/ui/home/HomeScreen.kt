@@ -47,6 +47,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kazuya.timtra.R
 import com.kazuya.timtra.core.journey.CommuteSettings
@@ -64,6 +66,8 @@ import java.time.LocalDateTime
 @Composable
 fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // 権限画面から戻ったときに状態を取り直す
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -86,6 +90,7 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
                 HomeContent(
                     state = s,
                     onBoundChange = viewModel::setBound,
+                    onPermissionsChanged = viewModel::refresh,
                     modifier = Modifier.padding(padding),
                 )
         }
@@ -96,6 +101,7 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
 private fun HomeContent(
     state: HomeUiState.Ready,
     onBoundChange: (Bound?) -> Unit,
+    onPermissionsChanged: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -106,6 +112,7 @@ private fun HomeContent(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        if (!state.permissions.allGranted) PermissionsCard(state.permissions, onChanged = onPermissionsChanged)
         BoundSelector(state.bound, state.isManualBound, onBoundChange)
         if (state.dayOff) Banner(stringResource(R.string.home_day_off), MaterialTheme.colorScheme.tertiaryContainer)
         if (state.sampleData) Banner(stringResource(R.string.home_sample_data_warning), MaterialTheme.colorScheme.errorContainer)
