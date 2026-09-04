@@ -32,7 +32,8 @@ rootProject.name = "timtra"
 // core : Android 非依存の純 Kotlin/JVM（CLAUDE.md 3-3）。乗り継ぎ計算の本体。
 // data : Room（プリパッケージ DB）・DataStore・リポジトリ。app と wear で共有する Android ライブラリ。
 // app  : スマホ（Jetpack Compose）
-// wear : Wear OS（手順 5 で追加）
+// wear : Wear OS（タイル・コンプリケーション・簡易 UI・Data Layer 受信）
 include(":core")
 include(":data")
 include(":app")
+include(":wear")

@@ -8,10 +8,10 @@ import androidx.lifecycle.viewModelScope
 import com.kazuya.timtra.R
 import com.kazuya.timtra.core.journey.CommuteSettings
 import com.kazuya.timtra.core.notify.NotificationTiming
+import com.kazuya.timtra.data.di.AppClock
 import com.kazuya.timtra.data.repository.AppSettings
 import com.kazuya.timtra.data.repository.NotificationPlanSummary
 import com.kazuya.timtra.data.repository.SettingsRepository
-import com.kazuya.timtra.di.AppClock
 import com.kazuya.timtra.notify.NotificationChannels
 import com.kazuya.timtra.notify.NotificationScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel

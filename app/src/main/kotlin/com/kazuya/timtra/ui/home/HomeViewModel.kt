@@ -7,12 +7,12 @@ import com.kazuya.timtra.core.journey.CommuteSettings
 import com.kazuya.timtra.core.journey.Journey
 import com.kazuya.timtra.core.journey.PlanRequest
 import com.kazuya.timtra.core.model.Bound
+import com.kazuya.timtra.data.di.AppClock
 import com.kazuya.timtra.data.repository.AppSettings
 import com.kazuya.timtra.data.repository.BusTimetableRepository
 import com.kazuya.timtra.data.repository.JourneyRepository
 import com.kazuya.timtra.data.repository.JrTimetableRepository
 import com.kazuya.timtra.data.repository.SettingsRepository
-import com.kazuya.timtra.di.AppClock
 import com.kazuya.timtra.notify.NotificationScheduler
 import com.kazuya.timtra.notify.PermissionStatus
 import dagger.hilt.android.lifecycle.HiltViewModel

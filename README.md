@@ -9,7 +9,7 @@
 - [x] 2. core/journey 乗り継ぎ計算 + ユニットテスト（[docs/journey.md](docs/journey.md)）
 - [x] 3. スマホ ホーム画面 + 時刻表一覧 + 設定 + このアプリについて（[docs/app.md](docs/app.md)、**実機ビルド未確認**）
 - [x] 4. 通知スケジューラ（[docs/notify.md](docs/notify.md)、**実機ビルド未確認**）
-- [ ] 5. Wear OS タイル + コンプリケーション
+- [x] 5. Wear OS タイル + コンプリケーション + Data Layer 同期（[docs/wear.md](docs/wear.md)、**実機ビルド未確認**）
 - [ ] 6. GTFS-RT 連携
 - [ ] 7. ホーム画面ウィジェット
 
@@ -18,7 +18,7 @@
 ```sh
 ./gradlew :core:test        # 乗り継ぎ計算のユニットテスト（JDK 17 以上、python3 が必要）
 ./gradlew ktlintCheck       # コードスタイル
-./gradlew :app:assembleDebug
+./gradlew :app:assembleDebug :wear:assembleDebug
 python3 -m unittest discover -s tools/tests -v
 ```
 
@@ -32,6 +32,7 @@ Android Studio で開く場合は AGP 9.1 / Gradle 9.5 / compileSdk 37 に対応
 - [docs/journey.md](docs/journey.md) — 乗り継ぎ計算エンジンの仕様と設計判断
 - [docs/app.md](docs/app.md) — Android モジュール構成（data / app）と画面
 - [docs/notify.md](docs/notify.md) — 通知スケジューラ（WorkManager + AlarmManager）と権限導線
+- [docs/wear.md](docs/wear.md) — Wear OS タイル・コンプリケーション・設定同期
 
 ## 出典
 

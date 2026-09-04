@@ -1,4 +1,4 @@
-package com.kazuya.timtra.di
+package com.kazuya.timtra.data.di
 
 import com.kazuya.timtra.core.TimTraConstants
 import dagger.Binds
@@ -9,7 +9,7 @@ import java.time.LocalDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** 現在時刻の供給口。テストで差し替えられるようにする。 */
+/** 現在時刻の供給口。スマホ・Wear 共通。テストで差し替えられるようにする。 */
 interface AppClock {
     fun now(): LocalDateTime
 }
@@ -23,7 +23,7 @@ class SystemClock
 
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class AppModule {
+abstract class ClockModule {
     @Binds
     abstract fun bindClock(impl: SystemClock): AppClock
 }

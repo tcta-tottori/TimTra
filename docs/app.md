@@ -7,7 +7,7 @@
 | `core` | Kotlin/JVM | モデル・乗り継ぎ計算・JSON パーサ。Android 非依存（docs/journey.md） |
 | `data` | Android library | Room（プリパッケージ DB）、DataStore（設定）、リポジトリ、Hilt モジュール。app と wear で共有 |
 | `app` | Android application | スマホ UI（Jetpack Compose） |
-| `wear` | （手順 5 で追加） | Wear OS |
+| `wear` | Android application (Wear OS) | タイル・コンプリケーション・簡易 UI・設定同期の受信（docs/wear.md） |
 
 ビルド構成: AGP 9.1.1（Kotlin 内蔵）、Gradle 9.5、Kotlin 2.4.10、KSP 2.3.11、Hilt 2.60.1、
 Room 2.8.4、Compose BOM 2026.08.00、compileSdk 37 / minSdk 26。バージョンは `gradle/libs.versions.toml`。
@@ -21,10 +21,12 @@ AGP 9 系を採用した。AGP 9 では `org.jetbrains.kotlin.android` を適用
 - `db/TimTraDatabase.kt`: `createFromAsset("timtra_gtfs.db")`。端末内ファイル名にスキーマ版を含め、
   assets 差し替え時は `fallbackToDestructiveMigration` で作り直す。
 - `repository/BusTimetableRepository`: DB → core `BusTimetable`（初回のみ読み込み、以後キャッシュ）。
-- `repository/JrTimetableRepository`: `assets/jr_timetable.json` → core `JrTimetable`。
+- `repository/JrTimetableRepository`: `data/src/main/assets/jr_timetable.json` → core `JrTimetable`（app / wear で共有するため data に置く）。
 - `repository/SettingsRepository`: DataStore Preferences。`CommuteSettings` + 通知 ON/OFF + 「今日は休み」（日付で保持、翌日自動解除）。
 - `repository/JourneyRepository`: 上記を束ねて `JourneyPlanner` を組み立てる。UI・通知ジョブ・Wear 同期の共通入口。
 - `data/src/main/assets/timtra_gtfs.db`: 現在は合成サンプルから生成したもの（tools/README.md）。
+- `sync/SyncedSettings`: スマホ → Wear に配る設定の JSON 形。
+- `di/ClockModule`: 現在時刻の供給（AppClock）。
 
 ## app
 
@@ -36,7 +38,7 @@ AGP 9 系を採用した。AGP 9 では `org.jetbrains.kotlin.android` を適用
 | このアプリについて | `ui/about/` | 出典表示（CLAUDE.md 14）と同梱データの版 |
 
 - 文言は `res/values/strings.xml` に集約。XML レイアウトは無い（テーマ・アイコンのみ XML）。
-- 現在時刻は `di/AppClock` 経由で取得する（テストで差し替え可能）。
+- 現在時刻は `data/di/AppClock` 経由で取得する（スマホ・Wear 共通。テストで差し替え可能）。
 - アプリアイコンは `docs/assets/icon-512.png` を元に、adaptive icon（背景色 + 中央 72% に縮小した前景 PNG）として
   `res/mipmap-*/` に生成している。差し替えるときは同じ手順で前景を作り直す。
 - 通知まわりは `notify/`（docs/notify.md）。

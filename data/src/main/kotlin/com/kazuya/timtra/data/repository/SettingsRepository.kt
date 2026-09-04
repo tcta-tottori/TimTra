@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.kazuya.timtra.core.journey.CommuteSettings
@@ -81,6 +82,18 @@ class SettingsRepository
         suspend fun setNotificationsEnabled(enabled: Boolean) {
             store.edit { it[Keys.NOTIFICATIONS_ENABLED] = enabled }
         }
+
+        /** スマホから同期された設定で丸ごと置き換える（Wear 側）。予約状況の要約は触らない。 */
+        suspend fun replaceAll(settings: AppSettings) {
+            updateCommute { settings.commute }
+            updateNotificationTiming { settings.notificationTiming }
+            setNotificationsEnabled(settings.notificationsEnabled)
+            setDayOff(settings.dayOff)
+            store.edit { it[Keys.LAST_SYNCED_AT] = System.currentTimeMillis() }
+        }
+
+        /** スマホから最後に設定を受け取った時刻（epoch ミリ秒）。Wear の UI 用。 */
+        val lastSyncedAtEpochMillis: Flow<Long?> = store.data.map { it[Keys.LAST_SYNCED_AT] }
 
         suspend fun updateNotificationTiming(transform: (NotificationTiming) -> NotificationTiming) {
             store.edit { prefs ->
@@ -194,5 +207,6 @@ class SettingsRepository
             val PLAN_TOMORROW_COUNT = intPreferencesKey("plan_tomorrow_count")
             val PLAN_TOMORROW_REASON = stringPreferencesKey("plan_tomorrow_reason")
             val PLAN_EXACT = booleanPreferencesKey("plan_exact_alarms")
+            val LAST_SYNCED_AT = longPreferencesKey("last_synced_at")
         }
     }

@@ -59,7 +59,7 @@ tasks.test {
     systemProperty(
         "timtra.jrTimetableJson",
         rootProject.layout.projectDirectory
-            .file("app/src/main/assets/jr_timetable.json")
+            .file("data/src/main/assets/jr_timetable.json")
             .asFile.absolutePath,
     )
     testLogging {

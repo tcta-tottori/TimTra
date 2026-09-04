@@ -101,11 +101,11 @@ object Fixtures {
 
     fun busTimetable(trips: List<BusTrip> = this.trips): BusTimetable = BusTimetable(trips, calendar)
 
-    /** app/src/main/assets/jr_timetable.json（サンプル）。Gradle からは system property で場所を渡す。 */
+    /** data/src/main/assets/jr_timetable.json（サンプル）。Gradle からは system property で場所を渡す。 */
     val jrTimetableFile: File by lazy {
         val fromProperty = System.getProperty("timtra.jrTimetableJson")?.let(::File)
         val candidates =
-            listOfNotNull(fromProperty, File("../app/src/main/assets/jr_timetable.json"), File("app/src/main/assets/jr_timetable.json"))
+            listOfNotNull(fromProperty, File("../data/src/main/assets/jr_timetable.json"), File("data/src/main/assets/jr_timetable.json"))
         candidates.firstOrNull { it.isFile } ?: error("jr_timetable.json が見つかりません: $candidates")
     }
 

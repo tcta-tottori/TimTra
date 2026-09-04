@@ -7,13 +7,13 @@ plugins {
 }
 
 android {
-    namespace = "com.kazuya.timtra"
+    namespace = "com.kazuya.timtra.wear"
     compileSdk = 37
 
     defaultConfig {
+        // Data Layer で通信するため、スマホ版と同じ applicationId・同じ署名にする
         applicationId = "com.kazuya.timtra"
-        minSdk = 26
-        // targetSdk は AGP 9 の既定で compileSdk に揃う
+        minSdk = 30
         versionCode = 1
         versionName = "0.1.0"
     }
@@ -42,25 +42,26 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.navigation.compose)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
-    implementation(libs.compose.material3)
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
+    implementation(libs.wear.compose.material)
+    implementation(libs.wear.compose.foundation)
+
+    // タイル
+    implementation(libs.wear.tiles)
+    implementation(libs.wear.protolayout)
+    implementation(libs.wear.protolayout.expression)
+    implementation(libs.concurrent.futures.ktx)
+    // コンプリケーション
+    implementation(libs.wear.complications.data.source)
+    // Data Layer（スマホからの設定受信）
+    implementation(libs.play.services.wearable)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
-    implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
-
-    // 通知: 前夜の WorkManager ジョブ + AlarmManager（CLAUDE.md 8）
-    implementation(libs.androidx.work.runtime)
-    implementation(libs.androidx.hilt.work)
-    ksp(libs.androidx.hilt.compiler)
-
-    // Wear への設定同期（Wearable Data Layer）
-    implementation(libs.play.services.wearable)
-    implementation(libs.kotlinx.coroutines.play.services)
 }

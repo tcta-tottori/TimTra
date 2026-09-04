@@ -9,12 +9,13 @@ import androidx.work.WorkManager
 import com.kazuya.timtra.core.notify.DailyNotificationPlan
 import com.kazuya.timtra.core.notify.DailyNotificationPlanner
 import com.kazuya.timtra.core.notify.PlannedNotification
+import com.kazuya.timtra.data.di.AppClock
 import com.kazuya.timtra.data.repository.BusTimetableRepository
 import com.kazuya.timtra.data.repository.JourneyRepository
 import com.kazuya.timtra.data.repository.JrTimetableRepository
 import com.kazuya.timtra.data.repository.NotificationPlanSummary
 import com.kazuya.timtra.data.repository.SettingsRepository
-import com.kazuya.timtra.di.AppClock
+import com.kazuya.timtra.sync.WearSyncPublisher
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Duration
 import java.time.LocalDateTime
@@ -39,6 +40,7 @@ class NotificationScheduler
         private val jr: JrTimetableRepository,
         private val settings: SettingsRepository,
         private val alarms: AlarmScheduler,
+        private val wearSync: WearSyncPublisher,
         private val clock: AppClock,
     ) {
         /** 今日の残りと明日の通知を計算し直して予約する。計算結果の要約を保存して UI に見せる。 */
@@ -77,6 +79,8 @@ class NotificationScheduler
                     exactAlarms = alarms.canScheduleExact,
                 ),
             )
+            // 設定変更・起動・夜間ジョブのたびに時計へも設定を配る
+            wearSync.publishSettings(appSettings)
             return plans
         }
 

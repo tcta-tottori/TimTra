@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TimTra</string>
+    <string name="tile_label">TimTra 出発</string>
+    <string name="complication_label">TimTra 出発まで</string>
+
+    <string name="leave_home">家を出る</string>
+    <string name="leave_work">職場を出る</string>
+    <string name="countdown_minutes">あと %1$d 分</string>
+    <string name="countdown_hours_minutes">あと %1$d 時間 %2$d 分</string>
+    <string name="countdown_now">まもなく出発</string>
+    <string name="countdown_passed">出発時刻を過ぎています</string>
+    <string name="countdown_dynamic_prefix">あと </string>
+    <string name="countdown_dynamic_suffix"> 分</string>
+    <string name="status_ok">余裕あり</string>
+    <string name="status_tight">やや余裕なし</string>
+    <string name="status_risk">危険</string>
+    <string name="status_missed">間に合わない</string>
+    <string name="bus_line">バス %1$s → %2$s</string>
+    <string name="jr_line">JR %1$s → %2$s</string>
+    <string name="transfer_margin">鳥取駅 余裕 %1$d 分</string>
+    <string name="transfer_margin_negative">鳥取駅 %1$d 分不足</string>
+    <string name="arrival_work">勤務先 %1$s</string>
+    <string name="arrival_home">自宅 %1$s</string>
+    <string name="platform">%1$s番のりば</string>
+    <string name="bound_outbound">往路</string>
+    <string name="bound_inbound">復路</string>
+    <string name="bound_auto">自動に戻す</string>
+    <string name="day_off">今日は休み</string>
+    <string name="no_journey">運行が見つかりません</string>
+    <string name="loading">計算中…</string>
+    <string name="synced_at">スマホと同期: %1$s</string>
+    <string name="not_synced">スマホ未同期（同梱データで計算）</string>
+    <string name="sample_data">サンプル時刻表</string>
+    <string name="complication_title">出発</string>
+    <string name="complication_none">--</string>
+    <string name="complication_description">出発までの残り時間</string>
+</resources>

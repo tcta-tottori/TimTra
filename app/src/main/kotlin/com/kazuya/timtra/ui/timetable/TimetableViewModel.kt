@@ -4,9 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kazuya.timtra.core.model.BusDirection
 import com.kazuya.timtra.core.model.JrLegIds
+import com.kazuya.timtra.data.di.AppClock
 import com.kazuya.timtra.data.repository.BusTimetableRepository
 import com.kazuya.timtra.data.repository.JrTimetableRepository
-import com.kazuya.timtra.di.AppClock
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
