@@ -1,0 +1,68 @@
+{
+  "version": "sample-2026-09",
+  "note": "サンプルデータ。実際の JR 時刻表はまだ転記していない。出典（予定）: JR西日本 駅時刻表（手動転記）。ダイヤ改正時は version を改正日に更新する。",
+  "legs": [
+    {
+      "id": "tottori_to_hougi",
+      "from": "鳥取",
+      "to": "宝木",
+      "line": "山陰本線",
+      "services": [
+        { "trainId": "S101D", "calendar": "weekday", "departure": "06:35", "arrival": "06:57", "platform": "1", "note": "" },
+        { "trainId": "S103D", "calendar": "weekday", "departure": "07:45", "arrival": "08:07", "platform": "1", "note": "" },
+        { "trainId": "S105D", "calendar": "weekday", "departure": "08:12", "arrival": "08:34", "platform": "0", "note": "" },
+        { "trainId": "S107D", "calendar": "weekday", "departure": "09:30", "arrival": "09:52", "platform": "1", "note": "" },
+        { "trainId": "S109D", "calendar": "weekday", "departure": "12:05", "arrival": "12:27", "platform": "1", "note": "" },
+        { "trainId": "S111D", "calendar": "weekday", "departure": "15:10", "arrival": "15:32", "platform": "1", "note": "" },
+        { "trainId": "S113D", "calendar": "weekday", "departure": "17:20", "arrival": "17:42", "platform": "1", "note": "" },
+        { "trainId": "S115D", "calendar": "weekday", "departure": "19:05", "arrival": "19:27", "platform": "1", "note": "" },
+        { "trainId": "S117D", "calendar": "weekday", "departure": "22:35", "arrival": "22:57", "platform": "1", "note": "" },
+        { "trainId": "S201D", "calendar": "saturday", "departure": "07:00", "arrival": "07:22", "platform": "1", "note": "" },
+        { "trainId": "S203D", "calendar": "saturday", "departure": "08:40", "arrival": "09:02", "platform": "1", "note": "" },
+        { "trainId": "S205D", "calendar": "saturday", "departure": "12:05", "arrival": "12:27", "platform": "1", "note": "" },
+        { "trainId": "S207D", "calendar": "saturday", "departure": "17:20", "arrival": "17:42", "platform": "1", "note": "" },
+        { "trainId": "S209D", "calendar": "saturday", "departure": "22:35", "arrival": "22:57", "platform": "1", "note": "" },
+        { "trainId": "S301D", "calendar": "holiday", "departure": "07:00", "arrival": "07:22", "platform": "1", "note": "" },
+        { "trainId": "S303D", "calendar": "holiday", "departure": "09:05", "arrival": "09:27", "platform": "1", "note": "" },
+        { "trainId": "S305D", "calendar": "holiday", "departure": "12:05", "arrival": "12:27", "platform": "1", "note": "" },
+        { "trainId": "S307D", "calendar": "holiday", "departure": "17:20", "arrival": "17:42", "platform": "1", "note": "" },
+        { "trainId": "S309D", "calendar": "holiday", "departure": "22:35", "arrival": "22:57", "platform": "1", "note": "" }
+      ]
+    },
+    {
+      "id": "hougi_to_tottori",
+      "from": "宝木",
+      "to": "鳥取",
+      "line": "山陰本線",
+      "services": [
+        { "trainId": "S102D", "calendar": "weekday", "departure": "07:10", "arrival": "07:32", "platform": "", "note": "" },
+        { "trainId": "S104D", "calendar": "weekday", "departure": "08:40", "arrival": "09:02", "platform": "", "note": "" },
+        { "trainId": "S106D", "calendar": "weekday", "departure": "12:40", "arrival": "13:02", "platform": "", "note": "" },
+        { "trainId": "S108D", "calendar": "weekday", "departure": "16:50", "arrival": "17:12", "platform": "", "note": "" },
+        { "trainId": "S110D", "calendar": "weekday", "departure": "17:35", "arrival": "17:57", "platform": "", "note": "" },
+        { "trainId": "S112D", "calendar": "weekday", "departure": "18:20", "arrival": "18:42", "platform": "", "note": "" },
+        { "trainId": "S114D", "calendar": "weekday", "departure": "19:40", "arrival": "20:02", "platform": "", "note": "" },
+        { "trainId": "S116D", "calendar": "weekday", "departure": "21:30", "arrival": "21:52", "platform": "", "note": "" },
+        { "trainId": "S118D", "calendar": "weekday", "departure": "23:10", "arrival": "23:32", "platform": "", "note": "" },
+        { "trainId": "S202D", "calendar": "saturday", "departure": "08:40", "arrival": "09:02", "platform": "", "note": "" },
+        { "trainId": "S204D", "calendar": "saturday", "departure": "12:40", "arrival": "13:02", "platform": "", "note": "" },
+        { "trainId": "S206D", "calendar": "saturday", "departure": "17:35", "arrival": "17:57", "platform": "", "note": "" },
+        { "trainId": "S208D", "calendar": "saturday", "departure": "19:40", "arrival": "20:02", "platform": "", "note": "" },
+        { "trainId": "S210D", "calendar": "saturday", "departure": "22:00", "arrival": "22:22", "platform": "", "note": "" },
+        { "trainId": "S302D", "calendar": "holiday", "departure": "08:40", "arrival": "09:02", "platform": "", "note": "" },
+        { "trainId": "S304D", "calendar": "holiday", "departure": "12:40", "arrival": "13:02", "platform": "", "note": "" },
+        { "trainId": "S306D", "calendar": "holiday", "departure": "17:35", "arrival": "17:57", "platform": "", "note": "" },
+        { "trainId": "S308D", "calendar": "holiday", "departure": "19:40", "arrival": "20:02", "platform": "", "note": "" },
+        { "trainId": "S310D", "calendar": "holiday", "departure": "22:00", "arrival": "22:22", "platform": "", "note": "" },
+        { "trainId": "S900D", "calendar": "everyday", "departure": "23:50", "arrival": "00:12", "platform": "", "note": "日付をまたぐ便の動作確認用サンプル" }
+      ]
+    }
+  ],
+  "overrides": [
+    { "date": "2026-12-30", "calendar": "holiday" },
+    { "date": "2026-12-31", "calendar": "holiday" },
+    { "date": "2027-01-01", "calendar": "holiday" },
+    { "date": "2027-01-02", "calendar": "holiday" },
+    { "date": "2027-01-03", "calendar": "holiday" }
+  ]
+}
