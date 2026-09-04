@@ -21,8 +21,7 @@ gtfs_import.py — GTFS-JP から TimTra 用のプリパッケージ DB を生�
   python3 tools/gtfs_import.py discover tools/gtfs/hinomaru_gtfs.zip
   python3 tools/gtfs_import.py build tools/gtfs/hinomaru_gtfs.zip \
       --config tools/gtfs_config.json \
-      --out app/src/main/assets/timtra_gtfs.db \
-      --out wear/src/main/assets/timtra_gtfs.db
+      --out data/src/main/assets/timtra_gtfs.db
 
 出力 DB のスキーマは docs/db_schema.md を参照。Room のエンティティ定義と
 一致させる必要があるため、スキーマを変更するときは SCHEMA_VERSION を上げ、
@@ -700,7 +699,7 @@ def cmd_build(args: argparse.Namespace) -> int:
     cfg = load_config(args.config) if args.config else json.loads(json.dumps(DEFAULT_CONFIG))
     sel = select(src, cfg)
     legs = derive_commute_legs(sel)
-    outs = args.out or ["app/src/main/assets/timtra_gtfs.db"]
+    outs = args.out or ["data/src/main/assets/timtra_gtfs.db"]
     for out in outs:
         counts = write_db(src, sel, legs, out)
         print(f"書き出し: {out}  " + " ".join(f"{k}={v}" for k, v in counts.items()))
@@ -738,7 +737,7 @@ def build_parser() -> argparse.ArgumentParser:
     b = sub.add_parser("build", help="プリパッケージ DB を生成する")
     b.add_argument("gtfs", help="GTFS-JP の ZIP ファイルまたは展開ディレクトリ")
     b.add_argument("--config", help="tools/gtfs_config.json")
-    b.add_argument("--out", action="append", help="出力先 .db（複数可。既定 app/src/main/assets/timtra_gtfs.db）")
+    b.add_argument("--out", action="append", help="出力先 .db（複数可。既定 data/src/main/assets/timtra_gtfs.db）")
     b.set_defaults(func=cmd_build)
     return p
 

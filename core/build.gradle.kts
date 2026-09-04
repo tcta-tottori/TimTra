@@ -30,14 +30,16 @@ dependencies {
 
 // tools/gtfs_import.py で合成フィクスチャから DB を生成し、core がそのスキーマを
 // 正しく解釈できることをテストする。python3 が必要。
+// パスは core から見た相対（../tools, ../app）にしておく。ルートプロジェクトの位置に依存しない。
+val repoRoot = layout.projectDirectory.dir("..")
 val sampleDb = layout.buildDirectory.file("sample/timtra_gtfs.db")
 val generateSampleGtfsDb by tasks.registering(Exec::class) {
-    val tools = rootProject.layout.projectDirectory.dir("tools")
+    val tools = repoRoot.dir("tools")
     inputs.file(tools.file("gtfs_import.py"))
     inputs.file(tools.file("gtfs_config.json"))
     inputs.dir(tools.dir("testdata/sample_gtfs"))
     outputs.file(sampleDb)
-    workingDir(rootProject.layout.projectDirectory)
+    workingDir(repoRoot)
     commandLine(
         "python3",
         "tools/gtfs_import.py",

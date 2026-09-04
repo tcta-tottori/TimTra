@@ -12,11 +12,10 @@ python3 tools/gtfs_import.py discover tools/gtfs/hinomaru_gtfs.zip
 # 2. 確認できたら設定候補を書き出して内容を確認
 python3 tools/gtfs_import.py discover tools/gtfs/hinomaru_gtfs.zip --write-config tools/gtfs_config.json
 
-# 3. DB 生成（スマホ・Wear 両方の assets へ）
+# 3. DB 生成（data モジュールの assets へ。app / wear はこれを共有する）
 python3 tools/gtfs_import.py build tools/gtfs/hinomaru_gtfs.zip \
     --config tools/gtfs_config.json \
-    --out app/src/main/assets/timtra_gtfs.db \
-    --out wear/src/main/assets/timtra_gtfs.db
+    --out data/src/main/assets/timtra_gtfs.db
 ```
 
 - `tools/gtfs/` に置いた ZIP は git 管理外（.gitignore）。生成した `.db` はコミットする。
@@ -37,8 +36,8 @@ python3 -m unittest discover -s tools/tests -v
 実データが手元にない間、アプリ側の動作確認には合成データから生成した DB を使える。
 
 ```sh
-python3 tools/gtfs_import.py build tools/testdata/sample_gtfs --config tools/gtfs_config.json --out app/src/main/assets/timtra_gtfs.db
+python3 tools/gtfs_import.py build tools/testdata/sample_gtfs --config tools/gtfs_config.json --out data/src/main/assets/timtra_gtfs.db
 ```
 
-`meta.feed_publisher_name` が「サンプルデータ（実データではない）」になるので、
-アプリの「このアプリについて」画面でも識別できる。
+現在コミットされている `data/src/main/assets/timtra_gtfs.db` はこのサンプルから生成したもの。
+`meta.feed_publisher_name` が「サンプルデータ（実データではない）」なので、ホーム画面に警告が出る。

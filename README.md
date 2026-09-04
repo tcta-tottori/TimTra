@@ -7,7 +7,7 @@
 
 - [x] 1. `tools/gtfs_import.py` — GTFS-JP から対象路線・停留所を抽出して DB 化（[tools/README.md](tools/README.md)）
 - [x] 2. core/journey 乗り継ぎ計算 + ユニットテスト（[docs/journey.md](docs/journey.md)）
-- [ ] 3. スマホ ホーム画面
+- [x] 3. スマホ ホーム画面 + 時刻表一覧 + 設定 + このアプリについて（[docs/app.md](docs/app.md)、**実機ビルド未確認**）
 - [ ] 4. 通知スケジューラ
 - [ ] 5. Wear OS タイル + コンプリケーション
 - [ ] 6. GTFS-RT 連携
@@ -17,17 +17,20 @@
 
 ```sh
 ./gradlew :core:test        # 乗り継ぎ計算のユニットテスト（JDK 17 以上、python3 が必要）
-./gradlew :core:ktlintCheck # コードスタイル
+./gradlew ktlintCheck       # コードスタイル
+./gradlew :app:assembleDebug
 python3 -m unittest discover -s tools/tests -v
 ```
 
-app / wear モジュールは手順 3 以降で追加する。
+Android Studio で開く場合は AGP 9.1 / Gradle 9.5 / compileSdk 37 に対応した版（2026 年以降のもの）を使う。
+モジュール構成と、開発環境の制約で未検証の点は [docs/app.md](docs/app.md) を参照。
 
 ## ドキュメント
 
 - [docs/ids.md](docs/ids.md) — GTFS の route_id / stop_id（確定手順と記録）
 - [docs/db_schema.md](docs/db_schema.md) — プリパッケージ DB のスキーマ（Room エンティティと 1:1）
 - [docs/journey.md](docs/journey.md) — 乗り継ぎ計算エンジンの仕様と設計判断
+- [docs/app.md](docs/app.md) — Android モジュール構成（data / app）と画面
 
 ## 出典
 

@@ -29,6 +29,10 @@ dependencyResolutionManagement {
 
 rootProject.name = "timtra"
 
-// core は Android 非依存の純 Kotlin/JVM モジュール（CLAUDE.md 3-3）。
-// app / wear / data（Room 実装）は手順 3 以降で追加する。
+// core : Android 非依存の純 Kotlin/JVM（CLAUDE.md 3-3）。乗り継ぎ計算の本体。
+// data : Room（プリパッケージ DB）・DataStore・リポジトリ。app と wear で共有する Android ライブラリ。
+// app  : スマホ（Jetpack Compose）
+// wear : Wear OS（手順 5 で追加）
 include(":core")
+include(":data")
+include(":app")

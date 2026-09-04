@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TimTra</string>
+
+    <!-- ナビゲーション -->
+    <string name="nav_home">ホーム</string>
+    <string name="nav_timetable">時刻表</string>
+    <string name="nav_settings">設定</string>
+    <string name="nav_about">このアプリについて</string>
+    <string name="action_back">戻る</string>
+    <string name="action_refresh">更新</string>
+
+    <!-- 往路 / 復路 -->
+    <string name="bound_outbound">往路（出勤）</string>
+    <string name="bound_inbound">復路（帰宅）</string>
+    <string name="bound_auto">時刻帯から自動判定中</string>
+    <string name="bound_manual">手動で切り替え中（タップで自動に戻す）</string>
+
+    <!-- ホーム -->
+    <string name="home_leave_home">家を出る時刻</string>
+    <string name="home_leave_work">職場を出る時刻</string>
+    <string name="home_countdown_minutes">あと %1$d 分</string>
+    <string name="home_countdown_hours_minutes">あと %1$d 時間 %2$d 分</string>
+    <string name="home_countdown_now">まもなく出発</string>
+    <string name="home_countdown_passed">出発時刻を過ぎています</string>
+    <string name="home_section_bus">バス</string>
+    <string name="home_section_jr">JR</string>
+    <string name="home_section_transfer">乗り継ぎ</string>
+    <string name="home_route_line">%1$s系統 %2$s行</string>
+    <string name="home_leg_times">%1$s 発 %2$s → %3$s 着 %4$s</string>
+    <string name="home_platform">%1$s番のりば</string>
+    <string name="home_jr_platform">%1$s番のりば</string>
+    <string name="home_delay_estimated">約%1$d分遅れ（推定）</string>
+    <string name="home_delay_arrival_estimated">到着予測 %1$s（推定）</string>
+    <string name="home_transfer_margin">鳥取駅 余裕 %1$d 分</string>
+    <string name="home_transfer_margin_negative">鳥取駅 %1$d 分不足</string>
+    <string name="home_transfer_note">乗換所要 %1$d 分を差し引いた値</string>
+    <string name="home_arrival_work">勤務先 到着予測 %1$s</string>
+    <string name="home_arrival_home">自宅 到着予測 %1$s</string>
+    <string name="home_fallback_outbound">代替案: 1本前のバスに変更</string>
+    <string name="home_fallback_inbound">代替案: 1本後のバスに変更</string>
+    <string name="home_fallback_missed">次のJR便に切り替え</string>
+    <string name="home_next_candidate">次の候補（1本後）</string>
+    <string name="home_next_candidate_summary">%1$s 出発 / バス %2$s 発 / JR %3$s 発</string>
+    <string name="home_expand">展開</string>
+    <string name="home_collapse">折りたたむ</string>
+    <string name="home_day_off">今日は休みに設定されています。通知は送られません。</string>
+    <string name="home_empty">この先の運行が見つかりません。時刻表データを確認してください。</string>
+    <string name="home_loading">計算中…</string>
+    <string name="home_updated_at">%1$s 時点</string>
+    <string name="home_sample_data_warning">サンプル時刻表で動作しています（実ダイヤではありません）</string>
+
+    <!-- ステータス -->
+    <string name="status_ok">余裕あり</string>
+    <string name="status_tight">やや余裕なし</string>
+    <string name="status_risk">危険</string>
+    <string name="status_missed">間に合わない</string>
+
+    <!-- 時刻表 -->
+    <string name="timetable_title">時刻表</string>
+    <string name="timetable_tab_home_stop">南吉成</string>
+    <string name="timetable_tab_station">鳥取駅</string>
+    <string name="timetable_tab_hougi">宝木</string>
+    <string name="timetable_kind_bus">バス</string>
+    <string name="timetable_kind_jr">JR</string>
+    <string name="timetable_empty">本日の運行はありません</string>
+    <string name="timetable_date">%1$s の時刻表</string>
+    <string name="timetable_now_marker">現在 %1$s</string>
+
+    <!-- 設定 -->
+    <string name="settings_title">設定</string>
+    <string name="settings_section_times">所要時間</string>
+    <string name="settings_walk_home_to_stop">自宅 → 南吉成 徒歩</string>
+    <string name="settings_transfer_bus_to_jr">鳥取駅 バス降車 → JRホーム</string>
+    <string name="settings_prep_buffer">準備時間（バッファ）</string>
+    <string name="settings_walk_station_to_work">宝木駅 → 勤務先</string>
+    <string name="settings_min_transfer">最低乗換許容</string>
+    <string name="settings_comfortable_transfer">余裕ありと判定する乗換余裕</string>
+    <string name="settings_minutes_value">%1$d 分</string>
+    <string name="settings_section_windows">往路 / 復路の時刻帯</string>
+    <string name="settings_outbound_window_start">往路とみなす開始時刻</string>
+    <string name="settings_inbound_window_start">復路とみなす開始時刻</string>
+    <string name="settings_earliest_leave_home">出勤: この時刻以降に家を出る</string>
+    <string name="settings_work_ends_at">終業時刻</string>
+    <string name="settings_section_notifications">通知</string>
+    <string name="settings_notifications_enabled">通知を送る</string>
+    <string name="settings_notifications_note">前夜に翌日分を計算して予約します（手順4で有効化）</string>
+    <string name="settings_day_off">今日は休み</string>
+    <string name="settings_day_off_note">有給・出張のとき。今日の通知を止め、翌日自動で解除されます</string>
+    <string name="settings_decrease">減らす</string>
+    <string name="settings_increase">増やす</string>
+    <string name="settings_reset">既定値に戻す</string>
+
+    <!-- このアプリについて -->
+    <string name="about_title">このアプリについて</string>
+    <string name="about_description">日ノ丸バス（用瀬智頭線）と JR 山陰本線を乗り継ぐ通勤のための個人用アプリです。</string>
+    <string name="about_sources_title">出典</string>
+    <string name="about_source_bus">バス時刻・車両位置情報: 鳥取県オープンデータ（日ノ丸自動車）</string>
+    <string name="about_source_jr">JR時刻: JR西日本 駅時刻表より手動転記。最新情報は公式サイトでご確認ください。</string>
+    <string name="about_data_title">同梱データ</string>
+    <string name="about_bus_feed">バス時刻表: %1$s（%2$s）</string>
+    <string name="about_bus_feed_period">有効期間: %1$s 〜 %2$s</string>
+    <string name="about_jr_version">JR時刻表: %1$s</string>
+    <string name="about_app_version">アプリ: %1$s</string>
+</resources>

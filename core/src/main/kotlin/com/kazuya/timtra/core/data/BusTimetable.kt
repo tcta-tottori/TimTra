@@ -34,11 +34,16 @@ class BusTimetable(
 
     val feedVersion: String? get() = meta[META_FEED_VERSION]
 
+    /** 合成サンプル（tools/testdata）から生成した DB か。UI で警告を出す。 */
+    val isSampleData: Boolean
+        get() = meta[META_FEED_PUBLISHER_NAME]?.contains("サンプル") == true || meta[META_SOURCE_FILE]?.startsWith("sample") == true
+
     companion object {
         // meta テーブルのキー（tools/gtfs_import.py と一致させる）
         const val META_SCHEMA_VERSION = "schema_version"
         const val META_FEED_VERSION = "feed_version"
         const val META_FEED_PUBLISHER_NAME = "feed_publisher_name"
+        const val META_SOURCE_FILE = "source_file"
         const val META_FEED_START_DATE = "feed_start_date"
         const val META_FEED_END_DATE = "feed_end_date"
         const val META_AGENCY_NAMES = "agency_names"
