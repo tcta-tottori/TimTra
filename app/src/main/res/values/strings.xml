@@ -32,6 +32,13 @@
     <string name="home_jr_platform">%1$s番のりば</string>
     <string name="home_delay_estimated">約%1$d分遅れ（推定）</string>
     <string name="home_delay_arrival_estimated">到着予測 %1$s（推定）</string>
+    <string name="home_rt_not_configured">リアルタイム情報: 未設定</string>
+    <string name="home_rt_loading">リアルタイム情報: 取得中…</string>
+    <string name="home_rt_idle">リアルタイム情報: 発車 90 分前から取得します</string>
+    <string name="home_rt_on_time">定刻（推定・%1$s 更新）</string>
+    <string name="home_rt_no_vehicle">この便の車両情報なし（%1$s 更新）</string>
+    <string name="home_rt_error">リアルタイム情報の取得に失敗</string>
+    <string name="home_rt_error_with_time">リアルタイム情報の取得に失敗（最終 %1$s）</string>
     <string name="home_transfer_margin">鳥取駅 余裕 %1$d 分</string>
     <string name="home_transfer_margin_negative">鳥取駅 %1$d 分不足</string>
     <string name="home_transfer_note">乗換所要 %1$d 分を差し引いた値</string>

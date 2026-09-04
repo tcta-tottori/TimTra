@@ -27,6 +27,7 @@ AGP 9 系を採用した。AGP 9 では `org.jetbrains.kotlin.android` を適用
 - `data/src/main/assets/timtra_gtfs.db`: 現在は合成サンプルから生成したもの（tools/README.md）。
 - `sync/SyncedSettings`: スマホ → Wear に配る設定の JSON 形。
 - `di/ClockModule`: 現在時刻の供給（AppClock）。
+- `realtime/`: GTFS-RT の取得（OkHttp）と遅延推定の状態（docs/realtime.md）。
 
 ## app
 

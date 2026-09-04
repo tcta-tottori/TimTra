@@ -32,6 +32,9 @@ dependencies {
 
     implementation(libs.datastore.preferences)
 
+    // GTFS-RT の HTTP 取得（CLAUDE.md 9: Retrofit + OkHttp のうち OkHttp のみ使う）
+    implementation(libs.okhttp)
+
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 }

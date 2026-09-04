@@ -18,6 +18,16 @@ data class CommuteLegRow(
     @ColumnInfo(name = "alight_arrival_secs") val alightArrivalSecs: Int,
 )
 
+/** 1 便の停車時刻と停留所座標。GTFS-RT の遅延推定用。 */
+data class TripStopTimeRow(
+    @ColumnInfo(name = "stop_id") val stopId: String,
+    @ColumnInfo(name = "stop_sequence") val stopSequence: Int,
+    @ColumnInfo(name = "arrival_secs") val arrivalSecs: Int,
+    @ColumnInfo(name = "departure_secs") val departureSecs: Int,
+    @ColumnInfo(name = "stop_lat") val stopLat: Double?,
+    @ColumnInfo(name = "stop_lon") val stopLon: Double?,
+)
+
 @Dao
 interface GtfsDao {
     @Query("SELECT * FROM meta")
@@ -44,7 +54,15 @@ interface GtfsDao {
     )
     suspend fun commuteLegs(): List<CommuteLegRow>
 
-    /** 1 便の全停車時刻。GTFS-RT の車両位置と予定位置の比較に使う（手順 6）。 */
-    @Query("SELECT * FROM stop_times WHERE trip_id = :tripId ORDER BY stop_sequence")
-    suspend fun stopTimes(tripId: String): List<StopTimeEntity>
+    /** 1 便の全停車時刻と座標。GTFS-RT の車両位置と予定位置の比較に使う。 */
+    @Query(
+        """
+        SELECT st.stop_id, st.stop_sequence, st.arrival_secs, st.departure_secs, s.stop_lat, s.stop_lon
+        FROM stop_times st
+        JOIN stops s ON s.stop_id = st.stop_id
+        WHERE st.trip_id = :tripId
+        ORDER BY st.stop_sequence
+        """,
+    )
+    suspend fun tripStopTimes(tripId: String): List<TripStopTimeRow>
 }

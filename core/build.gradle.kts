@@ -20,6 +20,9 @@ kotlin {
 
 dependencies {
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.coroutines.core)
+    // GTFS-RT の protobuf バインディング（純 Java。HTTP 取得は data 側）
+    api(libs.gtfs.realtime.bindings)
 
     testImplementation(kotlin("test"))
     testImplementation(libs.junit.jupiter)

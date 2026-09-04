@@ -8,6 +8,8 @@ import com.kazuya.timtra.core.journey.Journey
 import com.kazuya.timtra.core.journey.PlanRequest
 import com.kazuya.timtra.core.model.Bound
 import com.kazuya.timtra.data.di.AppClock
+import com.kazuya.timtra.data.realtime.RealtimeRepository
+import com.kazuya.timtra.data.realtime.RealtimeState
 import com.kazuya.timtra.data.repository.AppSettings
 import com.kazuya.timtra.data.repository.BusTimetableRepository
 import com.kazuya.timtra.data.repository.JourneyRepository
@@ -26,6 +28,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
+import java.time.Duration
 import java.time.LocalDateTime
 import javax.inject.Inject
 
@@ -47,6 +50,8 @@ sealed interface HomeUiState {
         val sampleData: Boolean,
         /** 通知に必要な権限の状態。欠けていれば案内カードを出す。 */
         val permissions: PermissionStatus,
+        /** GTFS-RT の取得状態と推定遅延。 */
+        val realtime: RealtimeState,
     ) : HomeUiState
 }
 
@@ -61,6 +66,7 @@ class HomeViewModel
         private val busTimetable: BusTimetableRepository,
         private val jrTimetable: JrTimetableRepository,
         private val scheduler: NotificationScheduler,
+        private val realtime: RealtimeRepository,
         private val clock: AppClock,
     ) : ViewModel() {
         private val manualBound = MutableStateFlow<Bound?>(null)
@@ -91,7 +97,21 @@ class HomeViewModel
         ): HomeUiState {
             val now = clock.now()
             val bound = manual ?: settings.commute.boundAt(now.toLocalTime())
-            val candidates = journeys.candidates(PlanRequest(now = now, bound = bound), CANDIDATE_COUNT)
+
+            suspend fun plan(delays: Map<String, Duration>) =
+                journeys.candidates(PlanRequest(now = now, bound = bound, delays = delays), CANDIDATE_COUNT)
+
+            // 手順 3（CLAUDE.md 6）: リアルタイム情報があれば推定遅延を加算して再判定する。
+            // 取得は画面が表示されている間（このフローが購読されている間）だけ。30 秒制限はクライアント側で守る。
+            var realtimeState = realtime.state.value
+            var candidates = plan(realtimeState.delays)
+            val primary = candidates.firstOrNull()
+            if (primary != null && shouldPoll(primary, now)) {
+                val refreshed = realtime.refresh()
+                if (refreshed.delays != realtimeState.delays) candidates = plan(refreshed.delays)
+                realtimeState = refreshed
+            }
+
             val sample = busTimetable.timetable().isSampleData || jrTimetable.timetable().version.startsWith("sample")
             return HomeUiState.Ready(
                 now = now,
@@ -103,7 +123,18 @@ class HomeViewModel
                 settings = settings.commute,
                 sampleData = sample,
                 permissions = PermissionStatus.check(context),
+                realtime = realtimeState,
             )
+        }
+
+        /** バスの発車 90 分前から到着 5 分後までだけ車両位置を見る。それ以外の時間帯に取りに行っても意味がない。 */
+        private fun shouldPoll(
+            journey: Journey,
+            now: LocalDateTime,
+        ): Boolean {
+            val from = journey.bus.departureAt.minus(POLL_BEFORE_DEPARTURE)
+            val until = journey.bus.arrivalAt.plus(POLL_AFTER_ARRIVAL)
+            return !now.isBefore(from) && !now.isAfter(until)
         }
 
         /** null で自動判定に戻す。 */
@@ -120,5 +151,7 @@ class HomeViewModel
             const val TICK_MILLIS = 30_000L
             const val STOP_TIMEOUT_MILLIS = 5_000L
             const val CANDIDATE_COUNT = 2
+            val POLL_BEFORE_DEPARTURE: Duration = Duration.ofMinutes(90)
+            val POLL_AFTER_ARRIVAL: Duration = Duration.ofMinutes(5)
         }
     }

@@ -55,12 +55,14 @@ import com.kazuya.timtra.core.journey.CommuteSettings
 import com.kazuya.timtra.core.journey.Journey
 import com.kazuya.timtra.core.journey.JourneyStatus
 import com.kazuya.timtra.core.model.Bound
+import com.kazuya.timtra.data.realtime.RealtimeState
 import com.kazuya.timtra.ui.common.boundLabel
 import com.kazuya.timtra.ui.common.countdownText
 import com.kazuya.timtra.ui.common.hhmm
 import com.kazuya.timtra.ui.common.statusLabel
 import com.kazuya.timtra.ui.theme.StatusColors
 import java.time.LocalDateTime
+import java.time.ZoneId
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,14 +128,14 @@ private fun HomeContent(
             when (journey.bound) {
                 Bound.OUTBOUND -> {
                     // 2. バス 3. 乗り継ぎ 4. JR
-                    BusCard(journey)
+                    BusCard(journey, state.realtime)
                     TransferCard(journey, state.settings)
                     JrCard(journey)
                 }
                 Bound.INBOUND -> {
                     JrCard(journey)
                     TransferCard(journey, state.settings)
-                    BusCard(journey)
+                    BusCard(journey, state.realtime)
                 }
             }
             // 5. 到着予測
@@ -239,7 +241,10 @@ private fun SectionCard(
 }
 
 @Composable
-private fun BusCard(journey: Journey) {
+private fun BusCard(
+    journey: Journey,
+    realtime: RealtimeState,
+) {
     val trip = journey.bus.trip
     SectionCard(
         title = stringResource(R.string.home_section_bus),
@@ -277,6 +282,38 @@ private fun BusCard(journey: Journey) {
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
+        RealtimeStatusLine(journey, realtime)
+    }
+}
+
+/** GTFS-RT の取得状態。遅延が出ているときは上に「約 N 分遅れ（推定）」が出るので、ここは補足だけ。 */
+@Composable
+private fun RealtimeStatusLine(
+    journey: Journey,
+    realtime: RealtimeState,
+) {
+    val fetched = realtime.fetchedAt?.let { LocalDateTime.ofInstant(it, ZoneId.systemDefault()).hhmm() }
+    val hasEstimate = realtime.estimates.any { it.tripId == journey.bus.trip.tripId }
+    val text =
+        when (realtime.status) {
+            RealtimeState.Status.NOT_CONFIGURED -> stringResource(R.string.home_rt_not_configured)
+            RealtimeState.Status.IDLE -> stringResource(R.string.home_rt_idle)
+            RealtimeState.Status.OK, RealtimeState.Status.THROTTLED ->
+                when {
+                    fetched == null -> stringResource(R.string.home_rt_loading)
+                    journey.hasDelay -> null
+                    hasEstimate -> stringResource(R.string.home_rt_on_time, fetched)
+                    else -> stringResource(R.string.home_rt_no_vehicle, fetched)
+                }
+            RealtimeState.Status.ERROR ->
+                if (fetched == null) stringResource(R.string.home_rt_error) else stringResource(R.string.home_rt_error_with_time, fetched)
+        }
+    if (text != null) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (realtime.status == RealtimeState.Status.ERROR) StatusColors.risk else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

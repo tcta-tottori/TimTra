@@ -48,6 +48,14 @@ Kotlin コードに stop_id / route_id を直接書かないこと。
 | stop_id: 南吉成 | （未確定） | 上下線で stop_id が分かれる可能性あり（両方記録） |
 | stop_id: 鳥取駅（乗り場ごと） | （未確定） | 対象路線が使う乗り場のみ |
 
+## GTFS-RT（VehiclePosition）の取得 URL
+
+| 項目 | 値 | 備考 |
+| --- | --- | --- |
+| VehiclePosition URL | （未確定） | 鳥取県オープンデータ（バス情報）の日ノ丸自動車向け。`data/realtime/RealtimeEndpoints.kt` に設定する |
+| 取得間隔 | 30 秒に 1 回まで | 提供元の条件。`FetchThrottle` で保証 |
+| trip_id の対応 | （未確認） | RT の trip_id が GTFS-JP の trip_id と一致することを実データで確認する |
+
 ## 参考: 合成サンプル（tools/testdata/sample_gtfs）
 
 テスト用の架空データ。実データの ID とは無関係。

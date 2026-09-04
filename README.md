@@ -10,7 +10,7 @@
 - [x] 3. スマホ ホーム画面 + 時刻表一覧 + 設定 + このアプリについて（[docs/app.md](docs/app.md)、**実機ビルド未確認**）
 - [x] 4. 通知スケジューラ（[docs/notify.md](docs/notify.md)、**実機ビルド未確認**）
 - [x] 5. Wear OS タイル + コンプリケーション + Data Layer 同期（[docs/wear.md](docs/wear.md)、**実機ビルド未確認**）
-- [ ] 6. GTFS-RT 連携
+- [x] 6. GTFS-RT 連携（30 秒制限・遅延推定・フォアグラウンドのみ、[docs/realtime.md](docs/realtime.md)、URL 未設定・実機未確認）
 - [ ] 7. ホーム画面ウィジェット
 
 ## ビルド・テスト
@@ -33,6 +33,7 @@ Android Studio で開く場合は AGP 9.1 / Gradle 9.5 / compileSdk 37 に対応
 - [docs/app.md](docs/app.md) — Android モジュール構成（data / app）と画面
 - [docs/notify.md](docs/notify.md) — 通知スケジューラ（WorkManager + AlarmManager）と権限導線
 - [docs/wear.md](docs/wear.md) — Wear OS タイル・コンプリケーション・設定同期
+- [docs/realtime.md](docs/realtime.md) — GTFS-RT の取得制限と遅延推定
 
 ## 出典
 
