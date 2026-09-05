@@ -9,7 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v5
@@ -23,7 +23,22 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: 'platforms;android-37 build-tools;36.0.0 platform-tools'
+          cmdline-tools-version: latest
+          accept-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: false
+
+      - name: 利用可能な SDK を確認
+        run: |
+          echo "=== installed ==="
+          sdkmanager --list_installed || true
+          echo "=== available platforms / build-tools ==="
+          sdkmanager --list 2>/dev/null | grep -E "platforms;android-3[4-9]|build-tools;3[4-9]\." | sort -u || true
+
+      - name: 必要な SDK を入れる
+        run: |
+          for p in "platforms;android-37" "platforms;android-36" "build-tools;36.0.0" "build-tools;35.0.0"; do
+            yes | sdkmanager "$p" >/dev/null 2>&1 && echo "installed: $p" || echo "skipped: $p"
+          done
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
