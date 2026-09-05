@@ -1,9 +1,9 @@
 # GTFS 取得レポート（CI 自動生成）
 
-- 取得日時: 2026-09-05T23:24:00Z
+- 取得日時: 2026-09-05T23:28:02Z
 - ポータル: https://odp-pref-tottori.tori-info.co.jp/bus.html
-- GTFS-JP ZIP: https://odp-pref-tottori.tori-info.co.jp/bus_data/2.zip
-- GTFS-RT VehiclePosition: https://odp-pref-tottori.tori-info.co.jp/bus_data/2_rt.json
+- GTFS-JP ZIP（agency.txt で事業者を確認済み）: https://odp-pref-tottori.tori-info.co.jp/bus_data/2.zip
+- GTFS-RT VehiclePosition（同じ行のリンクから推定。要確認）: https://odp-pref-tottori.tori-info.co.jp/bus_data/2_rt.json
 
 ## リンク候補
 
@@ -323,6 +323,12 @@
   ]
 }
 ```
+
+## GTFS-RT の応答確認
+
+- サイズ: 16483 bytes
+- protobuf FeedMessage らしいか: いいえ（HTML か別形式）
+- 先頭: b'{\n  "header": {\n    "gtfs_realtime_version": "2.0",\n    "incrementality": 0,\n   '
 
 ## discover の出力
 
