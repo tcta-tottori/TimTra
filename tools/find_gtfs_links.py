@@ -47,9 +47,19 @@ def main() -> int:
     rts.sort(key=lambda l: -score(l, rt_hints))
     best_zip = next((l["url"] for l in zips if score(l, static_hints) >= 4), None)
     best_rt = next((l["url"] for l in rts if score(l, rt_hints) >= 4), None)
+    # 鳥取県のポータルは表形式で、同じ行に「GTFS-JP データ」「GTFS-RT データ」のリンクが並ぶ。
+    # RT のリンクは URL にヒントが無いので、選んだ ZIP の直後にある ZIP でないリンクを候補にする。
+    if best_rt is None and best_zip is not None:
+        idx = next((i for i, l in enumerate(links) if l["url"] == best_zip), None)
+        if idx is not None:
+            for l in links[idx + 1: idx + 4]:
+                if not l["url"].lower().endswith(".zip") and l["text"] and not has(l["url"], ["#", "mailto:"]):
+                    best_rt = l["url"]
+                    break
     out = {
         "page_url": page_url,
         "link_count": len(links),
+        "all_links": [{"url": l["url"], "text": l["text"]} for l in links],
         "gtfs_zip": best_zip,
         "rt_vehicle_positions": best_rt,
         "zip_candidates": [
