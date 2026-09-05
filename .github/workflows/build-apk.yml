@@ -10,6 +10,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v5
@@ -71,6 +73,24 @@ jobs:
           path: artifacts/*.apk
           if-no-files-found: error
           retention-days: 30
+
+      # スマホから直接インストールできるよう、開発版リリースにも APK を置く
+      - name: 開発版リリースを更新
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete dev --yes --cleanup-tag 2>/dev/null || true
+          gh release create dev artifacts/*.apk \
+            --target "$GITHUB_SHA" \
+            --title "TimTra 開発版" \
+            --prerelease \
+            --notes "コミット ${GITHUB_SHA} の debug ビルド。
+
+          - timtra-phone-debug.apk — スマートフォン用
+          - timtra-wear-debug.apk — Wear OS 用（スマホ版と同じ debug 署名。Data Layer 同期のため両方入れる）
+
+          時刻表はまだサンプルデータです。実ダイヤではありません。"
 
       - name: テストレポートをアップロード（失敗時）
         if: failure()
