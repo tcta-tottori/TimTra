@@ -1,10 +1,8 @@
 package com.kazuya.timtra.ui.navigation
 
+import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -13,7 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -35,15 +33,15 @@ object Routes {
 
 private data class BottomItem(
     val route: String,
-    val labelRes: Int,
-    val icon: ImageVector,
+    @param:StringRes val labelRes: Int,
+    @param:DrawableRes val iconRes: Int,
 )
 
 private val bottomItems =
     listOf(
-        BottomItem(Routes.HOME, R.string.nav_home, Icons.Filled.Home),
-        BottomItem(Routes.TIMETABLE, R.string.nav_timetable, Icons.AutoMirrored.Filled.List),
-        BottomItem(Routes.SETTINGS, R.string.nav_settings, Icons.Filled.Settings),
+        BottomItem(Routes.HOME, R.string.nav_home, R.drawable.ic_home),
+        BottomItem(Routes.TIMETABLE, R.string.nav_timetable, R.drawable.ic_list),
+        BottomItem(Routes.SETTINGS, R.string.nav_settings, R.drawable.ic_settings),
     )
 
 @Composable
@@ -65,7 +63,7 @@ fun TimTraNavHost() {
                                 restoreState = true
                             }
                         },
-                        icon = { Icon(item.icon, contentDescription = null) },
+                        icon = { Icon(painterResource(item.iconRes), contentDescription = null) },
                         label = { Text(stringResource(item.labelRes)) },
                     )
                 }

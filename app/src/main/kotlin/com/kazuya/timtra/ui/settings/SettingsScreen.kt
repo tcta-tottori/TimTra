@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -29,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -145,7 +144,7 @@ private fun SettingsContent(
             modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenAbout).padding(vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Filled.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Icon(painterResource(R.drawable.ic_info), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(12.dp))
             Text(stringResource(R.string.nav_about), style = MaterialTheme.typography.bodyLarge)
         }
@@ -157,7 +156,8 @@ private val planDateFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("M/d
 
 @Composable
 private fun PlanStatus(summary: NotificationPlanSummary) {
-    if (summary.computedAt == null) {
+    val computedAt = summary.computedAt
+    if (computedAt == null) {
         Text(stringResource(R.string.settings_plan_not_computed), style = MaterialTheme.typography.bodyMedium)
         return
     }
@@ -176,7 +176,7 @@ private fun PlanStatus(summary: NotificationPlanSummary) {
             style = MaterialTheme.typography.bodyMedium,
         )
         Text(
-            text = stringResource(R.string.settings_plan_computed_at, summary.computedAt.hhmm()),
+            text = stringResource(R.string.settings_plan_computed_at, computedAt.hhmm()),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
