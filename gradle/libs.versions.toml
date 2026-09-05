@@ -28,6 +28,8 @@ play-services-wearable = "20.0.1"
 coroutines-play-services = "1.10.2"
 # GTFS-RT
 gtfs-realtime-bindings = "0.2.0"
+# gtfs-realtime-bindings 0.2.0 が依存する protobuf-java と同じ版に揊える
+protobuf = "4.34.0"
 okhttp = "5.5.0"
 # DI
 hilt = "2.60.1"
@@ -78,6 +80,7 @@ play-services-wearable = { module = "com.google.android.gms:play-services-wearab
 kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutines-play-services" }
 # com.google.transit:gtfs-realtime-bindings の後継（同じ com.google.transit.realtime パッケージ、protobuf-java 4 系）
 gtfs-realtime-bindings = { module = "org.mobilitydata:gtfs-realtime-bindings", version.ref = "gtfs-realtime-bindings" }
+protobuf-java-util = { module = "com.google.protobuf:protobuf-java-util", version.ref = "protobuf" }
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }

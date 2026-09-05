@@ -34,9 +34,9 @@ feed_version 2.0、有効期間 2026-08-01〜2027-01-31。取得の記録は doc
 
 | 項目 | 値 | 備考 |
 | --- | --- | --- |
-| VehiclePosition URL | （未確定） | 鳥取県オープンデータ（バス情報）の日ノ丸自動車向け。`data/realtime/RealtimeEndpoints.kt` に設定する |
-| 取得間隔 | 30 秒に 1 回まで | 提供元の条件。`FetchThrottle` で保証 |
-| trip_id の対応 | （未確認） | RT の trip_id が GTFS-JP の trip_id と一致することを実データで確認する |
+| VehiclePosition URL | https://odp-pref-tottori.tori-info.co.jp/bus_data/2_rt.json | ポータルの表で 2.zip と同じ行。**protobuf ではなく JSON 表現**（snake_case）。`data/realtime/RealtimeEndpoints.kt` に設定済み |
+| 取得間隔 | 30 秒に 1 回まで | 提供元の明示条件。`FetchThrottle` で保証 |
+| trip_id の対応 | （確認中） | docs/gtfs_fetch_report.md の応答サンプルで GTFS-JP の trip_id と一致するか確認する |
 
 ## 参考: 合成サンプル（tools/testdata/sample_gtfs）
 

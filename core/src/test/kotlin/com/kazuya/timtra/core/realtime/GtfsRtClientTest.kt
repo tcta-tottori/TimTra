@@ -1,5 +1,6 @@
 package com.kazuya.timtra.core.realtime
 
+import com.google.protobuf.util.JsonFormat
 import com.google.transit.realtime.GtfsRealtime
 import kotlinx.coroutines.runBlocking
 import java.io.IOException
@@ -69,6 +70,57 @@ class GtfsRtClientTest {
         assertEquals(35.47, v.latitude, 0.001)
         assertNotNull(feed.forTrip("T_91_WD_0705"))
         assertNull(feed.forTrip("nope"))
+    }
+
+    @Test
+    fun `parses the JSON representation used by the Tottori open data feed`() {
+        // 鳥取県の配信そのままの形（snake_case、enum は数値）
+        val json =
+            """
+            {
+              "header": { "gtfs_realtime_version": "2.0", "incrementality": 0, "timestamp": ${t0.epochSecond} },
+              "entity": [
+                {
+                  "id": "bus-1",
+                  "vehicle": {
+                    "trip": { "trip_id": "T_91_WD_0705", "route_id": "R310100111" },
+                    "vehicle": { "id": "V001", "label": "1234" },
+                    "position": { "latitude": 35.48, "longitude": 134.21, "bearing": 180.0 },
+                    "current_stop_sequence": 5,
+                    "current_status": 2,
+                    "stop_id": "S310100077700100",
+                    "timestamp": ${t0.epochSecond - 7}
+                  }
+                }
+              ]
+            }
+            """.trimIndent()
+        val feed = GtfsRtParser.parseVehiclePositions(json.toByteArray(), t0)
+        assertEquals(t0, feed.feedTimestamp)
+        val v = feed.vehicles.single()
+        assertEquals("T_91_WD_0705", v.tripId)
+        assertEquals("R310100111", v.routeId)
+        assertEquals("V001", v.vehicleId)
+        assertEquals(5, v.currentStopSequence)
+        assertEquals(VehicleStopStatus.IN_TRANSIT_TO, v.currentStatus)
+        assertEquals("S310100077700100", v.stopId)
+        assertEquals(t0.minusSeconds(7), v.observedAt)
+        assertEquals(35.48, v.latitude, 0.0001)
+    }
+
+    @Test
+    fun `JSON printed by protobuf itself round-trips and matches the binary parse`() {
+        val bytes = feedBytes("T_91_WD_0705", "T_91_WD_0735")
+        val json = JsonFormat.printer().print(GtfsRealtime.FeedMessage.parseFrom(bytes))
+        val fromJson = GtfsRtParser.parseVehiclePositions(json.toByteArray(), t0)
+        val fromBinary = GtfsRtParser.parseVehiclePositions(bytes, t0)
+        assertEquals(fromBinary, fromJson)
+    }
+
+    @Test
+    fun `leading whitespace before JSON is tolerated`() {
+        val json = "\n  {\"header\":{\"gtfs_realtime_version\":\"2.0\"},\"entity\":[]}"
+        assertEquals(0, GtfsRtParser.parseVehiclePositions(json.toByteArray(), t0).vehicles.size)
     }
 
     @Test

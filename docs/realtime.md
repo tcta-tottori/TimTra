@@ -33,10 +33,11 @@ TripUpdate が無いので、車両位置と stop_times 上の予定位置を比
    遅延で RISK になれば「1 本前のバス」の代替案が付く（docs/journey.md）。
 4. ホーム画面のバスカードに「約 N 分遅れ（推定）」「到着予測 hh:mm（推定）」と取得状態を表示する。
 
-## 未設定の項目
+## 取得先と形式
 
-- **取得 URL**: `data/realtime/RealtimeEndpoints.VEHICLE_POSITIONS_URL` が空。鳥取県オープンデータの
-  日ノ丸自動車 VehiclePosition の URL を入れ、docs/ids.md にも記録する。空の間は UI に「未設定」と出て取得しない。
+- URL: `https://odp-pref-tottori.tori-info.co.jp/bus_data/2_rt.json`（docs/ids.md）。
+- 形式: GTFS-RT FeedMessage の **JSON 表現**（snake_case、enum は数値）。`GtfsRtParser` は先頭が `{` なら
+  protobuf-java-util の `JsonFormat` で読み、それ以外は protobuf バイナリとして読む。
 - ライブラリ: CLAUDE.md は `com.google.transit:gtfs-realtime-bindings` を指定しているが、Maven Central の同 ID は
   0.0.4（protobuf 2.6）で止まっているため、後継の `org.mobilitydata:gtfs-realtime-bindings:0.2.0`
   （同じ `com.google.transit.realtime` パッケージ、protobuf-java 4 系）を使う。

@@ -23,6 +23,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     // GTFS-RT の protobuf バインディング（純 Java。HTTP 取得は data 側）
     api(libs.gtfs.realtime.bindings)
+    // 鳥取県の GTFS-RT は protobuf の JSON 表現で配られるため、JsonFormat で読む
+    implementation(libs.protobuf.java.util)
 
     testImplementation(kotlin("test"))
     testImplementation(libs.junit.jupiter)

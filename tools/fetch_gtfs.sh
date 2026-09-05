@@ -84,6 +84,14 @@ print()
 print(f"- サイズ: {len(b)} bytes")
 print(f"- protobuf FeedMessage らしいか: {'はい' if looks_pb else 'いいえ（HTML か別形式）'}")
 print(f"- 先頭: {head[:80]!r}")
+if not looks_pb:
+    text = b.decode("utf-8", errors="replace")
+    print()
+    print("先頭 2500 文字:")
+    print()
+    print("```json")
+    print(text[:2500])
+    print("```")
 PYRT
   else
     printf "\n## GTFS-RT の応答確認\n\n- 取得失敗（HTTP エラー）\n" >> docs/gtfs_fetch_report.md

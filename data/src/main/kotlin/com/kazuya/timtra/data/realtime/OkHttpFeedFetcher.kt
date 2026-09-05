@@ -29,7 +29,7 @@ class OkHttpFeedFetcher
                         .Builder()
                         .url(url)
                         .header("User-Agent", USER_AGENT)
-                        .header("Accept", "application/x-protobuf, application/octet-stream")
+                        .header("Accept", "application/json, application/x-protobuf, application/octet-stream")
                         .build()
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) throw IOException("HTTP ${response.code}")

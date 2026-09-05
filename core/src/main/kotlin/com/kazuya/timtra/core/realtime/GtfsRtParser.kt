@@ -1,15 +1,21 @@
 package com.kazuya.timtra.core.realtime
 
+import com.google.protobuf.util.JsonFormat
 import com.google.transit.realtime.GtfsRealtime
 import java.time.Instant
 
-/** GTFS-RT の FeedMessage（protobuf）から VehiclePosition を取り出す。 */
+/**
+ * GTFS-RT の FeedMessage から VehiclePosition を取り出す。
+ * protobuf のバイナリと、その JSON 表現（鳥取県オープンデータは snake_case の JSON で配信）の両方を受け付ける。
+ */
 object GtfsRtParser {
+    private val jsonParser = JsonFormat.parser().ignoringUnknownFields()
+
     fun parseVehiclePositions(
         bytes: ByteArray,
         fetchedAt: Instant,
     ): VehiclePositionFeed {
-        val message = GtfsRealtime.FeedMessage.parseFrom(bytes)
+        val message = decode(bytes)
         val header = message.header
         val feedTimestamp = if (header.hasTimestamp()) Instant.ofEpochSecond(header.timestamp) else null
         val vehicles =
@@ -40,5 +46,24 @@ object GtfsRtParser {
                 )
             }
         return VehiclePositionFeed(fetchedAt = fetchedAt, feedTimestamp = feedTimestamp, vehicles = vehicles)
+    }
+
+    /** 先頭が '{' なら JSON、それ以外は protobuf バイナリとして読む。 */
+    internal fun decode(bytes: ByteArray): GtfsRealtime.FeedMessage {
+        val firstVisible =
+            bytes.firstOrNull {
+                it != ' '.code.toByte() &&
+                    it != '\n'.code.toByte() &&
+                    it != '\r'.code.toByte() &&
+                    it != '\t'.code.toByte()
+            }
+        return if (firstVisible == '{'.code.toByte()) {
+            val builder = GtfsRealtime.FeedMessage.newBuilder()
+            jsonParser.merge(String(bytes, Charsets.UTF_8), builder)
+            // proto2 の required（header.gtfs_realtime_version）が欠けていても落とさない
+            builder.buildPartial()
+        } else {
+            GtfsRealtime.FeedMessage.parseFrom(bytes)
+        }
     }
 }
