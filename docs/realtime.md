@@ -36,8 +36,10 @@ TripUpdate が無いので、車両位置と stop_times 上の予定位置を比
 ## 取得先と形式
 
 - URL: `https://odp-pref-tottori.tori-info.co.jp/bus_data/2_rt.json`（docs/ids.md）。
-- 形式: GTFS-RT FeedMessage の **JSON 表現**（snake_case、enum は数値）。`GtfsRtParser` は先頭が `{` なら
-  protobuf-java-util の `JsonFormat` で読み、それ以外は protobuf バイナリとして読む。
+- 形式: GTFS-RT FeedMessage の **JSON 表現**（snake_case、enum は数値、`current_stop_sequence` は文字列）。
+  `GtfsRtParser` は先頭が `{` なら protobuf-java-util の `JsonFormat` で読み、それ以外は protobuf バイナリとして読む。
+- 実配信には `current_status` が無いので、推定は「直前区間への投影」（走行中扱い）になる。`stop_id` は次停留所。
+- 県内の日ノ丸全車両が 1 本のフィードに入る（約 16 KB）。対象便（commute_legs の trip_id）だけを推定にかける。
 - ライブラリ: CLAUDE.md は `com.google.transit:gtfs-realtime-bindings` を指定しているが、Maven Central の同 ID は
   0.0.4（protobuf 2.6）で止まっているため、後継の `org.mobilitydata:gtfs-realtime-bindings:0.2.0`
   （同じ `com.google.transit.realtime` パッケージ、protobuf-java 4 系）を使う。

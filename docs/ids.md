@@ -36,7 +36,8 @@ feed_version 2.0、有効期間 2026-08-01〜2027-01-31。取得の記録は doc
 | --- | --- | --- |
 | VehiclePosition URL | https://odp-pref-tottori.tori-info.co.jp/bus_data/2_rt.json | ポータルの表で 2.zip と同じ行。**protobuf ではなく JSON 表現**（snake_case）。`data/realtime/RealtimeEndpoints.kt` に設定済み |
 | 取得間隔 | 30 秒に 1 回まで | 提供元の明示条件。`FetchThrottle` で保証 |
-| trip_id の対応 | （確認中） | docs/gtfs_fetch_report.md の応答サンプルで GTFS-JP の trip_id と一致するか確認する |
+| trip_id の対応 | 確認済み | RT の trip_id（例 T3101000994）は GTFS-JP の trip_id と同じ体系。stop_sequence も双方 0 起点 |
+| 配信の形 | JSON | `current_stop_sequence` は文字列（"16"）、`current_status` は無し、`vehicle.id`・`stop_id`・`timestamp` あり。サンプルは docs/gtfs_fetch_report.md |
 
 ## 参考: 合成サンプル（tools/testdata/sample_gtfs）
 

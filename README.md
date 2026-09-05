@@ -31,8 +31,8 @@ GitHub Actions が push のたびにビルドし、プレリリース [dev](http
 実データの取得は `.github/workflows/fetch-gtfs.yml` が行う（`tools/gtfs_source.json` の `fetch_nonce` を増やして push すると再取得）。
 結果は `docs/gtfs_fetch_report.md` に残る。
 
-**現在の APK は時刻表がサンプルデータです。** 実ダイヤではないので、通勤には使えません。
-実データの入れ方は下の「ドキュメント」を参照。
+**バスは実ダイヤ**（日ノ丸自動車 GTFS-JP、2026-08-01〜2027-01-31、GTFS-RT の遅延推定つき）。
+**JR はまだサンプル**なので、JR 側の時刻は実ダイヤに転記するまで信用できない（ホームに警告が出る）。
 
 ## ビルド・テスト
 

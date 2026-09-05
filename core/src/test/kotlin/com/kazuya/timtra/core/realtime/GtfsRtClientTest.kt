@@ -109,6 +109,27 @@ class GtfsRtClientTest {
     }
 
     @Test
+    fun `accepts the actual Tottori feed shape with string-typed stop sequence and no status`() {
+        // 実際の配信（2026-09-06 取得）の 1 エンティティ。current_stop_sequence が文字列、current_status 無し
+        val json =
+            """
+            {"header":{"gtfs_realtime_version":"2.0","incrementality":0,"timestamp":1788651122},
+             "entity":[{"id":"id2026090600018228","vehicle":{
+               "trip":{"trip_id":"T3101000994","start_time":"08:00:00"},
+               "vehicle":{"id":"a6c174c2449230fb"},
+               "position":{"latitude":35.39769541,"longitude":133.36739012},
+               "current_stop_sequence":"16","stop_id":"S310100019000100","timestamp":1788651097}}]}
+            """.trimIndent()
+        val v = GtfsRtParser.parseVehiclePositions(json.toByteArray(), t0).vehicles.single()
+        assertEquals("T3101000994", v.tripId)
+        assertEquals(16, v.currentStopSequence)
+        assertNull(v.currentStatus)
+        assertNull(v.routeId)
+        assertEquals("S310100019000100", v.stopId)
+        assertEquals(java.time.Instant.ofEpochSecond(1788651097), v.observedAt)
+    }
+
+    @Test
     fun `JSON printed by protobuf itself round-trips and matches the binary parse`() {
         val bytes = feedBytes("T_91_WD_0705", "T_91_WD_0735")
         val json = JsonFormat.printer().print(GtfsRealtime.FeedMessage.parseFrom(bytes))
