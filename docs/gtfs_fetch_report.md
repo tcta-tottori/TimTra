@@ -1,9 +1,9 @@
 # GTFS 取得レポート（CI 自動生成）
 
-- 取得日時: 2026-09-05T23:21:14Z
+- 取得日時: 2026-09-05T23:24:00Z
 - ポータル: https://odp-pref-tottori.tori-info.co.jp/bus.html
 - GTFS-JP ZIP: https://odp-pref-tottori.tori-info.co.jp/bus_data/2.zip
-- GTFS-RT VehiclePosition: （見つからず）
+- GTFS-RT VehiclePosition: https://odp-pref-tottori.tori-info.co.jp/bus_data/2_rt.json
 
 ## リンク候補
 
@@ -11,8 +11,222 @@
 {
   "page_url": "https://odp-pref-tottori.tori-info.co.jp/bus.html",
   "link_count": 53,
+  "all_links": [
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/",
+      "text": ""
+    },
+    {
+      "url": "http://www.pref.tottori.lg.jp/1411.htm",
+      "text": ""
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/help.html",
+      "text": "ヘルプ"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/mypage-login.part.json",
+      "text": "ログイン"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/dataset/",
+      "text": "データカタログ"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/app/",
+      "text": "アプリマーケット"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/idea/",
+      "text": "アイデアボックス"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/dataset/bunya/kurashi/",
+      "text": "くらし・教育"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/dataset/bunya/kenko/",
+      "text": "健康・福祉・医療"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/dataset/bunya/shigoto/",
+      "text": "しごと・産業"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/dataset/bunya/kanko/",
+      "text": "教育・文化・観光"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/dataset/bunya/anshin/",
+      "text": "安全・安心"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/dataset/bunya/chiiki/",
+      "text": "地域情報"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/dataset/bunya/gyousei/",
+      "text": "行政情報"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/app/bunya/kurashi/",
+      "text": "くらし・教育"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/app/bunya/kenko/",
+      "text": "健康・福祉・医療"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/app/bunya/shigoto/",
+      "text": "しごと・産業"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/app/bunya/kanko/",
+      "text": "教育・文化・観光"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/app/bunya/anshin/",
+      "text": "安全・安心"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/app/bunya/chiiki/",
+      "text": "地域情報"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/app/bunya/gyousei/",
+      "text": "行政情報"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/idea/bunya/kurashi/",
+      "text": "くらし・教育"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/idea/bunya/kenko/",
+      "text": "健康・福祉・医療"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/idea/bunya/shigoto/",
+      "text": "しごと・産業"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/idea/bunya/kanko/",
+      "text": "教育・文化・観光"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/idea/bunya/anshin/",
+      "text": "安全・安心"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/idea/bunya/chiiki/",
+      "text": "地域情報"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/idea/bunya/gyousei/",
+      "text": "行政情報"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/",
+      "text": "HOME"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/1.zip",
+      "text": "データ"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/1_rt.json",
+      "text": "データ"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/2.zip",
+      "text": "データ"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/2_rt.json",
+      "text": "データ"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/3.zip",
+      "text": "データ"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/3_rt.bin",
+      "text": "データ"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/4.zip",
+      "text": "データ"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/5.zip",
+      "text": "データ"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/6.zip",
+      "text": "データ"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/7.zip",
+      "text": "データ"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/8.zip",
+      "text": "データ"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/9.zip",
+      "text": "データ"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/11.zip",
+      "text": "データ"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/12.zip",
+      "text": "データ"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/13.zip",
+      "text": "データ"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/14.zip",
+      "text": "データ"
+    },
+    {
+      "url": "tel:0857267330",
+      "text": "0857-26-7330"
+    },
+    {
+      "url": "mailto:digital-kiban@pref.tottori.jp",
+      "text": "digital-kiban@pref.tottori.jp"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/bus.html#page",
+      "text": "ページトップへ"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/agreement.html",
+      "text": "利用規約"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/license.html",
+      "text": "ライセンスについて"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/step.html",
+      "text": "各種登録手順"
+    },
+    {
+      "url": "https://odp-pref-tottori.tori-info.co.jp/contact/index.html",
+      "text": "お問い合わせ"
+    },
+    {
+      "url": "http://www.pref.tottori.lg.jp/",
+      "text": "鳥取県"
+    }
+  ],
   "gtfs_zip": "https://odp-pref-tottori.tori-info.co.jp/bus_data/2.zip",
-  "rt_vehicle_positions": null,
+  "rt_vehicle_positions": "https://odp-pref-tottori.tori-info.co.jp/bus_data/2_rt.json",
   "zip_candidates": [
     {
       "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/2.zip",
