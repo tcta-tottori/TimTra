@@ -13,6 +13,24 @@
 - [x] 6. GTFS-RT 連携（30 秒制限・遅延推定・フォアグラウンドのみ、[docs/realtime.md](docs/realtime.md)、URL 未設定・実機未確認）
 - [x] 7. ホーム画面ウィジェット（Glance、[docs/widget.md](docs/widget.md)、実機未確認）
 
+## APK の入手
+
+GitHub Actions が push のたびにビルドし、プレリリース [dev](https://github.com/tcta-tottori/TimTra/releases/tag/dev) に置き換えます。
+
+| ファイル | 端末 |
+| --- | --- |
+| `timtra-phone-debug.apk` | スマートフォン |
+| `timtra-wear-debug.apk` | Wear OS |
+
+- スマホ: リリースページから APK をダウンロードし、「提供元不明のアプリ」を許可してインストールする。
+- 時計: スマホに adb でつないでも入らない。`adb pair` / `adb connect` で時計に直接つなぎ、
+  `adb install timtra-wear-debug.apk` を実行する（時計の開発者オプションで ADB デバッグと Wi-Fi デバッグを有効にする）。
+- 両方とも同じ実行でビルドした debug 署名なので、Wearable Data Layer の同期が成立する。
+  片方だけ入れ替えると署名が変わり同期しなくなるので、更新は両方まとめて行う。
+
+**現在の APK は時刻表がサンプルデータです。** 実ダイヤではないので、通勤には使えません。
+実データの入れ方は下の「ドキュメント」を参照。
+
 ## ビルド・テスト
 
 ```sh

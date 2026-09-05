@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - 'claude/**'
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   workflow_dispatch:
 
 jobs:
