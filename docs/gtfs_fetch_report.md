@@ -1,6 +1,6 @@
 # GTFS 取得レポート（CI 自動生成）
 
-- 取得日時: 2026-09-05T23:28:02Z
+- 取得日時: 2026-09-05T23:32:33Z
 - ポータル: https://odp-pref-tottori.tori-info.co.jp/bus.html
 - GTFS-JP ZIP（agency.txt で事業者を確認済み）: https://odp-pref-tottori.tori-info.co.jp/bus_data/2.zip
 - GTFS-RT VehiclePosition（同じ行のリンクから推定。要確認）: https://odp-pref-tottori.tori-info.co.jp/bus_data/2_rt.json
@@ -326,9 +326,121 @@
 
 ## GTFS-RT の応答確認
 
-- サイズ: 16483 bytes
+- サイズ: 16026 bytes
 - protobuf FeedMessage らしいか: いいえ（HTML か別形式）
 - 先頭: b'{\n  "header": {\n    "gtfs_realtime_version": "2.0",\n    "incrementality": 0,\n   '
+
+先頭 2500 文字:
+
+```json
+{
+  "header": {
+    "gtfs_realtime_version": "2.0",
+    "incrementality": 0,
+    "timestamp": 1788651122
+  },
+  "entity": [
+    {
+      "id": "id2026090600018228",
+      "vehicle": {
+        "trip": {
+          "trip_id": "T3101000994",
+          "start_time": "08:00:00"
+        },
+        "vehicle": {
+          "id": "a6c174c2449230fb"
+        },
+        "position": {
+          "latitude": 35.39769541,
+          "longitude": 133.36739012
+        },
+        "current_stop_sequence": "16",
+        "stop_id": "S310100019000100",
+        "timestamp": 1788651097
+      }
+    },
+    {
+      "id": "id2026090600018232",
+      "vehicle": {
+        "trip": {
+          "trip_id": "T3101000222",
+          "start_time": "08:20:00"
+        },
+        "vehicle": {
+          "id": "a6c6a3e6a383faf2"
+        },
+        "position": {
+          "latitude": 35.438907,
+          "longitude": 133.32536401
+        },
+        "current_stop_sequence": "6",
+        "stop_id": "S310100023500100",
+        "timestamp": 1788651101
+      }
+    },
+    {
+      "id": "id2026090600018239",
+      "vehicle": {
+        "trip": {
+          "trip_id": "T3101000127",
+          "start_time": "08:33:00"
+        },
+        "vehicle": {
+          "id": "8b6b3bf96d829fa4"
+        },
+        "position": {
+          "latitude": 35.45854138,
+          "longitude": 133.33427755
+        },
+        "current_stop_sequence": "0",
+        "stop_id": "S310100017300100",
+        "timestamp": 1788651092
+      }
+    },
+    {
+      "id": "id2026090600018348",
+      "vehicle": {
+        "trip": {
+          "trip_id": "T3101000661",
+          "start_time": "07:18:00"
+        },
+        "vehicle": {
+          "id": "f7a19569639d8311"
+        },
+        "position": {
+          "latitude": 35.51403766,
+          "longitude": 133.63460882
+        },
+        "current_stop_sequence": "59",
+        "stop_id": "S310100074800100",
+        "timestamp": 1788651107
+      }
+    },
+    {
+      "id": "id2026090600018363",
+      "vehicle": {
+        "trip": {
+          "trip_id": "T3101000383",
+          "start_time": "07:41:00"
+        },
+        "vehicle": {
+          "id": "8cb3c5dbcf38015d"
+        },
+        "position": {
+          "latitude": 35.33964357,
+          "longitude": 133.43648626
+        },
+        "current_stop_sequence": "43",
+        "stop_id": "S310100045100100",
+        "timestamp": 1788651094
+      }
+    },
+    {
+      "id": "id2026090600018373",
+      "vehicle": {
+        "trip": {
+          "trip_id": "T00030
+```
 
 ## discover の出力
 
