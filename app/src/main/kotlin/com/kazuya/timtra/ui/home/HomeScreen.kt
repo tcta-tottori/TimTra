@@ -13,24 +13,22 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,25 +56,50 @@ import com.kazuya.timtra.ui.common.countdownText
 import com.kazuya.timtra.ui.common.hhmm
 import com.kazuya.timtra.ui.common.statusLabel
 import com.kazuya.timtra.ui.theme.StatusColors
+import com.kazuya.timtra.ui.theme.TimTraCard
+import com.kazuya.timtra.ui.theme.TimTraColors
 import java.time.LocalDateTime
 import java.time.ZoneId
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
+fun HomeScreen(
+    onOpenDrawer: () -> Unit,
+    viewModel: HomeViewModel = hiltViewModel(),
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     // 権限画面から戻ったときに状態を取り直す
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.app_name)) },
+                title = { Text(stringResource(R.string.nav_home)) },
+                navigationIcon = {
+                    IconButton(onClick = onOpenDrawer) {
+                        Icon(painterResource(R.drawable.ic_menu), contentDescription = stringResource(R.string.action_menu))
+                    }
+                },
                 actions = {
                     IconButton(onClick = viewModel::refresh) {
                         Icon(painterResource(R.drawable.ic_refresh), contentDescription = stringResource(R.string.action_refresh))
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
+        },
+        floatingActionButton = {
+            val ready = state as? HomeUiState.Ready
+            if (ready != null) {
+                FloatingActionButton(
+                    onClick = { viewModel.setBound(if (ready.bound == Bound.OUTBOUND) Bound.INBOUND else Bound.OUTBOUND) },
+                    containerColor = TimTraColors.surfaceElevated,
+                    contentColor = TimTraColors.onSurface,
+                    shape = CircleShape,
+                ) {
+                    Icon(painterResource(R.drawable.ic_swap_horiz), contentDescription = stringResource(R.string.home_toggle_bound))
+                }
+            }
         },
     ) { padding ->
         when (val s = state) {
@@ -150,31 +173,26 @@ private fun HomeContent(
     }
 }
 
+/** 往路/復路の状態。切り替えは右下の FAB、自動判定へ戻すのはここ。 */
 @Composable
 private fun BoundSelector(
     bound: Bound,
     isManual: Boolean,
     onBoundChange: (Bound?) -> Unit,
 ) {
-    Column {
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            Bound.entries.forEachIndexed { index, b ->
-                SegmentedButton(
-                    selected = b == bound,
-                    onClick = { onBoundChange(b) },
-                    shape = SegmentedButtonDefaults.itemShape(index = index, count = Bound.entries.size),
-                ) { Text(boundLabel(b)) }
-            }
-        }
+    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text =
+                stringResource(
+                    if (isManual) R.string.home_bound_state_manual else R.string.home_bound_state_auto,
+                    boundLabel(bound),
+                ),
+            style = MaterialTheme.typography.titleMedium,
+            color = TimTraColors.primary,
+            modifier = Modifier.weight(1f),
+        )
         if (isManual) {
             TextButton(onClick = { onBoundChange(null) }) { Text(stringResource(R.string.bound_manual)) }
-        } else {
-            Text(
-                text = stringResource(R.string.bound_auto),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 4.dp, top = 4.dp),
-            )
         }
     }
 }
@@ -184,8 +202,8 @@ private fun Banner(
     text: String,
     color: Color,
 ) {
-    Surface(color = color, shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
-        Text(text, modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium)
+    Surface(color = color, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Text(text, modifier = Modifier.padding(14.dp), style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -194,26 +212,29 @@ private fun LeaveCard(
     now: LocalDateTime,
     journey: Journey,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    TimTraCard(modifier = Modifier.fillMaxWidth(), containerColor = TimTraColors.surfaceElevated, borderColor = TimTraColors.pillBorder) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp, horizontal = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             Text(
                 text =
                     stringResource(
                         if (journey.bound == Bound.OUTBOUND) R.string.home_leave_home else R.string.home_leave_work,
                     ),
                 style = MaterialTheme.typography.titleMedium,
+                color = TimTraColors.onSurfaceVariant,
             )
             Text(
                 text = journey.leaveAt.hhmm(),
                 style = MaterialTheme.typography.displayLarge,
                 fontWeight = FontWeight.Bold,
+                color = Color.White,
             )
             Text(
                 text = countdownText(now, journey.leaveAt),
                 style = MaterialTheme.typography.titleLarge,
+                color = TimTraColors.primary,
             )
         }
     }
@@ -225,8 +246,8 @@ private fun SectionCard(
     trailing: @Composable (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    TimTraCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.weight(1f))
@@ -391,12 +412,9 @@ private fun FallbackCard(
             journey.bound == Bound.OUTBOUND -> R.string.home_fallback_outbound
             else -> R.string.home_fallback_inbound
         }
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(stringResource(title), style = MaterialTheme.typography.labelLarge)
+    TimTraCard(modifier = Modifier.fillMaxWidth(), containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+        Column(modifier = Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(stringResource(title), style = MaterialTheme.typography.labelLarge, color = TimTraColors.primary)
             JourneySummary(fallback)
         }
     }
@@ -405,10 +423,10 @@ private fun FallbackCard(
 @Composable
 private fun NextCandidateCard(next: Journey) {
     var expanded by rememberSaveable { mutableStateOf(false) }
-    Card(modifier = Modifier.fillMaxWidth()) {
+    TimTraCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
-                modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(16.dp),
+                modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(18.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {

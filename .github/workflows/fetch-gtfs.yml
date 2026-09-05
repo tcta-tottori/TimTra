@@ -1,0 +1,61 @@
+name: Fetch GTFS
+
+# 開発環境からは鳥取県オープンデータに到達できないため、CI で GTFS-JP を取得して DB を作り直す。
+# tools/gtfs_source.json（fetch_nonce を増やす）や取得スクリプトを変更した push で走る。
+on:
+  push:
+    branches:
+      - 'claude/**'
+    paths:
+      - 'tools/gtfs_source.json'
+      - 'tools/fetch_gtfs.sh'
+      - 'tools/find_gtfs_links.py'
+      - '.github/workflows/fetch-gtfs.yml'
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: GTFS-JP を取得して DB を生成
+        id: fetch
+        continue-on-error: true
+        run: ./tools/fetch_gtfs.sh
+
+      - name: レポートを表示
+        run: cat docs/gtfs_fetch_report.md
+
+      - name: 結果をコミット
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/gtfs_fetch_report.md data/src/main/assets/timtra_gtfs.db
+          if git diff --cached --quiet; then
+            echo "変更なし"
+          else
+            git commit -m "data: 鳥取県オープンデータから GTFS-JP を取得（CI 自動更新）
+
+          docs/gtfs_fetch_report.md に discover / build の出力を記録。"
+            git push
+          fi
+
+      - name: 取得物をアップロード
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gtfs-fetch
+          path: |
+            build/gtfs/**
+            tools/gtfs/*.zip
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: 失敗なら終了コードを返す
+        if: steps.fetch.outcome == 'failure'
+        run: exit 1

@@ -15,17 +15,24 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -33,17 +40,28 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kazuya.timtra.R
 import com.kazuya.timtra.ui.common.hhmm
+import com.kazuya.timtra.ui.theme.TimTraColors
 import java.time.format.DateTimeFormatter
 
 private val dateFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("M月d日(E)")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TimetableScreen(viewModel: TimetableViewModel = hiltViewModel()) {
+fun TimetableScreen(
+    onOpenDrawer: () -> Unit,
+    viewModel: TimetableViewModel = hiltViewModel(),
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+                navigationIcon = {
+                    IconButton(onClick = onOpenDrawer) {
+                        Icon(painterResource(R.drawable.ic_menu), contentDescription = stringResource(R.string.action_menu))
+                    }
+                },
                 title = {
                     Column {
                         Text(stringResource(R.string.timetable_title))
@@ -59,7 +77,17 @@ fun TimetableScreen(viewModel: TimetableViewModel = hiltViewModel()) {
         },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            TabRow(selectedTabIndex = state.tab.ordinal) {
+            TabRow(
+                selectedTabIndex = state.tab.ordinal,
+                containerColor = Color.Transparent,
+                contentColor = TimTraColors.onSurface,
+                indicator = { positions ->
+                    TabRowDefaults.SecondaryIndicator(
+                        modifier = Modifier.tabIndicatorOffset(positions[state.tab.ordinal]),
+                        color = TimTraColors.primary,
+                    )
+                },
+            ) {
                 TimetableTab.entries.forEach { tab ->
                     Tab(
                         selected = tab == state.tab,
@@ -105,7 +133,7 @@ private fun TimetableList(state: TimetableUiState) {
                     Modifier
                         .fillMaxWidth()
                         .background(
-                            if (highlight) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                            if (highlight) TimTraColors.primary.copy(alpha = 0.16f) else Color.Transparent,
                         ).padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -131,7 +159,7 @@ private fun TimetableList(state: TimetableUiState) {
                     Text(stringResource(R.string.home_platform, it), style = MaterialTheme.typography.bodySmall)
                 }
             }
-            HorizontalDivider()
+            HorizontalDivider(color = TimTraColors.outline)
         }
     }
 }

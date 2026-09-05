@@ -1,0 +1,8 @@
+{
+  "_comment": "CI（.github/workflows/fetch-gtfs.yml）が実データを取りに行く先。開発環境からは到達できないため CI で取得する。",
+  "portal_url": "https://odp-pref-tottori.tori-info.co.jp/bus.html",
+  "operator_patterns": ["日ノ丸", "日の丸", "hinomaru", "Hinomaru"],
+  "static_hints": ["gtfs", "GTFS", ".zip"],
+  "realtime_hints": ["vehicle", "Vehicle", "gtfs-rt", "gtfsrt", "GTFS-RT", "realtime", "RealTime", ".pb", "位置"],
+  "fetch_nonce": 1
+}

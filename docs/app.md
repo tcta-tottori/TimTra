@@ -39,6 +39,9 @@ AGP 9 系を採用した。AGP 9 では `org.jetbrains.kotlin.android` を適用
 | このアプリについて | `ui/about/` | 出典表示（CLAUDE.md 14）と同梱データの版 |
 
 - 文言は `res/values/strings.xml` に集約。XML レイアウトは無い（テーマ・アイコンのみ XML）。
+- 見た目: 濃紺グラデーションの固定ダークテーマ（`ui/theme/Theme.kt`）。左ドロワー（版・現在時刻・画面一覧・ワードマーク）、
+  選択中の項目は半透明のピル、カードは角丸 20dp + 1dp の縁（`TimTraCard`）。往路/復路の切替は右下の FAB。
+  Compose の material-icons は使わず、必要なアイコンは `res/drawable/ic_*.xml` に持つ。
 - 現在時刻は `data/di/AppClock` 経由で取得する（スマホ・Wear 共通。テストで差し替え可能）。
 - アプリアイコンは `docs/assets/icon-512.png` を元に、adaptive icon（背景色 + 中央 72% に縮小した前景 PNG）として
   `res/mipmap-*/` に生成している。差し替えるときは同じ手順で前景を作り直す。

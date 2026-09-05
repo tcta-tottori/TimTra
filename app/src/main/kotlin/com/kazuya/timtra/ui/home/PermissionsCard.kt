@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -27,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.kazuya.timtra.R
 import com.kazuya.timtra.notify.PermissionStatus
 import com.kazuya.timtra.ui.theme.StatusColors
+import com.kazuya.timtra.ui.theme.TimTraCard
 
 /**
  * 初回起動時の導線（CLAUDE.md 8 注意点）: 通知許可・正確なアラーム・バッテリー最適化の除外。
@@ -43,11 +42,12 @@ fun PermissionsCard(
             if (!granted) context.startActivitySafely(PermissionStatus.notificationSettingsIntent(context))
             onChanged()
         }
-    Card(
+    TimTraCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+        containerColor = MaterialTheme.colorScheme.errorContainer,
+        borderColor = MaterialTheme.colorScheme.error.copy(alpha = 0.5f),
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(stringResource(R.string.perm_title), style = MaterialTheme.typography.titleSmall)
             Text(stringResource(R.string.perm_note), style = MaterialTheme.typography.bodySmall)
             PermissionRow(stringResource(R.string.perm_notifications), status.notificationsAllowed) {
