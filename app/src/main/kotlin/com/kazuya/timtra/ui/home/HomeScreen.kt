@@ -137,7 +137,8 @@ private fun HomeContent(
         if (!state.permissions.allGranted) PermissionsCard(state.permissions, onChanged = onPermissionsChanged)
         BoundSelector(state.bound, state.isManualBound, onBoundChange)
         if (state.dayOff) Banner(stringResource(R.string.home_day_off), MaterialTheme.colorScheme.tertiaryContainer)
-        if (state.sampleData) Banner(stringResource(R.string.home_sample_data_warning), MaterialTheme.colorScheme.errorContainer)
+        if (state.sampleBus) Banner(stringResource(R.string.home_sample_bus_warning), MaterialTheme.colorScheme.errorContainer)
+        if (state.sampleJr) Banner(stringResource(R.string.home_sample_jr_warning), MaterialTheme.colorScheme.errorContainer)
 
         val journey = state.journey
         if (journey == null) {
@@ -268,7 +269,12 @@ private fun BusCard(
         title = stringResource(R.string.home_section_bus),
         trailing = {
             Text(
-                stringResource(R.string.home_route_line, trip.routeShortName, trip.headsign),
+                text =
+                    if (trip.hasRouteNumber) {
+                        stringResource(R.string.home_route_line, trip.routeShortName, trip.headsign)
+                    } else {
+                        stringResource(R.string.home_route_line_named, trip.routeDisplayName, trip.headsign)
+                    },
                 style = MaterialTheme.typography.labelMedium,
             )
         },

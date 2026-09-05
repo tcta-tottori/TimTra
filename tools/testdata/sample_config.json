@@ -1,0 +1,7 @@
+{
+  "_comment": "合成フィクスチャ（tools/testdata/sample_gtfs）用。実データの ID を固定した tools/gtfs_config.json とは別物。",
+  "route": { "route_ids": [], "patterns": ["用瀬智頭線"] },
+  "home_stop": { "stop_ids": [], "patterns": ["南吉成"] },
+  "station_stop": { "stop_ids": [], "patterns": ["鳥取駅"] },
+  "keep_trips": "either"
+}

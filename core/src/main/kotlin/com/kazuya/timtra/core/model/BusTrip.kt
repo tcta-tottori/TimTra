@@ -19,10 +19,18 @@ data class BusTrip(
     val departure: GtfsTime,
     /** 降車停留所の着時刻。 */
     val arrival: GtfsTime,
+    /** 路線名（例: "用瀬智頭線"）。系統番号が空の事業者ではこちらを表示に使う。 */
+    val routeLongName: String = "",
 ) {
     init {
         require(arrival >= departure) { "到着が出発より前です: $tripId" }
     }
+
+    /** 表示用の路線表記。系統番号があればそれ、無ければ路線名。 */
+    val routeDisplayName: String get() = routeShortName.ifBlank { routeLongName }
+
+    /** 系統番号を持つか（表示文言の切り替え用）。 */
+    val hasRouteNumber: Boolean get() = routeShortName.isNotBlank()
 }
 
 /** 停留所。鳥取駅は乗り場ごとに別の stop_id を持つ。 */

@@ -46,8 +46,10 @@ sealed interface HomeUiState {
         val next: Journey?,
         val dayOff: Boolean,
         val settings: CommuteSettings,
-        /** 合成サンプルの時刻表で動いているか。 */
-        val sampleData: Boolean,
+        /** バス時刻表が合成サンプルか。 */
+        val sampleBus: Boolean,
+        /** JR 時刻表がサンプルか（実ダイヤ未転記）。 */
+        val sampleJr: Boolean,
         /** 通知に必要な権限の状態。欠けていれば案内カードを出す。 */
         val permissions: PermissionStatus,
         /** GTFS-RT の取得状態と推定遅延。 */
@@ -112,7 +114,6 @@ class HomeViewModel
                 realtimeState = refreshed
             }
 
-            val sample = busTimetable.timetable().isSampleData || jrTimetable.timetable().version.startsWith("sample")
             return HomeUiState.Ready(
                 now = now,
                 bound = bound,
@@ -121,7 +122,8 @@ class HomeViewModel
                 next = candidates.getOrNull(1),
                 dayOff = settings.isDayOff(now.toLocalDate()),
                 settings = settings.commute,
-                sampleData = sample,
+                sampleBus = busTimetable.timetable().isSampleData,
+                sampleJr = jrTimetable.timetable().version.startsWith("sample"),
                 permissions = PermissionStatus.check(context),
                 realtime = realtimeState,
             )

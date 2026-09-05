@@ -32,6 +32,7 @@
     <string name="home_section_jr">JR</string>
     <string name="home_section_transfer">乗り継ぎ</string>
     <string name="home_route_line">%1$s系統 %2$s行</string>
+    <string name="home_route_line_named">%1$s %2$s行</string>
     <string name="home_leg_times">%1$s 発 %2$s → %3$s 着 %4$s</string>
     <string name="home_platform">%1$s番のりば</string>
     <string name="home_jr_platform">%1$s番のりば</string>
@@ -60,7 +61,8 @@
     <string name="home_empty">この先の運行が見つかりません。時刻表データを確認してください。</string>
     <string name="home_loading">計算中…</string>
     <string name="home_updated_at">%1$s 時点</string>
-    <string name="home_sample_data_warning">サンプル時刻表で動作しています（実ダイヤではありません）</string>
+    <string name="home_sample_bus_warning">バス時刻表はサンプルデータです（実ダイヤではありません）</string>
+    <string name="home_sample_jr_warning">JR時刻表はサンプルデータです。実ダイヤの転記が必要です</string>
 
     <!-- ステータス -->
     <string name="status_ok">余裕あり</string>

@@ -22,7 +22,7 @@ sys.path.insert(0, TOOLS)
 import gtfs_import as gi  # noqa: E402
 
 SAMPLE_DIR = os.path.join(TOOLS, "testdata", "sample_gtfs")
-CONFIG = os.path.join(TOOLS, "gtfs_config.json")
+CONFIG = os.path.join(TOOLS, "testdata", "sample_config.json")
 
 
 def build_to(tmpdir: str, source: str = SAMPLE_DIR, outs=None, config=CONFIG) -> str:

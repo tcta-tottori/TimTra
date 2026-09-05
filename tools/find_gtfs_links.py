@@ -52,8 +52,18 @@ def main() -> int:
         "link_count": len(links),
         "gtfs_zip": best_zip,
         "rt_vehicle_positions": best_rt,
-        "zip_candidates": [{"url": l["url"], "text": l["text"], "score": score(l, static_hints)} for l in zips[:20]],
+        "zip_candidates": [
+            {"url": l["url"], "text": l["text"], "score": score(l, static_hints), "context": l["context"][:200]} for l in zips[:20]
+        ],
         "rt_candidates": [{"url": l["url"], "text": l["text"], "score": score(l, rt_hints)} for l in rts[:20]],
+        # <a> になっていない URL（本文に書かれた GTFS-RT のエンドポイントなど）
+        "raw_urls": sorted(set(re.findall(r"https?://[^\s\"'<>]+", html.unescape(text)))),
+        # リアルタイム関連の記述行（URL がテキストで書かれている場合の手がかり）
+        "realtime_text": [
+            " ".join(seg.split())[:300]
+            for seg in re.split(r"<(?:p|li|tr|div|br)[^>]*>", text, flags=re.I)
+            if has(seg, ["リアルタイム", "GTFS-RT", "GTFSリアルタイム", "VehiclePosition", "車両位置"])
+        ][:20],
     }
     print(json.dumps(out, ensure_ascii=False, indent=2))
     return 0

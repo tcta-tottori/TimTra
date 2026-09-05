@@ -78,7 +78,7 @@ class TimetableViewModel
                 when (tab) {
                     TimetableTab.HOME_STOP ->
                         busTimetable.tripsOn(today, BusDirection.TO_STATION).map {
-                            TimetableEntry(it.departure.seconds, EntryKind.BUS, it.routeShortName, it.headsign, it.boardStop.platformCode)
+                            TimetableEntry(it.departure.seconds, EntryKind.BUS, it.routeDisplayName, it.headsign, it.boardStop.platformCode)
                         }
                     TimetableTab.STATION -> {
                         val buses =
@@ -86,7 +86,7 @@ class TimetableViewModel
                                 TimetableEntry(
                                     it.departure.seconds,
                                     EntryKind.BUS,
-                                    it.routeShortName,
+                                    it.routeDisplayName,
                                     it.headsign,
                                     it.boardStop.platformCode,
                                 )

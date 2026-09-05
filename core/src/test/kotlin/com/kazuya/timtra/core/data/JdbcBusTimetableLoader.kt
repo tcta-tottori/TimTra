@@ -37,7 +37,7 @@ object JdbcBusTimetableLoader {
                 con.rows(
                     """
                     SELECT l.trip_id, l.route_id, r.route_short_name, t.trip_headsign, l.service_id, l.direction,
-                           l.board_stop_id, l.alight_stop_id, l.board_departure_secs, l.alight_arrival_secs
+                           l.board_stop_id, l.alight_stop_id, l.board_departure_secs, l.alight_arrival_secs, r.route_long_name
                     FROM commute_legs l
                     JOIN trips t ON t.trip_id = l.trip_id
                     JOIN routes r ON r.route_id = l.route_id
@@ -54,6 +54,7 @@ object JdbcBusTimetableLoader {
                         alightStop = stops.getValue(it.getString(8)),
                         departure = GtfsTime(it.getInt(9)),
                         arrival = GtfsTime(it.getInt(10)),
+                        routeLongName = it.getString(11),
                     )
                 }
 

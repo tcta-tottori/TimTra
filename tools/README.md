@@ -36,7 +36,7 @@ python3 -m unittest discover -s tools/tests -v
 実データが手元にない間、アプリ側の動作確認には合成データから生成した DB を使える。
 
 ```sh
-python3 tools/gtfs_import.py build tools/testdata/sample_gtfs --config tools/gtfs_config.json --out data/src/main/assets/timtra_gtfs.db
+python3 tools/gtfs_import.py build tools/testdata/sample_gtfs --config tools/testdata/sample_config.json --out data/src/main/assets/timtra_gtfs.db
 ```
 
 現在コミットされている `data/src/main/assets/timtra_gtfs.db` はこのサンプルから生成したもの。

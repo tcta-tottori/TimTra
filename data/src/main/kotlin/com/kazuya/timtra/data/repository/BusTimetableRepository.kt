@@ -63,6 +63,7 @@ class BusTimetableRepository
                         alightStop = stops.getValue(row.alightStopId),
                         departure = GtfsTime(row.boardDepartureSecs),
                         arrival = GtfsTime(row.alightArrivalSecs),
+                        routeLongName = row.routeLongName,
                     )
                 }
             val rules = dao.calendar().map { it.toRule() }

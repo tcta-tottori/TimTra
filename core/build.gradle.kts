@@ -39,7 +39,7 @@ val sampleDb = layout.buildDirectory.file("sample/timtra_gtfs.db")
 val generateSampleGtfsDb by tasks.registering(Exec::class) {
     val tools = repoRoot.dir("tools")
     inputs.file(tools.file("gtfs_import.py"))
-    inputs.file(tools.file("gtfs_config.json"))
+    inputs.file(tools.file("testdata/sample_config.json"))
     inputs.dir(tools.dir("testdata/sample_gtfs"))
     outputs.file(sampleDb)
     workingDir(repoRoot)
@@ -49,7 +49,7 @@ val generateSampleGtfsDb by tasks.registering(Exec::class) {
         "build",
         "tools/testdata/sample_gtfs",
         "--config",
-        "tools/gtfs_config.json",
+        "tools/testdata/sample_config.json",
         "--out",
         sampleDb.get().asFile.absolutePath,
     )

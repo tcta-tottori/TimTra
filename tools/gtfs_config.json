@@ -1,16 +1,30 @@
 {
-  "_comment": "gtfs_import.py の抽出設定。route_ids / stop_ids が空のときは patterns で名前一致させる。実データで discover を実行して ID を確定したら、ここと docs/ids.md に記録する。",
+  "_comment": "gtfs_import.py の抽出設定。2026-09-05 に実データ（feed_version 2.0, 2026-08-01〜2027-01-31）の discover で確定した ID。ダイヤ改正で ID が変わったら discover をやり直す。",
   "route": {
-    "route_ids": [],
-    "patterns": ["用瀬智頭線"]
+    "route_ids": [
+      "R310100111"
+    ],
+    "patterns": [
+      "用瀬智頭線"
+    ]
   },
   "home_stop": {
-    "stop_ids": [],
-    "patterns": ["南吉成"]
+    "stop_ids": [
+      "S310100077700100",
+      "S310100077700200"
+    ],
+    "patterns": [
+      "南吉成"
+    ]
   },
   "station_stop": {
-    "stop_ids": [],
-    "patterns": ["鳥取駅"]
+    "stop_ids": [
+      "S310100000100300",
+      "S310100000100600"
+    ],
+    "patterns": [
+      "鳥取駅"
+    ]
   },
   "keep_trips": "either"
 }

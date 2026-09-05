@@ -9,6 +9,7 @@ data class CommuteLegRow(
     @ColumnInfo(name = "trip_id") val tripId: String,
     @ColumnInfo(name = "route_id") val routeId: String,
     @ColumnInfo(name = "route_short_name") val routeShortName: String,
+    @ColumnInfo(name = "route_long_name") val routeLongName: String,
     @ColumnInfo(name = "trip_headsign") val tripHeadsign: String,
     @ColumnInfo(name = "service_id") val serviceId: String,
     val direction: String,
@@ -44,7 +45,7 @@ interface GtfsDao {
 
     @Query(
         """
-        SELECT l.trip_id, l.route_id, r.route_short_name, t.trip_headsign, l.service_id, l.direction,
+        SELECT l.trip_id, l.route_id, r.route_short_name, r.route_long_name, t.trip_headsign, l.service_id, l.direction,
                l.board_stop_id, l.alight_stop_id, l.board_departure_secs, l.alight_arrival_secs
         FROM commute_legs l
         JOIN trips t ON t.trip_id = l.trip_id
