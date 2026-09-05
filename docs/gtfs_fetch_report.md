@@ -1,6 +1,6 @@
 # GTFS 取得レポート（CI 自動生成）
 
-- 取得日時: 2026-09-05T23:12:01Z
+- 取得日時: 2026-09-05T23:21:14Z
 - ポータル: https://odp-pref-tottori.tori-info.co.jp/bus.html
 - GTFS-JP ZIP: https://odp-pref-tottori.tori-info.co.jp/bus_data/2.zip
 - GTFS-RT VehiclePosition: （見つからず）
@@ -17,70 +17,96 @@
     {
       "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/2.zip",
       "text": "データ",
-      "score": 4
+      "score": 4,
+      "context": "\">位置情報 日本交通株式会社 鳥取県内の全路線 データ 2025/01/01 データ 日ノ丸自動車株式会社 鳥取県内の全路線 データ 2025/01/01 データ"
     },
     {
       "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/3.zip",
       "text": "データ",
-      "score": 4
+      "score": 4,
+      "context": "\"bus_data\"> 日ノ丸自動車株式会社 鳥取県内の全路線 データ 2025/01/01 データ 鳥取市 循環バス（くる梨）、ループ麒麟獅子、気高循環線、 絹見線、らっちゃんバス データ 2025/01/01 データ"
     },
     {
       "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/1.zip",
       "text": "データ",
-      "score": 2
+      "score": 2,
+      "context": "n=\"2\" scope=\"col\">地区・路線 GTFS-JP GTFS-RT データ 最終更新日 位置情報 日本交通株式会社 鳥取県内の全路線 データ 2025/01/01 データ"
     },
     {
       "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/4.zip",
       "text": "データ",
-      "score": 2
+      "score": 2,
+      "context": "鳥取市 循環バス（くる梨）、ループ麒麟獅子、気高循環線、 絹見線、らっちゃんバス データ 2025/01/01 データ 岩美町 岩美町営バス データ 2025/01/01 &nbsp; <tr class=\""
     },
     {
       "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/5.zip",
       "text": "データ",
-      "score": 2
+      "score": 2,
+      "context": "bus_data/3_rt.bin\">データ 岩美町 岩美町営バス データ 2025/01/01 &nbsp; 若桜町 若桜町営バス(おにっこバス) データ 2025/01/01 &nbsp; <tr class=\""
     },
     {
       "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/6.zip",
       "text": "データ",
-      "score": 2
+      "score": 2,
+      "context": "-color: grey\">&nbsp; 若桜町 若桜町営バス(おにっこバス) データ 2025/01/01 &nbsp; 八頭町 八頭町営バス(やずバス) データ 2025/01/01 &nbsp; <tr class=\""
     },
     {
       "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/7.zip",
       "text": "データ",
-      "score": 2
+      "score": 2,
+      "context": "lor: grey\">&nbsp; 八頭町 八頭町営バス(やずバス) データ 2025/01/01 &nbsp; 三朝町 三朝町営バス(みささサンサンバス) データ 2025/01/01 &nbsp; <tr class=\""
     },
     {
       "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/8.zip",
       "text": "データ",
-      "score": 2
+      "score": 2,
+      "context": "r: grey\">&nbsp; 三朝町 三朝町営バス(みささサンサンバス) データ 2025/01/01 &nbsp; 琴浦町 琴浦町営バス(ことうらバス) データ 2025/01/01 &nbsp; <tr class=\""
     },
     {
       "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/9.zip",
       "text": "データ",
-      "score": 2
+      "score": 2,
+      "context": "r> 琴浦町 琴浦町営バス(ことうらバス) データ 2025/01/01 &nbsp; 米子市 米子市循環バス（だんだんバス）、 淀江町循環バス（どんぐりコロコロ） データ 2025/01/01 &nbsp; <tr class=\""
     },
     {
       "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/11.zip",
       "text": "データ",
-      "score": 2
+      "score": 2,
+      "context": "米子市 米子市循環バス（だんだんバス）、 淀江町循環バス（どんぐりコロコロ） データ 2025/01/01 &nbsp; 南部町 南部町営ふれあいバス データ 2025/01/01 &nbsp; <tr class=\""
     },
     {
       "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/12.zip",
       "text": "データ",
-      "score": 2
+      "score": 2,
+      "context": "und-color: grey\">&nbsp; 南部町 南部町営ふれあいバス データ 2025/01/01 &nbsp; 日南町 巡回バス(たったもバス) データ 2025/01/01 &nbsp; <tr class=\""
     },
     {
       "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/13.zip",
       "text": "データ",
-      "score": 2
+      "score": 2,
+      "context": "kground-color: grey\">&nbsp; 日南町 巡回バス(たったもバス) データ 2025/01/01 &nbsp; 日野町 日野町営バス データ 2025/01/01 &nbsp; <tr class=\""
     },
     {
       "url": "https://odp-pref-tottori.tori-info.co.jp/bus_data/14.zip",
       "text": "データ",
-      "score": 2
+      "score": 2,
+      "context": "e=\"background-color: grey\">&nbsp; 日野町 日野町営バス データ 2025/01/01 &nbsp; 江府町 江府町営バス データ 2025/01/01 &nbsp; </t"
     }
   ],
-  "rt_candidates": []
+  "rt_candidates": [],
+  "raw_urls": [
+    "http://schema.org/BreadcrumbList",
+    "http://schema.org/ListItem",
+    "http://www.pref.tottori.lg.jp/",
+    "http://www.pref.tottori.lg.jp/1411.htm"
+  ],
+  "realtime_text": [
+    "(バス会社・市町名)</th> <th rowspan=\"2\" scope=\"col\">地区・路線</th> <th colspan=\"2\" scope=\"col\">GTFS-JP</th> <th colspan=\"1\" scope=\"col\">GTFS-RT</th> </tr>",
+    "GTFS-JP及びGTFS-RT（「標準的なバス情報フォーマット」）について",
+    "GTFS-JPは停留所、路線、時刻表、運賃等の静的データ、GTFS-RTはバスの現在位置、遅延情報等の動的データです。",
+    "・GTFS-RT（位置情報：VehiclePosition）の提供を開始しました（2024年10月7日～）。",
+    "なお、GTFS-RTの情報取得は30秒に1回までとしてください。"
+  ]
 }
 ```
 
@@ -148,11 +174,6 @@ agency: 7270001000651 日ノ丸自動車
 ## build の出力
 
 ```
-警告: 名前は一致するが対象路線が使わないため除外: S000300221500100 鳥取駅
-警告: 名前は一致するが対象路線が使わないため除外: S310100000100100 鳥取駅
-警告: 名前は一致するが対象路線が使わないため除外: S310100000100200 鳥取駅
-警告: 名前は一致するが対象路線が使わないため除外: S310100000100400 鳥取駅
-警告: 名前は一致するが対象路線が使わないため除外: S310100000100500 鳥取駅
 書き出し: data/src/main/assets/timtra_gtfs.db  routes=1 stops=169 trips=91 stop_times=4182 calendar=3 calendar_dates=22 commute_legs=91
 route_ids=['R310100111'] home_stop_ids=['S310100077700100', 'S310100077700200'] station_stop_ids=['S310100000100300', 'S310100000100600'] legs: 南吉成→鳥取駅=45 鳥取駅→南吉成=46
 ```
