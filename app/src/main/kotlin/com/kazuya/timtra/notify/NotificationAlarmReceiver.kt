@@ -9,29 +9,35 @@ import androidx.core.app.NotificationManagerCompat
 import com.kazuya.timtra.MainActivity
 import com.kazuya.timtra.R
 import com.kazuya.timtra.widget.CommuteWidgetUpdater
-import dagger.hilt.android.AndroidEntryPoint
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import javax.inject.Inject
 
 /**
  * AlarmManager から起こされ、予約時に確定した文面をそのまま表示する。
  * 勤務先リマインダーだけは、鳴る瞬間に位置を 1 回確認してから出す（離れていればその日は止める）。
  */
-@AndroidEntryPoint
 class NotificationAlarmReceiver : BroadcastReceiver() {
-    @Inject
-    lateinit var trainReminders: TrainReminderScheduler
+    /** BroadcastReceiver は Hilt の @AndroidEntryPoint が使いにくい（super.onReceive が抽象）ので EntryPoint で取る。 */
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface Dependencies {
+        fun trainReminders(): TrainReminderScheduler
+    }
 
     override fun onReceive(
         context: Context,
         intent: Intent,
     ) {
-        super.onReceive(context, intent)
         if (intent.action != ACTION_SHOW) return
         val content = readContent(intent) ?: return
+        val trainReminders =
+            EntryPointAccessors.fromApplication(context.applicationContext, Dependencies::class.java).trainReminders()
         val pending = goAsync()
         CoroutineScope(Dispatchers.Default).launch {
             try {
