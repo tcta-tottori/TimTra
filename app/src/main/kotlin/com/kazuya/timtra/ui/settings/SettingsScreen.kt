@@ -1,5 +1,8 @@
 package com.kazuya.timtra.ui.settings
 
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,10 +27,13 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -38,7 +44,9 @@ import com.kazuya.timtra.R
 import com.kazuya.timtra.core.notify.SuppressReason
 import com.kazuya.timtra.data.repository.AppSettings
 import com.kazuya.timtra.data.repository.NotificationPlanSummary
+import com.kazuya.timtra.location.LocationProvider
 import com.kazuya.timtra.ui.common.hhmm
+import com.kazuya.timtra.ui.theme.StatusColors
 import com.kazuya.timtra.ui.theme.TimTraTopBar
 import com.kazuya.timtra.ui.theme.TopBarTitle
 import java.time.Duration
@@ -55,6 +63,14 @@ fun SettingsScreen(
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val planSummary by viewModel.planSummary.collectAsStateWithLifecycle()
+    val message by viewModel.message.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    LaunchedEffect(message) {
+        message?.let {
+            Toast.makeText(context, context.getString(it), Toast.LENGTH_SHORT).show()
+            viewModel.consumeMessage()
+        }
+    }
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
@@ -146,6 +162,25 @@ private fun SettingsContent(
         ) { viewModel.adjust(NotifyField.BEFORE_FIRST_LEG, it) }
         DurationRow(R.string.settings_notify_before_transfer, t.beforeTransferArrival) { viewModel.adjust(NotifyField.BEFORE_TRANSFER, it) }
 
+        SectionTitle(stringResource(R.string.settings_section_reminder))
+        SwitchRow(
+            title = stringResource(R.string.settings_reminder_enabled),
+            subtitle = stringResource(R.string.settings_reminder_note),
+            checked = settings.trainReminder.enabled,
+            onCheckedChange = viewModel::setTrainReminderEnabled,
+        )
+        TimeRow(R.string.settings_reminder_window_start, settings.trainReminder.windowStart) { viewModel.adjustReminderWindowStart(it) }
+        WorkplaceRow(settings, viewModel)
+        BackgroundLocationRow(viewModel)
+        if (viewModel.isTrainReminderOffToday) {
+            Text(
+                text = stringResource(R.string.settings_reminder_off_today),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 4.dp),
+            )
+        }
+
         SectionTitle(stringResource(R.string.settings_plan_status))
         PlanStatus(planSummary)
         Row {
@@ -165,6 +200,90 @@ private fun SettingsContent(
             Text(stringResource(R.string.nav_about), style = MaterialTheme.typography.bodyLarge)
         }
         Spacer(Modifier.height(16.dp))
+    }
+}
+
+/** 勤務先の位置。登録は現在地を 1 回取るだけ（前景の位置情報の許可が必要）。 */
+@Composable
+private fun WorkplaceRow(
+    settings: AppSettings,
+    viewModel: SettingsViewModel,
+) {
+    val launcher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+            viewModel.permissionsChanged()
+            if (result.values.any { it }) viewModel.registerWorkplaceHere()
+        }
+    val workplace = settings.workplace
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+        Text(stringResource(R.string.settings_workplace), style = MaterialTheme.typography.bodyLarge)
+        Text(
+            text =
+                if (workplace != null) {
+                    stringResource(R.string.settings_workplace_registered, workplace.lat, workplace.lon)
+                } else {
+                    stringResource(R.string.settings_workplace_default)
+                },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row {
+            TextButton(
+                onClick = {
+                    if (viewModel.hasLocationPermission) {
+                        viewModel.registerWorkplaceHere()
+                    } else {
+                        launcher.launch(
+                            LocationProvider.PERMISSIONS,
+                        )
+                    }
+                },
+            ) { Text(stringResource(R.string.settings_workplace_register)) }
+            if (workplace != null) {
+                TextButton(onClick = viewModel::clearWorkplace) { Text(stringResource(R.string.settings_workplace_clear)) }
+            }
+        }
+    }
+}
+
+/** 「常に許可」の状態と導線。Android 11 以降は要求すると設定画面が開く。 */
+@Composable
+private fun BackgroundLocationRow(viewModel: SettingsViewModel) {
+    val version by viewModel.permissionVersion.collectAsStateWithLifecycle()
+    val foreground =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { viewModel.permissionsChanged() }
+    val background =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { viewModel.permissionsChanged() }
+    // version が変わるたびに権限を読み直す
+    val granted = remember(version) { viewModel.hasBackgroundLocationPermission }
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            painter = painterResource(if (granted) R.drawable.ic_check_circle else R.drawable.ic_warning),
+            contentDescription = null,
+            tint = if (granted) StatusColors.ok else StatusColors.risk,
+        )
+        Spacer(Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(stringResource(R.string.settings_background_location), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                stringResource(R.string.settings_background_location_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (granted) {
+            Text(stringResource(R.string.perm_granted), style = MaterialTheme.typography.labelMedium)
+        } else {
+            TextButton(
+                onClick = {
+                    if (viewModel.hasLocationPermission) {
+                        background.launch(LocationProvider.BACKGROUND_PERMISSION)
+                    } else {
+                        foreground.launch(LocationProvider.PERMISSIONS)
+                    }
+                },
+            ) { Text(stringResource(R.string.perm_action)) }
+        }
     }
 }
 

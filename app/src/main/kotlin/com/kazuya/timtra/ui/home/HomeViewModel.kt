@@ -21,6 +21,7 @@ import com.kazuya.timtra.data.repository.SettingsRepository
 import com.kazuya.timtra.location.LocationProvider
 import com.kazuya.timtra.notify.NotificationScheduler
 import com.kazuya.timtra.notify.PermissionStatus
+import com.kazuya.timtra.notify.TrainReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.LocalDateTime
 import javax.inject.Inject
@@ -58,6 +60,8 @@ sealed interface HomeUiState {
         val sampleJr: Boolean,
         /** 通知に必要な権限の状態。欠けていれば案内カードを出す。 */
         val permissions: PermissionStatus,
+        /** 勤務先を離れたため、今日の「次の電車」リマインダーが止まっているか。 */
+        val reminderOffToday: Boolean,
         /** GTFS-RT の取得状態と推定遅延。 */
         val realtime: RealtimeState,
     ) : HomeUiState
@@ -76,6 +80,7 @@ class HomeViewModel
         private val scheduler: NotificationScheduler,
         private val realtime: RealtimeRepository,
         private val location: LocationProvider,
+        private val trainReminders: TrainReminderScheduler,
         private val clock: AppClock,
     ) : ViewModel() {
         private val manualBound = MutableStateFlow<Bound?>(null)
@@ -107,14 +112,18 @@ class HomeViewModel
             val now = clock.now()
             val timetable = busTimetable.timetable()
             // 現在位置に近い側の出発時刻を出す。手動切替が最優先、位置が取れなければ時刻帯で決める。
+            val here = location.current()
             val decision =
                 manual?.let { BoundDecision(it, BoundBasis.MANUAL) }
                     ?: BoundResolver.resolve(
-                        location = location.current(),
+                        location = here,
                         homeStop = timetable.homeStopLocation,
                         byTime = settings.commute.boundAt(now.toLocalTime()),
+                        workStation = TrainReminderScheduler.workplaceOf(settings),
                     )
             val bound = decision.bound
+            // 勤務先を離れていれば、その日の「次の電車」リマインダーを止める
+            trainReminders.onLocationObserved(here, now)
 
             suspend fun plan(delays: Map<String, Duration>) =
                 journeys.candidates(PlanRequest(now = now, bound = bound, delays = delays), CANDIDATE_COUNT)
@@ -142,6 +151,7 @@ class HomeViewModel
                 sampleBus = timetable.isSampleData,
                 sampleJr = jrTimetable.timetable().version.startsWith("sample"),
                 permissions = PermissionStatus.check(context),
+                reminderOffToday = settings.trainReminder.enabled && settings.isTrainReminderOff(now.toLocalDate()),
                 realtime = realtimeState,
             )
         }
@@ -164,6 +174,14 @@ class HomeViewModel
         /** 手動更新と、権限画面から戻ったときの状態再取得。 */
         fun refresh() {
             refreshCount.value += 1
+        }
+
+        /** 「再開」: 勤務先を離れた記録を消してリマインダーを予約し直す。 */
+        fun resumeTrainReminders() {
+            viewModelScope.launch {
+                trainReminders.resume()
+                refresh()
+            }
         }
 
         private companion object {

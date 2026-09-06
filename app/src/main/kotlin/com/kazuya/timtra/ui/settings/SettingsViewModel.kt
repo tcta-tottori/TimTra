@@ -8,14 +8,17 @@ import androidx.lifecycle.viewModelScope
 import com.kazuya.timtra.R
 import com.kazuya.timtra.core.journey.CommuteSettings
 import com.kazuya.timtra.core.notify.NotificationTiming
+import com.kazuya.timtra.core.notify.TrainReminderSettings
 import com.kazuya.timtra.data.di.AppClock
 import com.kazuya.timtra.data.repository.AppSettings
 import com.kazuya.timtra.data.repository.NotificationPlanSummary
 import com.kazuya.timtra.data.repository.SettingsRepository
+import com.kazuya.timtra.location.LocationProvider
 import com.kazuya.timtra.notify.NotificationChannels
 import com.kazuya.timtra.notify.NotificationScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -56,8 +59,18 @@ class SettingsViewModel
         @ApplicationContext private val context: Context,
         private val repository: SettingsRepository,
         private val scheduler: NotificationScheduler,
+        private val location: LocationProvider,
         private val clock: AppClock,
     ) : ViewModel() {
+        /** 「現在地を勤務先に登録」の結果メッセージ（表示したら [consumeMessage] で消す）。 */
+        val message = MutableStateFlow<Int?>(null)
+
+        val hasLocationPermission: Boolean get() = location.hasPermission
+        val hasBackgroundLocationPermission: Boolean get() = location.hasBackgroundPermission
+
+        /** 権限画面から戻ったときに再評価させるためのカウンタ。 */
+        val permissionVersion = MutableStateFlow(0)
+
         val settings: StateFlow<AppSettings?> =
             repository.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), null)
 
@@ -66,6 +79,43 @@ class SettingsViewModel
 
         val isDayOffToday: Boolean
             get() = settings.value?.isDayOff(clock.now().toLocalDate()) == true
+
+        val isTrainReminderOffToday: Boolean
+            get() = settings.value?.isTrainReminderOff(clock.now().toLocalDate()) == true
+
+        fun setTrainReminderEnabled(enabled: Boolean) {
+            update { repository.updateTrainReminder { it.copy(enabled = enabled) } }
+        }
+
+        fun adjustReminderWindowStart(deltaMinutes: Long) {
+            update { repository.updateTrainReminder { it.copy(windowStart = it.windowStart.plusMinutes(deltaMinutes)) } }
+        }
+
+        /** 現在地を 1 回取り、勤務先として保存する。 */
+        fun registerWorkplaceHere() {
+            viewModelScope.launch {
+                val here = location.current(maxCacheMillis = 0)
+                if (here == null) {
+                    message.value = R.string.settings_workplace_failed
+                } else {
+                    repository.setWorkplace(here)
+                    message.value = R.string.settings_workplace_registered_toast
+                    scheduler.requestReplan()
+                }
+            }
+        }
+
+        fun clearWorkplace() {
+            update { repository.setWorkplace(null) }
+        }
+
+        fun consumeMessage() {
+            message.value = null
+        }
+
+        fun permissionsChanged() {
+            permissionVersion.value += 1
+        }
 
         fun adjust(
             field: DurationField,
@@ -136,6 +186,7 @@ class SettingsViewModel
             update {
                 repository.updateCommute { CommuteSettings() }
                 repository.updateNotificationTiming { NotificationTiming() }
+                repository.updateTrainReminder { TrainReminderSettings() }
             }
         }
 

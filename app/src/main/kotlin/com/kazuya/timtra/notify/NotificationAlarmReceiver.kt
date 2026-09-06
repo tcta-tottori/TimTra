@@ -9,30 +9,54 @@ import androidx.core.app.NotificationManagerCompat
 import com.kazuya.timtra.MainActivity
 import com.kazuya.timtra.R
 import com.kazuya.timtra.widget.CommuteWidgetUpdater
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import javax.inject.Inject
 
-/** AlarmManager から起こされ、予約時に確定した文面をそのまま表示する。 */
+/**
+ * AlarmManager から起こされ、予約時に確定した文面をそのまま表示する。
+ * 勤務先リマインダーだけは、鳴る瞬間に位置を 1 回確認してから出す（離れていればその日は止める）。
+ */
+@AndroidEntryPoint
 class NotificationAlarmReceiver : BroadcastReceiver() {
+    @Inject
+    lateinit var trainReminders: TrainReminderScheduler
+
     override fun onReceive(
         context: Context,
         intent: Intent,
     ) {
+        super.onReceive(context, intent)
         if (intent.action != ACTION_SHOW) return
         val content = readContent(intent) ?: return
-        // 通知の時刻は状況が変わる節目なので、ウィジェットもここで描き直す（常駐せずに更新する機会）
         val pending = goAsync()
         CoroutineScope(Dispatchers.Default).launch {
             try {
+                val show =
+                    if (content.requiresWorkplace) {
+                        val date = content.reminderDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+                        date != null && trainReminders.shouldShowNow(date)
+                    } else {
+                        true
+                    }
+                if (show) show(context, content)
+                // 通知の時刻は状況が変わる節目なので、ウィジェットもここで描き直す（常駐せずに更新する機会）
                 CommuteWidgetUpdater.updateAll(context)
             } finally {
                 pending.finish()
             }
         }
+    }
+
+    private fun show(
+        context: Context,
+        content: NotificationContent,
+    ) {
         val manager = NotificationManagerCompat.from(context)
         if (!manager.areNotificationsEnabled()) return
-
         val tap =
             PendingIntent.getActivity(
                 context,
@@ -42,8 +66,8 @@ class NotificationAlarmReceiver : BroadcastReceiver() {
             )
         val notification =
             NotificationCompat
-                .Builder(context, NotificationChannels.COMMUTE)
-                .setSmallIcon(R.drawable.ic_notification)
+                .Builder(context, content.channelId)
+                .setSmallIcon(content.iconRes)
                 .setContentTitle(content.title)
                 .setContentText(content.text)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(content.bigText))
@@ -63,6 +87,10 @@ class NotificationAlarmReceiver : BroadcastReceiver() {
         private const val EXTRA_TITLE = "title"
         private const val EXTRA_TEXT = "text"
         private const val EXTRA_BIG_TEXT = "bigText"
+        private const val EXTRA_ICON = "icon"
+        private const val EXTRA_CHANNEL = "channel"
+        private const val EXTRA_REQUIRES_WORKPLACE = "requiresWorkplace"
+        private const val EXTRA_REMINDER_DATE = "reminderDate"
 
         fun putContent(
             intent: Intent,
@@ -72,6 +100,10 @@ class NotificationAlarmReceiver : BroadcastReceiver() {
             intent.putExtra(EXTRA_TITLE, content.title)
             intent.putExtra(EXTRA_TEXT, content.text)
             intent.putExtra(EXTRA_BIG_TEXT, content.bigText)
+            intent.putExtra(EXTRA_ICON, content.iconRes)
+            intent.putExtra(EXTRA_CHANNEL, content.channelId)
+            intent.putExtra(EXTRA_REQUIRES_WORKPLACE, content.requiresWorkplace)
+            content.reminderDate?.let { intent.putExtra(EXTRA_REMINDER_DATE, it) }
         }
 
         fun readContent(intent: Intent): NotificationContent? {
@@ -82,6 +114,10 @@ class NotificationAlarmReceiver : BroadcastReceiver() {
                 title = title,
                 text = text,
                 bigText = intent.getStringExtra(EXTRA_BIG_TEXT) ?: text,
+                iconRes = intent.getIntExtra(EXTRA_ICON, R.drawable.ic_notification),
+                channelId = intent.getStringExtra(EXTRA_CHANNEL) ?: NotificationChannels.COMMUTE,
+                requiresWorkplace = intent.getBooleanExtra(EXTRA_REQUIRES_WORKPLACE, false),
+                reminderDate = intent.getStringExtra(EXTRA_REMINDER_DATE),
             )
         }
     }

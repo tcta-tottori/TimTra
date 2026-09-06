@@ -4,13 +4,16 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.kazuya.timtra.core.journey.CommuteSettings
+import com.kazuya.timtra.core.model.GeoPoint
 import com.kazuya.timtra.core.notify.NotificationTiming
+import com.kazuya.timtra.core.notify.TrainReminderSettings
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -33,8 +36,16 @@ data class AppSettings(
     val dayOff: LocalDate? = null,
     /** 通知タイミング（CLAUDE.md 8）。 */
     val notificationTiming: NotificationTiming = NotificationTiming(),
+    /** 勤務先にいるときの「次の電車まで」リマインダー。 */
+    val trainReminder: TrainReminderSettings = TrainReminderSettings(),
+    /** 「現在地を勤務先に登録」で保存した位置。未登録なら null（core の Places.WORKPLACE_DEFAULT で代用）。 */
+    val workplace: GeoPoint? = null,
+    /** 勤務先を離れたのでリマインダーを止めた日。翌日になれば自動的に無効。 */
+    val trainReminderOffDate: LocalDate? = null,
 ) {
     fun isDayOff(today: LocalDate): Boolean = dayOff == today
+
+    fun isTrainReminderOff(today: LocalDate): Boolean = trainReminderOffDate == today
 }
 
 /** 直近の通知予約計算の要約。設定画面で「予約状況」として見せる。 */
@@ -81,6 +92,34 @@ class SettingsRepository
 
         suspend fun setNotificationsEnabled(enabled: Boolean) {
             store.edit { it[Keys.NOTIFICATIONS_ENABLED] = enabled }
+        }
+
+        suspend fun updateTrainReminder(transform: (TrainReminderSettings) -> TrainReminderSettings) {
+            store.edit { prefs ->
+                val next = transform(prefs.toSettings().trainReminder)
+                prefs[Keys.TRAIN_REMINDER_ENABLED] = next.enabled
+                prefs[Keys.TRAIN_REMINDER_WINDOW_START] = next.windowStart.toSecondOfDay()
+            }
+        }
+
+        /** 勤務先の位置。null で登録解除。 */
+        suspend fun setWorkplace(point: GeoPoint?) {
+            store.edit { prefs ->
+                if (point == null) {
+                    prefs.remove(Keys.WORKPLACE_LAT)
+                    prefs.remove(Keys.WORKPLACE_LON)
+                } else {
+                    prefs[Keys.WORKPLACE_LAT] = point.lat
+                    prefs[Keys.WORKPLACE_LON] = point.lon
+                }
+            }
+        }
+
+        /** 勤務先を離れた日を記録する（その日のリマインダーを止める）。null で解除。 */
+        suspend fun setTrainReminderOffDate(date: LocalDate?) {
+            store.edit { prefs ->
+                if (date == null) prefs.remove(Keys.TRAIN_REMINDER_OFF_DATE) else prefs[Keys.TRAIN_REMINDER_OFF_DATE] = date.toString()
+            }
         }
 
         /** スマホから同期された設定で丸ごと置き換える（Wear 側）。予約状況の要約は触らない。 */
@@ -170,6 +209,9 @@ class SettingsRepository
                     workEndsAt = time(Keys.WORK_ENDS_AT, d.workEndsAt),
                 )
             val t = NotificationTiming()
+            val r = TrainReminderSettings()
+            val workplaceLat = this[Keys.WORKPLACE_LAT]
+            val workplaceLon = this[Keys.WORKPLACE_LON]
             return AppSettings(
                 commute = commute,
                 notificationsEnabled = this[Keys.NOTIFICATIONS_ENABLED] ?: true,
@@ -180,6 +222,13 @@ class SettingsRepository
                         beforeFirstLegDeparture = minutes(Keys.NOTIFY_BEFORE_FIRST_LEG, t.beforeFirstLegDeparture),
                         beforeTransferArrival = minutes(Keys.NOTIFY_BEFORE_TRANSFER, t.beforeTransferArrival),
                     ),
+                trainReminder =
+                    TrainReminderSettings(
+                        enabled = this[Keys.TRAIN_REMINDER_ENABLED] ?: r.enabled,
+                        windowStart = time(Keys.TRAIN_REMINDER_WINDOW_START, r.windowStart),
+                    ),
+                workplace = if (workplaceLat != null && workplaceLon != null) GeoPoint(workplaceLat, workplaceLon) else null,
+                trainReminderOffDate = this[Keys.TRAIN_REMINDER_OFF_DATE]?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
             )
         }
 
@@ -208,5 +257,10 @@ class SettingsRepository
             val PLAN_TOMORROW_REASON = stringPreferencesKey("plan_tomorrow_reason")
             val PLAN_EXACT = booleanPreferencesKey("plan_exact_alarms")
             val LAST_SYNCED_AT = longPreferencesKey("last_synced_at")
+            val TRAIN_REMINDER_ENABLED = booleanPreferencesKey("train_reminder_enabled")
+            val TRAIN_REMINDER_WINDOW_START = intPreferencesKey("train_reminder_window_start_sec")
+            val WORKPLACE_LAT = doublePreferencesKey("workplace_lat")
+            val WORKPLACE_LON = doublePreferencesKey("workplace_lon")
+            val TRAIN_REMINDER_OFF_DATE = stringPreferencesKey("train_reminder_off_date")
         }
     }

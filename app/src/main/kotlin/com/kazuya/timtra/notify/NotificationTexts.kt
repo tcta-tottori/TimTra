@@ -14,6 +14,13 @@ data class NotificationContent(
     val title: String,
     val text: String,
     val bigText: String,
+    /** 通知の小アイコン。勤務先リマインダーは段階ごとに歩く / 早歩き / 走るを使い分ける。 */
+    val iconRes: Int = R.drawable.ic_notification,
+    val channelId: String = NotificationChannels.COMMUTE,
+    /** true なら鳴る瞬間に「勤務先にいるか」を位置で確認し、離れていれば出さずにその日のリマインダーを止める。 */
+    val requiresWorkplace: Boolean = false,
+    /** requiresWorkplace のとき、どの日のリマインダーかを ISO 日付で持つ。 */
+    val reminderDate: String? = null,
 )
 
 fun Context.notificationContent(

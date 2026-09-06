@@ -41,6 +41,7 @@ class NotificationScheduler
         private val jr: JrTimetableRepository,
         private val settings: SettingsRepository,
         private val alarms: AlarmScheduler,
+        private val trainReminders: TrainReminderScheduler,
         private val wearSync: WearSyncPublisher,
         private val clock: AppClock,
     ) {
@@ -67,6 +68,8 @@ class NotificationScheduler
                     }
                 }
             alarms.schedule(scheduled)
+            // 勤務先の「次の電車まで」リマインダーも同じタイミングで予約し直す
+            trainReminders.replan(now)
 
             settings.savePlanSummary(
                 NotificationPlanSummary(
@@ -89,6 +92,7 @@ class NotificationScheduler
         /** 予約をすべて取り消す（通知 OFF 時など）。 */
         fun cancelAll() {
             alarms.cancel(allRequestCodes())
+            trainReminders.cancelAll()
         }
 
         /** 夜間ジョブの登録（何度呼んでも 1 つ）と、今すぐの再計算。アプリ起動時に呼ぶ。 */

@@ -55,3 +55,27 @@ CLAUDE.md 8 の実装メモ。常駐サービス・ポーリングは使わず�
 - `core/notify` は JVM テストで境界を固めている（`NotificationPlannerTest` / `DailyNotificationPlannerTest`）。
 - app 側は実機で確認する: 設定画面の「テスト通知を送る」でチャンネルと許可を確認し、「今すぐ再計算」で予約状況を見る。
   `adb shell dumpsys alarm | grep com.kazuya.timtra` で予約を確認できる。
+
+## 勤務先の「次の電車」リマインダー
+
+勤務先（気高電機）にいるときだけ、宝木発（鳥取方面）の次の電車について発車前に段階的に知らせる。
+
+| 何分前 | 段階 | アイコン | 文言 |
+|---|---|---|---|
+| 30 分 | WALK | 歩く（`ic_walk`） | 歩いて向かえば間に合います |
+| 20 分 | FAST_WALK | 早歩き（`ic_walk_fast`） | 早歩きで向かってください |
+| 15 分 | DASH | 走る（`ic_run`） | 急いで。走らないと間に合いません |
+
+- 対象は設定「この時刻以降の電車が対象」（既定 17:00）以降に宝木を出る電車。列挙は core の
+  `notify/TrainReminderPlanner`（純 Kotlin、テストあり）。同じ電車の 3 段階は同じ通知 ID で差し替える。
+- 予約は通勤通知と同じく前夜と再計算時に AlarmManager へ入れる（`app/notify/TrainReminderScheduler`）。常駐しない。
+- **鳴る瞬間の判定**: `NotificationAlarmReceiver` が位置を 1 回だけ取り（最大 6 秒）、勤務先から 600 m 以内なら表示する。
+  離れていれば表示せず、その日を `trainReminderOffDate` に記録して残りの予約を取り消す
+  （「気高電機から離れた時点でその日の通知機能はオフ」）。位置が取れないときも表示しない。
+- ホーム画面が前景で位置を見たときも、対象時間帯に勤務先から離れていれば同じように止める。
+  ホームに「本日のリマインダーは終了」のバナーが出て、「再開」で戻せる。
+- 勤務先の位置は設定の「現在地を勤務先に登録」で端末に保存する。未登録の間は `Places.WORKPLACE_DEFAULT`（宝木駅）で代用。
+- 必要な権限: 位置情報（前景）に加えて **「常に許可」（ACCESS_BACKGROUND_LOCATION）**。
+  Android 10 以降、通知が鳴る瞬間の BroadcastReceiver はバックグラウンドなので、これが無いと位置が取れずリマインダーは出ない。
+  設定画面に状態と導線を置いてある。
+- 通知チャンネルは `train_reminder`（IMPORTANCE_DEFAULT）。通勤通知（`commute`）とは別に音量を調整できる。

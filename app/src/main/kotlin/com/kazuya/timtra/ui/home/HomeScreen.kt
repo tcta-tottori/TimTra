@@ -120,6 +120,7 @@ fun HomeScreen(
                     state = s,
                     onBoundChange = viewModel::setBound,
                     onPermissionsChanged = viewModel::refresh,
+                    onResumeReminders = viewModel::resumeTrainReminders,
                     modifier = Modifier.padding(padding),
                 )
         }
@@ -131,6 +132,7 @@ private fun HomeContent(
     state: HomeUiState.Ready,
     onBoundChange: (Bound?) -> Unit,
     onPermissionsChanged: () -> Unit,
+    onResumeReminders: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -146,6 +148,7 @@ private fun HomeContent(
         if (state.dayOff) Banner(stringResource(R.string.home_day_off), MaterialTheme.colorScheme.primaryContainer)
         if (state.sampleBus) Banner(stringResource(R.string.home_sample_bus_warning), WARNING_CONTAINER)
         if (state.sampleJr) Banner(stringResource(R.string.home_sample_jr_warning), WARNING_CONTAINER)
+        if (state.reminderOffToday) ReminderOffBanner(onResume = onResumeReminders)
 
         val journey = state.journey
         if (journey == null) {
@@ -223,6 +226,21 @@ private fun LocationPrompt(onChanged: () -> Unit) {
                     Text(stringResource(R.string.home_location_allow))
                 }
             }
+        }
+    }
+}
+
+/** 勤務先を離れて「次の電車」リマインダーが止まったことを示す。戻ったときは再開できる。 */
+@Composable
+private fun ReminderOffBanner(onResume: () -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.padding(start = 14.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.home_reminder_off_today),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.weight(1f).padding(vertical = 10.dp),
+            )
+            TextButton(onClick = onResume) { Text(stringResource(R.string.home_reminder_resume)) }
         }
     }
 }
