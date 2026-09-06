@@ -3,6 +3,9 @@ package com.kazuya.timtra.ui.home
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kazuya.timtra.core.journey.BoundBasis
+import com.kazuya.timtra.core.journey.BoundDecision
+import com.kazuya.timtra.core.journey.BoundResolver
 import com.kazuya.timtra.core.journey.CommuteSettings
 import com.kazuya.timtra.core.journey.Journey
 import com.kazuya.timtra.core.journey.PlanRequest
@@ -15,6 +18,7 @@ import com.kazuya.timtra.data.repository.BusTimetableRepository
 import com.kazuya.timtra.data.repository.JourneyRepository
 import com.kazuya.timtra.data.repository.JrTimetableRepository
 import com.kazuya.timtra.data.repository.SettingsRepository
+import com.kazuya.timtra.location.LocationProvider
 import com.kazuya.timtra.notify.NotificationScheduler
 import com.kazuya.timtra.notify.PermissionStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,8 +42,10 @@ sealed interface HomeUiState {
     data class Ready(
         val now: LocalDateTime,
         val bound: Bound,
-        /** 手動で往路/復路を切り替えているか。 */
-        val isManualBound: Boolean,
+        /** 往路/復路をどう決めたか（手動 / 現在地 / 時刻帯）。 */
+        val boundBasis: BoundBasis,
+        /** 位置情報の許可があるか。無ければホームに小さな案内を出す。 */
+        val locationPermitted: Boolean,
         /** 直近の案。運行が無ければ null。 */
         val journey: Journey?,
         /** 1 本後の候補。 */
@@ -69,6 +75,7 @@ class HomeViewModel
         private val jrTimetable: JrTimetableRepository,
         private val scheduler: NotificationScheduler,
         private val realtime: RealtimeRepository,
+        private val location: LocationProvider,
         private val clock: AppClock,
     ) : ViewModel() {
         private val manualBound = MutableStateFlow<Bound?>(null)
@@ -98,7 +105,16 @@ class HomeViewModel
             manual: Bound?,
         ): HomeUiState {
             val now = clock.now()
-            val bound = manual ?: settings.commute.boundAt(now.toLocalTime())
+            val timetable = busTimetable.timetable()
+            // 現在位置に近い側の出発時刻を出す。手動切替が最優先、位置が取れなければ時刻帯で決める。
+            val decision =
+                manual?.let { BoundDecision(it, BoundBasis.MANUAL) }
+                    ?: BoundResolver.resolve(
+                        location = location.current(),
+                        homeStop = timetable.homeStopLocation,
+                        byTime = settings.commute.boundAt(now.toLocalTime()),
+                    )
+            val bound = decision.bound
 
             suspend fun plan(delays: Map<String, Duration>) =
                 journeys.candidates(PlanRequest(now = now, bound = bound, delays = delays), CANDIDATE_COUNT)
@@ -117,12 +133,13 @@ class HomeViewModel
             return HomeUiState.Ready(
                 now = now,
                 bound = bound,
-                isManualBound = manual != null,
+                boundBasis = decision.basis,
+                locationPermitted = location.hasPermission,
                 journey = candidates.getOrNull(0),
                 next = candidates.getOrNull(1),
                 dayOff = settings.isDayOff(now.toLocalDate()),
                 settings = settings.commute,
-                sampleBus = busTimetable.timetable().isSampleData,
+                sampleBus = timetable.isSampleData,
                 sampleJr = jrTimetable.timetable().version.startsWith("sample"),
                 permissions = PermissionStatus.check(context),
                 realtime = realtimeState,

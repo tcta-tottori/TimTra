@@ -50,9 +50,26 @@ enum class DaySelection(
     HOLIDAY(DayType.HOLIDAY),
 }
 
+/** 鳥取駅タブの絞り込み。バスと JR が混ざるので分けて見られるようにする。 */
+enum class StationFilter {
+    ALL,
+    BUS,
+    JR,
+    ;
+
+    fun accepts(kind: EntryKind): Boolean =
+        when (this) {
+            ALL -> true
+            BUS -> kind == EntryKind.BUS
+            JR -> kind == EntryKind.JR
+        }
+}
+
 data class TimetableUiState(
     val tab: TimetableTab = TimetableTab.HOME_STOP,
     val day: DaySelection = DaySelection.TODAY,
+    /** 鳥取駅タブでのみ有効。 */
+    val stationFilter: StationFilter = StationFilter.ALL,
     /** 実際に時刻表を引いた日。日種別指定のときは、その種別に該当する直近の日。 */
     val date: LocalDate? = null,
     val now: LocalTime = LocalTime.MIDNIGHT,
@@ -76,10 +93,11 @@ class TimetableViewModel
     ) : ViewModel() {
         private val tab = MutableStateFlow(TimetableTab.HOME_STOP)
         private val day = MutableStateFlow(DaySelection.TODAY)
+        private val stationFilter = MutableStateFlow(StationFilter.ALL)
 
         val uiState: StateFlow<TimetableUiState> =
-            combine(tab, day) { t, d -> t to d }
-                .mapLatest { (t, d) -> load(t, d) }
+            combine(tab, day, stationFilter) { t, d, f -> Triple(t, d, f) }
+                .mapLatest { (t, d, f) -> load(t, d, f) }
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), TimetableUiState())
 
         fun selectTab(newTab: TimetableTab) {
@@ -90,9 +108,14 @@ class TimetableViewModel
             day.value = newDay
         }
 
+        fun selectStationFilter(filter: StationFilter) {
+            stationFilter.value = filter
+        }
+
         private suspend fun load(
             tab: TimetableTab,
             day: DaySelection,
+            filter: StationFilter,
         ): TimetableUiState {
             val now = clock.now()
             val busTimetable = bus.timetable()
@@ -120,7 +143,7 @@ class TimetableViewModel
                             jrTimetable.servicesOn(today, leg.id).map {
                                 TimetableEntry(it.departure.toSecondOfDay(), EntryKind.JR, it.trainId, leg.to, it.platform.ifBlank { null })
                             }
-                        buses + trains
+                        (buses + trains).filter { filter.accepts(it.kind) }
                     }
                     TimetableTab.HOUGI -> {
                         val leg = jrTimetable.leg(JrLegIds.HOUGI_TO_TOTTORI)
@@ -129,7 +152,15 @@ class TimetableViewModel
                         }
                     }
                 }.sortedWith(compareBy({ it.seconds }, { it.kind }, { it.line }))
-            return TimetableUiState(tab = tab, day = day, date = today, now = now.toLocalTime(), entries = entries, loading = false)
+            return TimetableUiState(
+                tab = tab,
+                day = day,
+                stationFilter = filter,
+                date = today,
+                now = now.toLocalTime(),
+                entries = entries,
+                loading = false,
+            )
         }
 
         private companion object {

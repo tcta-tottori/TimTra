@@ -11,8 +11,14 @@
     <string name="action_menu">メニュー</string>
     <string name="drawer_version">Ver.%1$s</string>
     <string name="home_toggle_bound">往路 / 復路を切り替え</string>
-    <string name="home_bound_state_auto">%1$s ・ 自動判定</string>
-    <string name="home_bound_state_manual">%1$s ・ 手動</string>
+    <string name="home_basis_near_home">現在地: 南吉成付近</string>
+    <string name="home_basis_near_work">現在地: 宝木駅付近</string>
+    <string name="home_basis_time">時刻帯から判定</string>
+    <string name="home_basis_manual">手動で切り替え中</string>
+    <string name="home_basis_reset">自動に戻す</string>
+    <string name="home_location_prompt">位置情報を許可すると、現在地に近い側（自宅 / 勤務先）の出発時刻を自動で表示します</string>
+    <string name="home_location_allow">許可する</string>
+    <string name="home_location_dismiss">閉じる</string>
     <string name="action_refresh">更新</string>
 
     <!-- 往路 / 復路 -->
@@ -87,6 +93,9 @@
     <string name="timetable_day_holiday">日祝</string>
     <string name="timetable_day_holiday_long">日曜・祝日</string>
     <string name="timetable_empty_day_type">この日種別の運行はありません</string>
+    <string name="timetable_filter_all">すべて</string>
+    <string name="timetable_filter_bus">バスのみ</string>
+    <string name="timetable_filter_jr">JRのみ</string>
     <string name="timetable_now_marker">現在 %1$s</string>
 
     <!-- 設定 -->

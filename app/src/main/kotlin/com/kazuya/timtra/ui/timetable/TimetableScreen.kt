@@ -1,6 +1,7 @@
 package com.kazuya.timtra.ui.timetable
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -99,6 +102,9 @@ fun TimetableScreen(
                 }
             }
             DaySelector(selected = state.day, onSelect = viewModel::selectDay)
+            if (state.tab == TimetableTab.STATION) {
+                StationFilterRow(selected = state.stationFilter, onSelect = viewModel::selectStationFilter)
+            }
             if (state.loading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             } else if (state.entries.isEmpty()) {
@@ -167,6 +173,46 @@ private fun DaySelector(
     }
 }
 
+/** 鳥取駅タブだけに出す バス / JR の絞り込み。 */
+@Composable
+private fun StationFilterRow(
+    selected: StationFilter,
+    onSelect: (StationFilter) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        StationFilter.entries.forEach { filter ->
+            FilterChip(
+                selected = filter == selected,
+                onClick = { onSelect(filter) },
+                label = { Text(stringResource(filter.labelRes()), style = MaterialTheme.typography.labelLarge) },
+                colors =
+                    FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = TimTraColors.primary.copy(alpha = 0.12f),
+                        selectedLabelColor = TimTraColors.primary,
+                    ),
+                border =
+                    FilterChipDefaults.filterChipBorder(
+                        enabled = true,
+                        selected = filter == selected,
+                        borderColor = TimTraColors.outline,
+                        selectedBorderColor = TimTraColors.primary,
+                        selectedBorderWidth = 1.dp,
+                    ),
+            )
+        }
+    }
+}
+
+private fun StationFilter.labelRes(): Int =
+    when (this) {
+        StationFilter.ALL -> R.string.timetable_filter_all
+        StationFilter.BUS -> R.string.timetable_filter_bus
+        StationFilter.JR -> R.string.timetable_filter_jr
+    }
+
 private fun DaySelection.labelRes(): Int =
     when (this) {
         DaySelection.TODAY -> R.string.timetable_day_today
@@ -187,7 +233,7 @@ private fun TimetableList(state: TimetableUiState) {
     val listState = rememberLazyListState()
     val upcoming = state.upcomingIndex
     // 今日の表示では現在時刻の位置に自動スクロール（CLAUDE.md 7-2）。他の日種別は先頭から。
-    LaunchedEffect(state.tab, state.day, state.entries) {
+    LaunchedEffect(state.tab, state.day, state.stationFilter, state.entries) {
         listState.scrollToItem((upcoming - 1).coerceAtLeast(0))
     }
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {

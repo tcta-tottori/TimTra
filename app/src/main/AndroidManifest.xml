@@ -11,6 +11,9 @@
     <!-- バッテリー最適化の除外を依頼する（個人用アプリなので直接依頼する） -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- 現在地から往路/復路を判定する（ホーム画面表示中に 1 回だけ取得。常時取得はしない） -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <application
         android:name=".TimTraApp"

@@ -8,6 +8,7 @@ import com.kazuya.timtra.core.model.BusTrip
 import com.kazuya.timtra.core.model.CalendarException
 import com.kazuya.timtra.core.model.CalendarRule
 import com.kazuya.timtra.core.model.ExceptionType
+import com.kazuya.timtra.core.model.GeoPoint
 import com.kazuya.timtra.core.model.GtfsTime
 import com.kazuya.timtra.core.model.ServiceCalendar
 import com.kazuya.timtra.core.model.StopRole
@@ -48,7 +49,8 @@ class BusTimetableRepository
             }
             val stops =
                 dao.stops().associate {
-                    it.stopId to BusStop(it.stopId, it.stopName, it.platformCode, StopRole.fromDbValue(it.role))
+                    val location = if (it.stopLat != null && it.stopLon != null) GeoPoint(it.stopLat, it.stopLon) else null
+                    it.stopId to BusStop(it.stopId, it.stopName, it.platformCode, StopRole.fromDbValue(it.role), location)
                 }
             val trips =
                 dao.commuteLegs().map { row ->

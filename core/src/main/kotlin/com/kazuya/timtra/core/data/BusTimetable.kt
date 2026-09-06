@@ -2,7 +2,9 @@ package com.kazuya.timtra.core.data
 
 import com.kazuya.timtra.core.model.BusDirection
 import com.kazuya.timtra.core.model.BusTrip
+import com.kazuya.timtra.core.model.GeoPoint
 import com.kazuya.timtra.core.model.ServiceCalendar
+import com.kazuya.timtra.core.model.StopRole
 import java.time.LocalDate
 
 /**
@@ -33,6 +35,13 @@ class BusTimetable(
     fun hasServiceOn(serviceDate: LocalDate): Boolean = BusDirection.entries.any { tripsOn(serviceDate, it).isNotEmpty() }
 
     val feedVersion: String? get() = meta[META_FEED_VERSION]
+
+    /** 自宅側バス停（南吉成）の位置。往路/復路の現在地判定に使う。複数乗り場があれば最初のもの。 */
+    val homeStopLocation: GeoPoint? =
+        this.trips
+            .flatMap { listOf(it.boardStop, it.alightStop) }
+            .firstOrNull { it.role == StopRole.HOME && it.location != null }
+            ?.location
 
     /** 合成サンプル（tools/testdata）から生成した DB か。UI で警告を出す。 */
     val isSampleData: Boolean

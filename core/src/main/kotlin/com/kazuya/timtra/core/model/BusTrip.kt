@@ -40,6 +40,8 @@ data class BusStop(
     /** 乗り場番号（例: "5"）。無ければ null。 */
     val platformCode: String? = null,
     val role: StopRole? = null,
+    /** 停留所の位置（stops.txt）。無ければ null。 */
+    val location: GeoPoint? = null,
 )
 
 /** プリパッケージ DB の stops.role。 */
