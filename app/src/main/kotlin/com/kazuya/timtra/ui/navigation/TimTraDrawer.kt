@@ -55,7 +55,7 @@ fun TimTraDrawer(
         drawerContainerColor = TimTraColors.gradientEnd,
         drawerContentColor = TimTraColors.onGradient,
         drawerShape = RoundedCornerShape(topEnd = 28.dp, bottomEnd = 28.dp),
-        modifier = Modifier.width(300.dp),
+        modifier = Modifier.width(280.dp),
     ) {
         Column(
             modifier =
@@ -69,7 +69,7 @@ fun TimTraDrawer(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
-                    modifier = Modifier.size(64.dp).clip(RoundedCornerShape(18.dp)),
+                    modifier = Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Image(
@@ -82,17 +82,17 @@ fun TimTraDrawer(
                 Column {
                     Text(
                         text = stringResource(R.string.drawer_version, versionName),
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.titleMedium,
                         color = TimTraColors.onGradient,
                     )
                     Text(
                         text = LocalDateTime.now(TimTraConstants.ZONE).format(headerTime),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = TimTraColors.onGradient.copy(alpha = 0.75f),
                     )
                 }
             }
-            Spacer(Modifier.height(36.dp))
+            Spacer(Modifier.height(28.dp))
             items.forEach { item ->
                 DrawerItem(
                     iconRes = item.iconRes,
@@ -137,14 +137,14 @@ private fun DrawerItem(
                 .clip(shape)
                 .then(decorated)
                 .clickable(onClick = onClick)
-                .padding(horizontal = 22.dp, vertical = 18.dp),
+                .padding(horizontal = 20.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(painterResource(iconRes), contentDescription = null, modifier = Modifier.size(26.dp), tint = TimTraColors.onGradient)
-        Spacer(Modifier.width(22.dp))
+        Icon(painterResource(iconRes), contentDescription = null, modifier = Modifier.size(22.dp), tint = TimTraColors.onGradient)
+        Spacer(Modifier.width(18.dp))
         Text(
             text = label,
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
             color = TimTraColors.onGradient,
         )
@@ -155,7 +155,7 @@ private fun DrawerItem(
 @Composable
 private fun Wordmark(modifier: Modifier = Modifier) {
     Row(modifier = modifier.padding(bottom = 8.dp)) {
-        Text("Tim", fontSize = 30.sp, fontWeight = FontWeight.Black, letterSpacing = 3.sp, color = Color.White)
-        Text("Tra", fontSize = 30.sp, fontWeight = FontWeight.Black, letterSpacing = 3.sp, color = TimTraColors.accentLight)
+        Text("Tim", fontSize = 24.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp, color = Color.White)
+        Text("Tra", fontSize = 24.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp, color = TimTraColors.accentLight)
     }
 }

@@ -1,6 +1,6 @@
 {
-  "version": "sample-2026-09",
-  "note": "サンプルデータ。実際の JR 時刻表はまだ転記していない。出典（予定）: JR西日本 駅時刻表（手動転記）。ダイヤ改正時は version を改正日に更新する。",
+  "version": "2026-09-06",
+  "note": "2026-09-06 に駅時刻表の画面から手動転記。鳥取発は JR西日本アプリ（9/6 日曜・9/7 月曜）、宝木発は Yahoo!乗換案内（平日・日曜祝日）。特急は宝木に停車しないため除外。土曜は日曜祝日と同じダイヤと仮定。着時刻は所要時間からの推定（鳥取→宝木 22 分、宝木→鳥取 24 分）。23:14 発（◆特定日のみ運転）は除外。出典: JR西日本 駅時刻表",
   "legs": [
     {
       "id": "tottori_to_hougi",
@@ -8,25 +8,174 @@
       "to": "宝木",
       "line": "山陰本線",
       "services": [
-        { "trainId": "S101D", "calendar": "weekday", "departure": "06:35", "arrival": "06:57", "platform": "1", "note": "" },
-        { "trainId": "S103D", "calendar": "weekday", "departure": "07:45", "arrival": "08:07", "platform": "1", "note": "" },
-        { "trainId": "S105D", "calendar": "weekday", "departure": "08:12", "arrival": "08:34", "platform": "0", "note": "" },
-        { "trainId": "S107D", "calendar": "weekday", "departure": "09:30", "arrival": "09:52", "platform": "1", "note": "" },
-        { "trainId": "S109D", "calendar": "weekday", "departure": "12:05", "arrival": "12:27", "platform": "1", "note": "" },
-        { "trainId": "S111D", "calendar": "weekday", "departure": "15:10", "arrival": "15:32", "platform": "1", "note": "" },
-        { "trainId": "S113D", "calendar": "weekday", "departure": "17:20", "arrival": "17:42", "platform": "1", "note": "" },
-        { "trainId": "S115D", "calendar": "weekday", "departure": "19:05", "arrival": "19:27", "platform": "1", "note": "" },
-        { "trainId": "S117D", "calendar": "weekday", "departure": "22:35", "arrival": "22:57", "platform": "1", "note": "" },
-        { "trainId": "S201D", "calendar": "saturday", "departure": "07:00", "arrival": "07:22", "platform": "1", "note": "" },
-        { "trainId": "S203D", "calendar": "saturday", "departure": "08:40", "arrival": "09:02", "platform": "1", "note": "" },
-        { "trainId": "S205D", "calendar": "saturday", "departure": "12:05", "arrival": "12:27", "platform": "1", "note": "" },
-        { "trainId": "S207D", "calendar": "saturday", "departure": "17:20", "arrival": "17:42", "platform": "1", "note": "" },
-        { "trainId": "S209D", "calendar": "saturday", "departure": "22:35", "arrival": "22:57", "platform": "1", "note": "" },
-        { "trainId": "S301D", "calendar": "holiday", "departure": "07:00", "arrival": "07:22", "platform": "1", "note": "" },
-        { "trainId": "S303D", "calendar": "holiday", "departure": "09:05", "arrival": "09:27", "platform": "1", "note": "" },
-        { "trainId": "S305D", "calendar": "holiday", "departure": "12:05", "arrival": "12:27", "platform": "1", "note": "" },
-        { "trainId": "S307D", "calendar": "holiday", "departure": "17:20", "arrival": "17:42", "platform": "1", "note": "" },
-        { "trainId": "S309D", "calendar": "holiday", "departure": "22:35", "arrival": "22:57", "platform": "1", "note": "" }
+        {
+          "trainId": "D0517",
+          "calendar": "everyday",
+          "departure": "05:17",
+          "arrival": "05:39",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "D0540S",
+          "calendar": "saturday",
+          "departure": "05:40",
+          "arrival": "06:02",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "D0540H",
+          "calendar": "holiday",
+          "departure": "05:40",
+          "arrival": "06:02",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "D0633",
+          "calendar": "weekday",
+          "departure": "06:33",
+          "arrival": "06:55",
+          "platform": "",
+          "note": "快速。宝木停車は要確認"
+        },
+        {
+          "trainId": "D0706",
+          "calendar": "everyday",
+          "departure": "07:06",
+          "arrival": "07:28",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "D0729",
+          "calendar": "everyday",
+          "departure": "07:29",
+          "arrival": "07:51",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "D0805",
+          "calendar": "everyday",
+          "departure": "08:05",
+          "arrival": "08:27",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "D0849",
+          "calendar": "weekday",
+          "departure": "08:49",
+          "arrival": "09:11",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "D0928",
+          "calendar": "everyday",
+          "departure": "09:28",
+          "arrival": "09:50",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "D1110",
+          "calendar": "everyday",
+          "departure": "11:10",
+          "arrival": "11:32",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "D1222",
+          "calendar": "everyday",
+          "departure": "12:22",
+          "arrival": "12:44",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "D1335",
+          "calendar": "everyday",
+          "departure": "13:35",
+          "arrival": "13:57",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "D1450",
+          "calendar": "everyday",
+          "departure": "14:50",
+          "arrival": "15:12",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "D1621",
+          "calendar": "everyday",
+          "departure": "16:21",
+          "arrival": "16:43",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "D1721",
+          "calendar": "everyday",
+          "departure": "17:21",
+          "arrival": "17:43",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "D1822",
+          "calendar": "everyday",
+          "departure": "18:22",
+          "arrival": "18:44",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "D1921",
+          "calendar": "everyday",
+          "departure": "19:21",
+          "arrival": "19:43",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "D2020",
+          "calendar": "everyday",
+          "departure": "20:20",
+          "arrival": "20:42",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "D2106",
+          "calendar": "everyday",
+          "departure": "21:06",
+          "arrival": "21:28",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "D2156",
+          "calendar": "everyday",
+          "departure": "21:56",
+          "arrival": "22:18",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "D2248",
+          "calendar": "everyday",
+          "departure": "22:48",
+          "arrival": "23:10",
+          "platform": "",
+          "note": ""
+        }
       ]
     },
     {
@@ -35,34 +184,173 @@
       "to": "鳥取",
       "line": "山陰本線",
       "services": [
-        { "trainId": "S102D", "calendar": "weekday", "departure": "07:10", "arrival": "07:32", "platform": "", "note": "" },
-        { "trainId": "S104D", "calendar": "weekday", "departure": "08:40", "arrival": "09:02", "platform": "", "note": "" },
-        { "trainId": "S106D", "calendar": "weekday", "departure": "12:40", "arrival": "13:02", "platform": "", "note": "" },
-        { "trainId": "S108D", "calendar": "weekday", "departure": "16:50", "arrival": "17:12", "platform": "", "note": "" },
-        { "trainId": "S110D", "calendar": "weekday", "departure": "17:35", "arrival": "17:57", "platform": "", "note": "" },
-        { "trainId": "S112D", "calendar": "weekday", "departure": "18:20", "arrival": "18:42", "platform": "", "note": "" },
-        { "trainId": "S114D", "calendar": "weekday", "departure": "19:40", "arrival": "20:02", "platform": "", "note": "" },
-        { "trainId": "S116D", "calendar": "weekday", "departure": "21:30", "arrival": "21:52", "platform": "", "note": "" },
-        { "trainId": "S118D", "calendar": "weekday", "departure": "23:10", "arrival": "23:32", "platform": "", "note": "" },
-        { "trainId": "S202D", "calendar": "saturday", "departure": "08:40", "arrival": "09:02", "platform": "", "note": "" },
-        { "trainId": "S204D", "calendar": "saturday", "departure": "12:40", "arrival": "13:02", "platform": "", "note": "" },
-        { "trainId": "S206D", "calendar": "saturday", "departure": "17:35", "arrival": "17:57", "platform": "", "note": "" },
-        { "trainId": "S208D", "calendar": "saturday", "departure": "19:40", "arrival": "20:02", "platform": "", "note": "" },
-        { "trainId": "S210D", "calendar": "saturday", "departure": "22:00", "arrival": "22:22", "platform": "", "note": "" },
-        { "trainId": "S302D", "calendar": "holiday", "departure": "08:40", "arrival": "09:02", "platform": "", "note": "" },
-        { "trainId": "S304D", "calendar": "holiday", "departure": "12:40", "arrival": "13:02", "platform": "", "note": "" },
-        { "trainId": "S306D", "calendar": "holiday", "departure": "17:35", "arrival": "17:57", "platform": "", "note": "" },
-        { "trainId": "S308D", "calendar": "holiday", "departure": "19:40", "arrival": "20:02", "platform": "", "note": "" },
-        { "trainId": "S310D", "calendar": "holiday", "departure": "22:00", "arrival": "22:22", "platform": "", "note": "" },
-        { "trainId": "S900D", "calendar": "everyday", "departure": "23:50", "arrival": "00:12", "platform": "", "note": "日付をまたぐ便の動作確認用サンプル" }
+        {
+          "trainId": "U0609",
+          "calendar": "everyday",
+          "departure": "06:09",
+          "arrival": "06:33",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "U0650",
+          "calendar": "everyday",
+          "departure": "06:50",
+          "arrival": "07:14",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "U0733",
+          "calendar": "everyday",
+          "departure": "07:33",
+          "arrival": "07:57",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "U0805",
+          "calendar": "everyday",
+          "departure": "08:05",
+          "arrival": "08:29",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "U0825",
+          "calendar": "weekday",
+          "departure": "08:25",
+          "arrival": "08:49",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "U0924",
+          "calendar": "everyday",
+          "departure": "09:24",
+          "arrival": "09:48",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "U1049",
+          "calendar": "everyday",
+          "departure": "10:49",
+          "arrival": "11:13",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "U1136",
+          "calendar": "everyday",
+          "departure": "11:36",
+          "arrival": "12:00",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "U1301",
+          "calendar": "everyday",
+          "departure": "13:01",
+          "arrival": "13:25",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "U1429",
+          "calendar": "everyday",
+          "departure": "14:29",
+          "arrival": "14:53",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "U1553",
+          "calendar": "everyday",
+          "departure": "15:53",
+          "arrival": "16:17",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "U1625",
+          "calendar": "everyday",
+          "departure": "16:25",
+          "arrival": "16:49",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "U1659",
+          "calendar": "everyday",
+          "departure": "16:59",
+          "arrival": "17:23",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "U1810",
+          "calendar": "everyday",
+          "departure": "18:10",
+          "arrival": "18:34",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "U1911",
+          "calendar": "everyday",
+          "departure": "19:11",
+          "arrival": "19:35",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "U2009",
+          "calendar": "everyday",
+          "departure": "20:09",
+          "arrival": "20:33",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "U2108",
+          "calendar": "everyday",
+          "departure": "21:08",
+          "arrival": "21:32",
+          "platform": "",
+          "note": ""
+        },
+        {
+          "trainId": "U2214",
+          "calendar": "everyday",
+          "departure": "22:14",
+          "arrival": "22:38",
+          "platform": "",
+          "note": ""
+        }
       ]
     }
   ],
   "overrides": [
-    { "date": "2026-12-30", "calendar": "holiday" },
-    { "date": "2026-12-31", "calendar": "holiday" },
-    { "date": "2027-01-01", "calendar": "holiday" },
-    { "date": "2027-01-02", "calendar": "holiday" },
-    { "date": "2027-01-03", "calendar": "holiday" }
+    {
+      "date": "2026-12-30",
+      "calendar": "holiday"
+    },
+    {
+      "date": "2026-12-31",
+      "calendar": "holiday"
+    },
+    {
+      "date": "2027-01-01",
+      "calendar": "holiday"
+    },
+    {
+      "date": "2027-01-02",
+      "calendar": "holiday"
+    },
+    {
+      "date": "2027-01-03",
+      "calendar": "holiday"
+    }
   ]
 }

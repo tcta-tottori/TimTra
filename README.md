@@ -33,7 +33,9 @@ GitHub Actions が push のたびにビルドし、プレリリース [dev](http
 結果は `docs/gtfs_fetch_report.md` に残る。
 
 **バスは実ダイヤ**（日ノ丸自動車 GTFS-JP、2026-08-01〜2027-01-31、GTFS-RT の遅延推定つき）。
-**JR はまだサンプル**なので、JR 側の時刻は実ダイヤに転記するまで信用できない（ホームに警告が出る）。
+**JR も実ダイヤ**（`data/src/main/assets/jr_timetable.json`、2026-09 時点の駅時刻表から手動転記、宝木に停車しない特急は除外）。
+着時刻は所要時間からの推定（下り 22 分 / 上り 24 分）、土曜は日曜祝日と同じダイヤと仮定している。
+テスト用のサンプル JR 時刻表は `core/src/test/resources/jr_timetable_sample.json` に分けてある。
 
 ## ビルド・テスト
 

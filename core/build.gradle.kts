@@ -63,6 +63,12 @@ tasks.test {
     systemProperty("timtra.sampleDb", sampleDb.get().asFile.absolutePath)
     systemProperty(
         "timtra.jrTimetableJson",
+        layout.projectDirectory
+            .file("src/test/resources/jr_timetable_sample.json")
+            .asFile.absolutePath,
+    )
+    systemProperty(
+        "timtra.realJrTimetableJson",
         rootProject.layout.projectDirectory
             .file("data/src/main/assets/jr_timetable.json")
             .asFile.absolutePath,

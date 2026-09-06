@@ -101,11 +101,27 @@ object Fixtures {
 
     fun busTimetable(trips: List<BusTrip> = this.trips): BusTimetable = BusTimetable(trips, calendar)
 
-    /** data/src/main/assets/jr_timetable.json（サンプル）。Gradle からは system property で場所を渡す。 */
+    /** core/src/test/resources/jr_timetable_sample.json（テスト用サンプル）。Gradle からは system property で場所を渡す。 */
     val jrTimetableFile: File by lazy {
         val fromProperty = System.getProperty("timtra.jrTimetableJson")?.let(::File)
         val candidates =
-            listOfNotNull(fromProperty, File("../data/src/main/assets/jr_timetable.json"), File("data/src/main/assets/jr_timetable.json"))
+            listOfNotNull(
+                fromProperty,
+                File("src/test/resources/jr_timetable_sample.json"),
+                File("core/src/test/resources/jr_timetable_sample.json"),
+            )
+        candidates.firstOrNull { it.isFile } ?: error("jr_timetable_sample.json が見つかりません: $candidates")
+    }
+
+    /** data/src/main/assets/jr_timetable.json（アプリ同梱の実データ）。 */
+    val realJrTimetableFile: File by lazy {
+        val fromProperty = System.getProperty("timtra.realJrTimetableJson")?.let(::File)
+        val candidates =
+            listOfNotNull(
+                fromProperty,
+                File("../data/src/main/assets/jr_timetable.json"),
+                File("data/src/main/assets/jr_timetable.json"),
+            )
         candidates.firstOrNull { it.isFile } ?: error("jr_timetable.json が見つかりません: $candidates")
     }
 

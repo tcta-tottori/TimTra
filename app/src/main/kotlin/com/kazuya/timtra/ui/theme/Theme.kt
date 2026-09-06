@@ -12,6 +12,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.Typography
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -19,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.kazuya.timtra.core.journey.JourneyStatus
 
 /**
@@ -100,9 +102,33 @@ private val scheme =
         onErrorContainer = Color(0xFF5C1210),
     )
 
+/**
+ * 文字サイズ。Material3 の既定より一回り小さくし、通勤情報を 1 画面に収める。
+ * 各画面は必ずこの typography を経由し、直接 sp を書かない。
+ */
+private val defaultTypography = Typography()
+private val compactTypography =
+    Typography(
+        displayLarge = defaultTypography.displayLarge.copy(fontSize = 44.sp, lineHeight = 50.sp),
+        displayMedium = defaultTypography.displayMedium.copy(fontSize = 36.sp, lineHeight = 42.sp),
+        displaySmall = defaultTypography.displaySmall.copy(fontSize = 30.sp, lineHeight = 36.sp),
+        headlineLarge = defaultTypography.headlineLarge.copy(fontSize = 26.sp, lineHeight = 32.sp),
+        headlineMedium = defaultTypography.headlineMedium.copy(fontSize = 22.sp, lineHeight = 28.sp),
+        headlineSmall = defaultTypography.headlineSmall.copy(fontSize = 19.sp, lineHeight = 24.sp),
+        titleLarge = defaultTypography.titleLarge.copy(fontSize = 18.sp, lineHeight = 24.sp),
+        titleMedium = defaultTypography.titleMedium.copy(fontSize = 15.sp, lineHeight = 20.sp),
+        titleSmall = defaultTypography.titleSmall.copy(fontSize = 13.5.sp, lineHeight = 18.sp),
+        bodyLarge = defaultTypography.bodyLarge.copy(fontSize = 14.5.sp, lineHeight = 20.sp),
+        bodyMedium = defaultTypography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 18.sp),
+        bodySmall = defaultTypography.bodySmall.copy(fontSize = 11.5.sp, lineHeight = 16.sp),
+        labelLarge = defaultTypography.labelLarge.copy(fontSize = 12.5.sp, lineHeight = 16.sp),
+        labelMedium = defaultTypography.labelMedium.copy(fontSize = 11.sp, lineHeight = 14.sp),
+        labelSmall = defaultTypography.labelSmall.copy(fontSize = 10.sp, lineHeight = 13.sp),
+    )
+
 @Composable
 fun TimTraTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = scheme) {
+    MaterialTheme(colorScheme = scheme, typography = compactTypography) {
         Box(modifier = Modifier.fillMaxSize().background(TimTraColors.background)) {
             content()
         }

@@ -215,7 +215,7 @@ private fun LeaveCard(
 ) {
     GradientCard(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp, horizontal = 20.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(

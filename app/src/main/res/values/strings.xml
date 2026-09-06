@@ -79,6 +79,14 @@
     <string name="timetable_kind_jr">JR</string>
     <string name="timetable_empty">本日の運行はありません</string>
     <string name="timetable_date">%1$s の時刻表</string>
+    <string name="timetable_date_today">%1$s（今日）の時刻表</string>
+    <string name="timetable_date_day_type">%1$sダイヤ（%2$s の例）</string>
+    <string name="timetable_day_today">今日</string>
+    <string name="timetable_day_weekday">平日</string>
+    <string name="timetable_day_saturday">土曜</string>
+    <string name="timetable_day_holiday">日祝</string>
+    <string name="timetable_day_holiday_long">日曜・祝日</string>
+    <string name="timetable_empty_day_type">この日種別の運行はありません</string>
     <string name="timetable_now_marker">現在 %1$s</string>
 
     <!-- 設定 -->
