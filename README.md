@@ -25,8 +25,9 @@ GitHub Actions が push のたびにビルドし、プレリリース [dev](http
 - スマホ: リリースページから APK をダウンロードし、「提供元不明のアプリ」を許可してインストールする。
 - 時計: スマホに adb でつないでも入らない。`adb pair` / `adb connect` で時計に直接つなぎ、
   `adb install timtra-wear-debug.apk` を実行する（時計の開発者オプションで ADB デバッグと Wi-Fi デバッグを有効にする）。
-- 両方とも同じ実行でビルドした debug 署名なので、Wearable Data Layer の同期が成立する。
-  片方だけ入れ替えると署名が変わり同期しなくなるので、更新は両方まとめて行う。
+- 署名鍵はリポジトリの `keystore/debug.keystore` に固定してあるので、以後は上書きインストールで更新できる。
+  **鍵を固定する前（2026-09-06 以前）に入れた APK は署名が違うため、一度アンインストールしてから入れ直す。**
+- スマホ版と Wear 版は同じ鍵で署名しているので、Wearable Data Layer の同期が成立する。
 
 実データの取得は `.github/workflows/fetch-gtfs.yml` が行う（`tools/gtfs_source.json` の `fetch_nonce` を増やして push すると再取得）。
 結果は `docs/gtfs_fetch_report.md` に残る。

@@ -14,13 +14,29 @@ android {
         // Data Layer で通信するため、スマホ版と同じ applicationId・同じ署名にする
         applicationId = "com.kazuya.timtra"
         minSdk = 30
-        versionCode = 1
-        versionName = "0.1.0"
+        // CI では GITHUB_RUN_NUMBER をビルド番号にする（このアプリについて画面で見分ける）
+        val ciRun = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionCode = ciRun
+        versionName = "0.1.$ciRun"
+    }
+
+    // CI で毎回鍵が変わると上書きインストールできないため、リポジトリの固定鍵で署名する（keystore/README.md）
+    signingConfigs {
+        getByName("debug") {
+            storeFile = rootProject.file("keystore/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 

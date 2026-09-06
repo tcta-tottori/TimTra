@@ -14,13 +14,29 @@ android {
         applicationId = "com.kazuya.timtra"
         minSdk = 26
         // targetSdk は AGP 9 の既定で compileSdk に揃う
-        versionCode = 1
-        versionName = "0.1.0"
+        // CI では GITHUB_RUN_NUMBER をビルド番号にする（このアプリについて画面で見分ける）
+        val ciRun = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionCode = ciRun
+        versionName = "0.1.$ciRun"
+    }
+
+    // CI で毎回鍵が変わると上書きインストールできないため、リポジトリの固定鍵で署名する（keystore/README.md）
+    signingConfigs {
+        getByName("debug") {
+            storeFile = rootProject.file("keystore/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
