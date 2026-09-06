@@ -11,8 +11,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -23,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kazuya.timtra.R
+import com.kazuya.timtra.ui.theme.TimTraTopBar
+import com.kazuya.timtra.ui.theme.TopBarTitle
 
 /** 出典表示（CLAUDE.md 14）。 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,14 +35,13 @@ fun AboutScreen(
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.about_title)) },
+            TimTraTopBar(
+                title = { TopBarTitle(stringResource(R.string.about_title)) },
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
                         Icon(painterResource(R.drawable.ic_menu), contentDescription = stringResource(R.string.action_menu))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
     ) { padding ->

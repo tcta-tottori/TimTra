@@ -23,8 +23,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -41,6 +39,8 @@ import com.kazuya.timtra.core.notify.SuppressReason
 import com.kazuya.timtra.data.repository.AppSettings
 import com.kazuya.timtra.data.repository.NotificationPlanSummary
 import com.kazuya.timtra.ui.common.hhmm
+import com.kazuya.timtra.ui.theme.TimTraTopBar
+import com.kazuya.timtra.ui.theme.TopBarTitle
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
@@ -58,14 +58,13 @@ fun SettingsScreen(
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings_title)) },
+            TimTraTopBar(
+                title = { TopBarTitle(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
                         Icon(painterResource(R.drawable.ic_menu), contentDescription = stringResource(R.string.action_menu))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
     ) { padding ->

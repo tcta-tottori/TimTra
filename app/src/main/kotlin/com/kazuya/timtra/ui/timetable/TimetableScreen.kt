@@ -24,8 +24,6 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kazuya.timtra.R
 import com.kazuya.timtra.ui.common.hhmm
 import com.kazuya.timtra.ui.theme.TimTraColors
+import com.kazuya.timtra.ui.theme.TimTraTopBar
 import java.time.format.DateTimeFormatter
 
 private val dateFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("M月d日(E)")
@@ -55,8 +54,7 @@ fun TimetableScreen(
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+            TimTraTopBar(
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
                         Icon(painterResource(R.drawable.ic_menu), contentDescription = stringResource(R.string.action_menu))
@@ -64,11 +62,12 @@ fun TimetableScreen(
                 },
                 title = {
                     Column {
-                        Text(stringResource(R.string.timetable_title))
+                        Text(stringResource(R.string.timetable_title), style = MaterialTheme.typography.titleLarge)
                         state.date?.let {
                             Text(
                                 text = stringResource(R.string.timetable_date, it.format(dateFormat)),
                                 style = MaterialTheme.typography.labelMedium,
+                                color = Color.White.copy(alpha = 0.8f),
                             )
                         }
                     }
@@ -79,8 +78,8 @@ fun TimetableScreen(
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             TabRow(
                 selectedTabIndex = state.tab.ordinal,
-                containerColor = Color.Transparent,
-                contentColor = TimTraColors.onSurface,
+                containerColor = Color.White,
+                contentColor = TimTraColors.primary,
                 indicator = { positions ->
                     TabRowDefaults.SecondaryIndicator(
                         modifier = Modifier.tabIndicatorOffset(positions[state.tab.ordinal]),
@@ -133,7 +132,7 @@ private fun TimetableList(state: TimetableUiState) {
                     Modifier
                         .fillMaxWidth()
                         .background(
-                            if (highlight) TimTraColors.primary.copy(alpha = 0.16f) else Color.Transparent,
+                            if (highlight) TimTraColors.primary.copy(alpha = 0.10f) else Color.Transparent,
                         ).padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

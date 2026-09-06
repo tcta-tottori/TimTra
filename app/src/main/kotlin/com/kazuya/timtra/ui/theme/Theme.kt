@@ -4,40 +4,60 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.kazuya.timtra.core.journey.JourneyStatus
 
 /**
- * 配色。濃紺のグラデーションを地にした固定ダークテーマ（端末のダイナミックカラーは使わない）。
- * アプリアイコンの紺とオレンジに揃える。
+ * 配色。アプリアイコンに合わせ、ヘッダーとメニューは青のグラデーション、本文は白地。
  */
 object TimTraColors {
-    val backgroundTop = Color(0xFF171C38)
-    val backgroundBottom = Color(0xFF080A15)
-    val surface = Color(0xFF1B2041)
-    val surfaceElevated = Color(0xFF242B52)
-    val outline = Color(0xFF2F3763)
-    val primary = Color(0xFFFFA028)
-    val onSurface = Color(0xFFF3F5FF)
-    val onSurfaceVariant = Color(0xFF9AA3C9)
-    val pillFill = Color.White.copy(alpha = 0.10f)
-    val pillBorder = Color.White.copy(alpha = 0.28f)
+    /** グラデーションの明側（アイコン左上）。 */
+    val gradientStart = Color(0xFF2E8BF5)
+
+    /** グラデーションの暗側（アイコン右下）。 */
+    val gradientEnd = Color(0xFF14307F)
+
+    /** ボタン・リンク・強調の青。 */
+    val primary = Color(0xFF1F5FD6)
+
+    /** 「Tra」の水色。 */
+    val accentLight = Color(0xFF78C5FA)
+
+    val background = Color.White
+    val surface = Color(0xFFF5F8FF)
+    val outline = Color(0xFFD8E1F5)
+    val onSurface = Color(0xFF12204A)
+    val onSurfaceVariant = Color(0xFF5B6A93)
+
+    /** 青地の上に置く白文字・ピル。 */
+    val onGradient = Color.White
+    val pillFill = Color.White.copy(alpha = 0.18f)
+    val pillBorder = Color.White.copy(alpha = 0.45f)
+
+    /** ヘッダー・メニュー・主要カードに使うグラデーション。 */
+    val headerGradient: Brush = Brush.linearGradient(listOf(gradientStart, gradientEnd))
 }
 
-/** ステータスの色分け（CLAUDE.md 6: 緑 / オレンジ / 赤）。 */
+/** ステータスの色分け（CLAUDE.md 6: 緑 / オレンジ / 赤）。白地で読める濃さ。 */
 object StatusColors {
-    val ok = Color(0xFF34C759)
-    val tight = Color(0xFFFF9F0A)
-    val risk = Color(0xFFFF453A)
-    val missed = Color(0xFF8E8E93)
+    val ok = Color(0xFF1E9E5A)
+    val tight = Color(0xFFE8900B)
+    val risk = Color(0xFFE0433C)
+    val missed = Color(0xFF8A94AD)
 
     fun of(status: JourneyStatus): Color =
         when (status) {
@@ -49,52 +69,47 @@ object StatusColors {
 }
 
 private val scheme =
-    darkColorScheme(
+    lightColorScheme(
         primary = TimTraColors.primary,
-        onPrimary = Color(0xFF1B1200),
-        primaryContainer = Color(0xFF3A2A0C),
-        onPrimaryContainer = Color(0xFFFFDDB0),
-        secondary = Color(0xFFA9C7FF),
-        onSecondary = Color(0xFF0B1F4A),
-        secondaryContainer = Color(0xFF26305A),
+        onPrimary = Color.White,
+        primaryContainer = Color(0xFFE3ECFF),
+        onPrimaryContainer = Color(0xFF0E2A6E),
+        secondary = Color(0xFF4F6BA8),
+        onSecondary = Color.White,
+        secondaryContainer = Color(0xFFE8EEFB),
         onSecondaryContainer = TimTraColors.onSurface,
-        tertiary = Color(0xFFD0BCFF),
-        tertiaryContainer = Color(0xFF2E2A55),
-        onTertiaryContainer = TimTraColors.onSurface,
-        background = TimTraColors.backgroundBottom,
+        tertiary = Color(0xFF6B5B95),
+        tertiaryContainer = Color(0xFFEDE7FF),
+        onTertiaryContainer = Color(0xFF2A1F52),
+        background = TimTraColors.background,
         onBackground = TimTraColors.onSurface,
-        surface = TimTraColors.surface,
+        surface = TimTraColors.background,
         onSurface = TimTraColors.onSurface,
-        surfaceVariant = TimTraColors.surfaceElevated,
+        surfaceVariant = TimTraColors.surface,
         onSurfaceVariant = TimTraColors.onSurfaceVariant,
-        surfaceContainerLowest = TimTraColors.backgroundBottom,
+        surfaceContainerLowest = Color.White,
         surfaceContainerLow = TimTraColors.surface,
         surfaceContainer = TimTraColors.surface,
-        surfaceContainerHigh = TimTraColors.surfaceElevated,
-        surfaceContainerHighest = TimTraColors.surfaceElevated,
+        surfaceContainerHigh = Color(0xFFEDF2FF),
+        surfaceContainerHighest = Color(0xFFE3EAFB),
         outline = TimTraColors.outline,
-        outlineVariant = Color(0xFF242B4D),
-        error = Color(0xFFFF6B6B),
-        onError = Color(0xFF3B0A10),
-        errorContainer = Color(0xFF3B1E2C),
-        onErrorContainer = Color(0xFFFFD9DE),
+        outlineVariant = Color(0xFFE6ECF8),
+        error = Color(0xFFC62828),
+        onError = Color.White,
+        errorContainer = Color(0xFFFFE9E7),
+        onErrorContainer = Color(0xFF5C1210),
     )
 
 @Composable
 fun TimTraTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = scheme) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(Brush.verticalGradient(listOf(TimTraColors.backgroundTop, TimTraColors.backgroundBottom))),
-        ) {
+        Box(modifier = Modifier.fillMaxSize().background(TimTraColors.background)) {
             content()
         }
     }
 }
 
-/** 丸みの大きい半透明のカード。ホーム・設定・About で共通に使う。 */
+/** 白地のカード。角丸 20dp と薄い縁。 */
 @Composable
 fun TimTraCard(
     modifier: Modifier = Modifier,
@@ -109,4 +124,50 @@ fun TimTraCard(
         border = BorderStroke(1.dp, borderColor),
         content = content,
     )
+}
+
+/** 青グラデーションのカード（出発時刻など主役の情報）。中の文字は白。 */
+@Composable
+fun GradientCard(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Box(
+        modifier =
+            modifier
+                .clip(RoundedCornerShape(24.dp))
+                .background(TimTraColors.headerGradient),
+    ) {
+        content()
+    }
+}
+
+/** 青グラデーションのトップバー。ステータスバーの裏まで塗る。 */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TimTraTopBar(
+    title: @Composable () -> Unit,
+    navigationIcon: @Composable () -> Unit = {},
+    actions: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit = {},
+) {
+    Box(modifier = Modifier.fillMaxWidth().background(TimTraColors.headerGradient)) {
+        TopAppBar(
+            title = title,
+            navigationIcon = navigationIcon,
+            actions = actions,
+            colors =
+                TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    titleContentColor = TimTraColors.onGradient,
+                    navigationIconContentColor = TimTraColors.onGradient,
+                    actionIconContentColor = TimTraColors.onGradient,
+                ),
+        )
+    }
+}
+
+/** トップバーの 1 行タイトル。 */
+@Composable
+fun TopBarTitle(text: String) {
+    Text(text, style = MaterialTheme.typography.titleLarge)
 }

@@ -7,11 +7,11 @@ import androidx.wear.compose.material.MaterialTheme
 
 private val colors =
     Colors(
-        primary = Color(0xFFFF9800),
-        primaryVariant = Color(0xFFF57C00),
+        primary = Color(0xFF78C5FA),
+        primaryVariant = Color(0xFF2E8BF5),
         secondary = Color(0xFFA9C7FF),
         background = Color.Black,
-        surface = Color(0xFF12213F),
+        surface = Color(0xFF14307F),
         onPrimary = Color.Black,
         onSurface = Color.White,
         onBackground = Color.White,

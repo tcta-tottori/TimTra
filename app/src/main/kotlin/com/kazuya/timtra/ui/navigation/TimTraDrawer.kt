@@ -1,5 +1,6 @@
 package com.kazuya.timtra.ui.navigation
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -7,7 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -51,28 +52,30 @@ fun TimTraDrawer(
             runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "-"
         }
     ModalDrawerSheet(
-        drawerContainerColor = TimTraColors.backgroundTop,
-        drawerContentColor = TimTraColors.onSurface,
+        drawerContainerColor = TimTraColors.gradientEnd,
+        drawerContentColor = TimTraColors.onGradient,
         drawerShape = RoundedCornerShape(topEnd = 28.dp, bottomEnd = 28.dp),
         modifier = Modifier.width(300.dp),
     ) {
-        Column(modifier = Modifier.fillMaxHeight().padding(vertical = 24.dp)) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(TimTraColors.headerGradient)
+                    .padding(vertical = 24.dp),
+        ) {
             Row(
                 modifier = Modifier.padding(horizontal = 24.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
-                    modifier =
-                        Modifier
-                            .size(64.dp)
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(Color.White.copy(alpha = 0.12f)),
+                    modifier = Modifier.size(64.dp).clip(RoundedCornerShape(18.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_notification),
+                    Image(
+                        painter = painterResource(R.drawable.app_logo),
                         contentDescription = null,
-                        modifier = Modifier.size(32.dp),
+                        modifier = Modifier.fillMaxSize(),
                     )
                 }
                 Spacer(Modifier.width(16.dp))
@@ -80,11 +83,12 @@ fun TimTraDrawer(
                     Text(
                         text = stringResource(R.string.drawer_version, versionName),
                         style = MaterialTheme.typography.headlineSmall,
+                        color = TimTraColors.onGradient,
                     )
                     Text(
                         text = LocalDateTime.now(TimTraConstants.ZONE).format(headerTime),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = TimTraColors.onSurfaceVariant,
+                        color = TimTraColors.onGradient.copy(alpha = 0.75f),
                     )
                 }
             }
@@ -136,12 +140,13 @@ private fun DrawerItem(
                 .padding(horizontal = 22.dp, vertical = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(painterResource(iconRes), contentDescription = null, modifier = Modifier.size(26.dp))
+        Icon(painterResource(iconRes), contentDescription = null, modifier = Modifier.size(26.dp), tint = TimTraColors.onGradient)
         Spacer(Modifier.width(22.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            color = TimTraColors.onGradient,
         )
     }
 }
@@ -151,6 +156,6 @@ private fun DrawerItem(
 private fun Wordmark(modifier: Modifier = Modifier) {
     Row(modifier = modifier.padding(bottom = 8.dp)) {
         Text("Tim", fontSize = 30.sp, fontWeight = FontWeight.Black, letterSpacing = 3.sp, color = Color.White)
-        Text("Tra", fontSize = 30.sp, fontWeight = FontWeight.Black, letterSpacing = 3.sp, color = TimTraColors.primary)
+        Text("Tra", fontSize = 30.sp, fontWeight = FontWeight.Black, letterSpacing = 3.sp, color = TimTraColors.accentLight)
     }
 }

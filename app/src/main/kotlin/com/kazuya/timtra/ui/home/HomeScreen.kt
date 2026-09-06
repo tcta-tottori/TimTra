@@ -27,8 +27,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,9 +53,12 @@ import com.kazuya.timtra.ui.common.boundLabel
 import com.kazuya.timtra.ui.common.countdownText
 import com.kazuya.timtra.ui.common.hhmm
 import com.kazuya.timtra.ui.common.statusLabel
+import com.kazuya.timtra.ui.theme.GradientCard
 import com.kazuya.timtra.ui.theme.StatusColors
 import com.kazuya.timtra.ui.theme.TimTraCard
 import com.kazuya.timtra.ui.theme.TimTraColors
+import com.kazuya.timtra.ui.theme.TimTraTopBar
+import com.kazuya.timtra.ui.theme.TopBarTitle
 import java.time.LocalDateTime
 import java.time.ZoneId
 
@@ -73,8 +74,8 @@ fun HomeScreen(
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.nav_home)) },
+            TimTraTopBar(
+                title = { TopBarTitle(stringResource(R.string.nav_home)) },
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
                         Icon(painterResource(R.drawable.ic_menu), contentDescription = stringResource(R.string.action_menu))
@@ -85,7 +86,6 @@ fun HomeScreen(
                         Icon(painterResource(R.drawable.ic_refresh), contentDescription = stringResource(R.string.action_refresh))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
         floatingActionButton = {
@@ -93,8 +93,8 @@ fun HomeScreen(
             if (ready != null) {
                 FloatingActionButton(
                     onClick = { viewModel.setBound(if (ready.bound == Bound.OUTBOUND) Bound.INBOUND else Bound.OUTBOUND) },
-                    containerColor = TimTraColors.surfaceElevated,
-                    contentColor = TimTraColors.onSurface,
+                    containerColor = TimTraColors.primary,
+                    contentColor = Color.White,
                     shape = CircleShape,
                 ) {
                     Icon(painterResource(R.drawable.ic_swap_horiz), contentDescription = stringResource(R.string.home_toggle_bound))
@@ -136,9 +136,9 @@ private fun HomeContent(
     ) {
         if (!state.permissions.allGranted) PermissionsCard(state.permissions, onChanged = onPermissionsChanged)
         BoundSelector(state.bound, state.isManualBound, onBoundChange)
-        if (state.dayOff) Banner(stringResource(R.string.home_day_off), MaterialTheme.colorScheme.tertiaryContainer)
-        if (state.sampleBus) Banner(stringResource(R.string.home_sample_bus_warning), MaterialTheme.colorScheme.errorContainer)
-        if (state.sampleJr) Banner(stringResource(R.string.home_sample_jr_warning), MaterialTheme.colorScheme.errorContainer)
+        if (state.dayOff) Banner(stringResource(R.string.home_day_off), MaterialTheme.colorScheme.primaryContainer)
+        if (state.sampleBus) Banner(stringResource(R.string.home_sample_bus_warning), WARNING_CONTAINER)
+        if (state.sampleJr) Banner(stringResource(R.string.home_sample_jr_warning), WARNING_CONTAINER)
 
         val journey = state.journey
         if (journey == null) {
@@ -213,7 +213,7 @@ private fun LeaveCard(
     now: LocalDateTime,
     journey: Journey,
 ) {
-    TimTraCard(modifier = Modifier.fillMaxWidth(), containerColor = TimTraColors.surfaceElevated, borderColor = TimTraColors.pillBorder) {
+    GradientCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -224,7 +224,7 @@ private fun LeaveCard(
                         if (journey.bound == Bound.OUTBOUND) R.string.home_leave_home else R.string.home_leave_work,
                     ),
                 style = MaterialTheme.typography.titleMedium,
-                color = TimTraColors.onSurfaceVariant,
+                color = Color.White.copy(alpha = 0.85f),
             )
             Text(
                 text = journey.leaveAt.hhmm(),
@@ -235,7 +235,7 @@ private fun LeaveCard(
             Text(
                 text = countdownText(now, journey.leaveAt),
                 style = MaterialTheme.typography.titleLarge,
-                color = TimTraColors.primary,
+                color = TimTraColors.accentLight,
             )
         }
     }
@@ -511,6 +511,8 @@ private fun JourneySummary(journey: Journey) {
         )
     }
 }
+
+private val WARNING_CONTAINER = Color(0xFFFFF4E0)
 
 @Composable
 fun StatusBadge(status: JourneyStatus) {

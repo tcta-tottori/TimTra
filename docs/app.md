@@ -39,12 +39,15 @@ AGP 9 系を採用した。AGP 9 では `org.jetbrains.kotlin.android` を適用
 | このアプリについて | `ui/about/` | 出典表示（CLAUDE.md 14）と同梱データの版 |
 
 - 文言は `res/values/strings.xml` に集約。XML レイアウトは無い（テーマ・アイコンのみ XML）。
-- 見た目: 濃紺グラデーションの固定ダークテーマ（`ui/theme/Theme.kt`）。左ドロワー（版・現在時刻・画面一覧・ワードマーク）、
-  選択中の項目は半透明のピル、カードは角丸 20dp + 1dp の縁（`TimTraCard`）。往路/復路の切替は右下の FAB。
+- 見た目: アプリアイコンに合わせた配色（`ui/theme/Theme.kt`）。ヘッダー（`TimTraTopBar`）と左ドロワーは
+  青のグラデーション（#2E8BF5 → #14307F）で文字は白、本文は白地。カードは角丸 20dp + 薄い縁の `TimTraCard`、
+  出発時刻は青グラデーションの `GradientCard`。ドロワーは版・現在時刻・画面一覧（選択中は半透明ピル）・ワードマーク。
+  往路/復路の切替は右下の青い FAB。ステータスバーは白アイコン、ナビゲーションバーは黒アイコン（edge-to-edge）。
   Compose の material-icons は使わず、必要なアイコンは `res/drawable/ic_*.xml` に持つ。
 - 現在時刻は `data/di/AppClock` 経由で取得する（スマホ・Wear 共通。テストで差し替え可能）。
-- アプリアイコンは `docs/assets/icon-512.png` を元に、adaptive icon（背景色 + 中央 72% に縮小した前景 PNG）として
-  `res/mipmap-*/` に生成している。差し替えるときは同じ手順で前景を作り直す。
+- アプリアイコンは `docs/assets/icon-512.png`（青グラデーション、バスと電車）を元に、adaptive icon
+  （背景色 #1546AD + 中央 85% に縮小した前景 PNG、外側は透過）として `res/mipmap-*/` に生成している。
+  ドロワーのヘッダーと About で使う `drawable-nodpi/app_logo.png` も同じ元画像。
 - 通知まわりは `notify/`（docs/notify.md）。ウィジェットは `widget/`（docs/widget.md）。
 - サンプル時刻表で動いている間はホームに警告バナーを出す（`BusTimetable.isSampleData` / JR version が `sample` で始まる）。
 
