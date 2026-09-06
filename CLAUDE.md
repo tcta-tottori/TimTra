@@ -305,3 +305,11 @@ JR山陰本線の鳥取〜宝木間は本数が少なく、鳥取駅で1本逃�
 
 まず 12 の手順 1 から着手してください。
 着手前に、不明点や仕様の矛盾があれば質問してください。
+
+## 16. 作業報告のルール
+
+- push して Build APK ワークフローが成功したら、毎回インストール先の URL を報告する。
+  - リリースページ: https://github.com/tcta-tottori/TimTra/releases/tag/dev
+  - スマホ用 APK 直リンク: https://github.com/tcta-tottori/TimTra/releases/download/dev/timtra-phone-debug.apk
+  - Wear OS 用 APK 直リンク: https://github.com/tcta-tottori/TimTra/releases/download/dev/timtra-wear-debug.apk
+- 併せてビルド番号（versionName 0.1.<実行番号>）を添え、About 画面で確認できるようにする。

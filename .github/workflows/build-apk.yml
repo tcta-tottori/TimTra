@@ -93,7 +93,9 @@ jobs:
           - timtra-phone-debug.apk — スマートフォン用
           - timtra-wear-debug.apk — Wear OS 用（スマホ版と同じ debug 署名。Data Layer 同期のため両方入れる）
 
-          時刻表はまだサンプルデータです。実ダイヤではありません。"
+          バスは日ノ丸自動車の GTFS-JP、JR は駅時刻表からの手動転記（実ダイヤ）。ビルド番号 ${GITHUB_RUN_NUMBER}。
+
+          インストール: 上の timtra-phone-debug.apk をスマホでダウンロードして開く（上書きインストール可）。"
 
       - name: テストレポートをアップロード（失敗時）
         if: failure()
