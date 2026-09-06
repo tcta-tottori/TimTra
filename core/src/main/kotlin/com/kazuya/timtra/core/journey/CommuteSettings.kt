@@ -28,6 +28,12 @@ data class CommuteSettings(
     val earliestLeaveHome: LocalTime = LocalTime.of(6, 30),
     /** 終業時刻。復路の翌日分計算の基準。 */
     val workEndsAt: LocalTime = LocalTime.of(17, 30),
+    /** ホームに「家を出る時刻」を出す時間帯の開始（既定 05:30。6:48 発のバスに乗る前提）。 */
+    val leaveHomeDisplayStart: LocalTime = LocalTime.of(5, 30),
+    /** 「家を出る時刻」を出す時間帯の終了（この時刻以降は出さない）。 */
+    val leaveHomeDisplayEnd: LocalTime = LocalTime.of(6, 50),
+    /** 「職場を出る時刻」を出し始める時刻。終わりは終電（[LeaveDisplayPolicy]）。 */
+    val leaveWorkDisplayStart: LocalTime = LocalTime.of(17, 0),
 ) {
     init {
         require(comfortableTransfer >= minTransfer) { "comfortableTransfer は minTransfer 以上にしてください" }

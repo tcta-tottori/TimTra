@@ -32,6 +32,20 @@
     <!-- ホーム -->
     <string name="home_leave_home">家を出る時刻</string>
     <string name="home_leave_work">職場を出る時刻</string>
+    <string name="home_next_departure_bus">次のバス</string>
+    <string name="home_next_departure_jr">次の電車</string>
+    <string name="home_departs_from">%1$s 発</string>
+    <string name="home_leave_hidden_home">家を出る時刻は %1$s〜%2$s に表示します</string>
+    <string name="home_leave_hidden_work">職場を出る時刻は %1$s 以降、勤務先付近にいる間に表示します</string>
+    <string name="home_arrow">→</string>
+    <string name="home_leg_from_to">%1$s → %2$s</string>
+    <string name="home_dep_label">発</string>
+    <string name="home_arr_label">着</string>
+    <string name="home_transfer_at">鳥取駅で乗り換え</string>
+    <string name="home_transfer_margin_short">余裕 %1$d 分</string>
+    <string name="home_transfer_margin_short_negative">%1$d 分不足</string>
+    <string name="home_arrival_label_work">勤務先 到着予測</string>
+    <string name="home_arrival_label_home">自宅 到着予測</string>
     <string name="home_countdown_minutes">あと %1$d 分</string>
     <string name="home_countdown_hours_minutes">あと %1$d 時間 %2$d 分</string>
     <string name="home_countdown_now">まもなく出発</string>
@@ -63,6 +77,8 @@
     <string name="home_fallback_missed">次のJR便に切り替え</string>
     <string name="home_next_candidate">次の候補（1本後）</string>
     <string name="home_next_candidate_summary">%1$s 出発 / バス %2$s 発 / JR %3$s 発</string>
+    <string name="home_next_candidate_summary_no_leave">バス %1$s 発 / JR %2$s 発</string>
+    <string name="home_next_candidate_summary_no_leave_inbound">JR %1$s 発 / バス %2$s 発</string>
     <string name="home_expand">展開</string>
     <string name="home_collapse">折りたたむ</string>
     <string name="home_day_off">今日は休みに設定されています。通知は送られません。</string>
@@ -71,6 +87,24 @@
     <string name="home_updated_at">%1$s 時点</string>
     <string name="home_sample_bus_warning">バス時刻表はサンプルデータです（実ダイヤではありません）</string>
     <string name="home_sample_jr_warning">JR時刻表はサンプルデータです。実ダイヤの転記が必要です</string>
+
+    <!-- ホームの地図 -->
+    <string name="map_title">現在地と経路</string>
+    <string name="map_toggle_full">経路全体を表示</string>
+    <string name="map_toggle_focus">近くを拡大</string>
+    <string name="map_no_location">現在地を取得できません。位置情報を許可すると、駅・バス停までの距離を表示します</string>
+    <string name="map_locating">現在地を取得中…</string>
+    <string name="map_here">現在地</string>
+    <string name="map_here_off_screen">現在地は画面外（%1$s）</string>
+    <string name="map_distance_meters">%1$d m</string>
+    <string name="map_distance_km">%1$s km</string>
+    <string name="map_distance_to">%1$s まで %2$s</string>
+    <string name="map_scale">%1$s</string>
+    <string name="map_landmark_home_stop">南吉成</string>
+    <string name="map_landmark_station">鳥取駅</string>
+    <string name="map_landmark_hougi">宝木駅</string>
+    <string name="map_landmark_workplace">勤務先</string>
+    <string name="map_updated">%1$s 時点の位置</string>
 
     <!-- ステータス -->
     <string name="status_ok">余裕あり</string>
@@ -85,6 +119,11 @@
     <string name="timetable_tab_hougi">宝木</string>
     <string name="timetable_kind_bus">バス</string>
     <string name="timetable_kind_jr">JR</string>
+    <string name="mode_bus">バス</string>
+    <string name="mode_jr">JR</string>
+    <string name="mode_bus_full">日ノ丸バス</string>
+    <string name="mode_jr_full">JR山陰本線</string>
+    <string name="mode_walk">徒歩</string>
     <string name="timetable_empty">本日の運行はありません</string>
     <string name="timetable_date">%1$s の時刻表</string>
     <string name="timetable_date_today">%1$s（今日）の時刻表</string>
@@ -99,6 +138,24 @@
     <string name="timetable_filter_bus">バスのみ</string>
     <string name="timetable_filter_jr">JRのみ</string>
     <string name="timetable_now_marker">現在 %1$s</string>
+    <string name="timetable_bound_for">%1$s行</string>
+    <string name="timetable_hour">%1$d</string>
+    <string name="timetable_hour_suffix">時</string>
+    <string name="timetable_hour_count">%1$d 本</string>
+    <string name="timetable_next_badge">次</string>
+    <string name="timetable_departs_in">あと %1$d 分</string>
+    <string name="timetable_departs_in_hours">あと %1$d 時間 %2$d 分</string>
+    <string name="timetable_departs_now">まもなく</string>
+    <string name="timetable_scroll_to_now">現在時刻へ</string>
+    <string name="timetable_summary_count">%1$d 本</string>
+    <string name="timetable_summary_first_last">始発 %1$s ・ 最終 %2$s</string>
+    <string name="timetable_platform_short">%1$s番</string>
+    <string name="timetable_jr_line">山陰本線</string>
+    <string name="timetable_dir_home_stop">鳥取駅方面</string>
+    <string name="timetable_dir_station">用瀬・智頭方面 / 宝木方面</string>
+    <string name="timetable_dir_station_bus">用瀬・智頭方面</string>
+    <string name="timetable_dir_station_jr">宝木方面</string>
+    <string name="timetable_dir_hougi">鳥取方面</string>
 
     <!-- 設定 -->
     <string name="settings_title">設定</string>
@@ -115,6 +172,11 @@
     <string name="settings_inbound_window_start">復路とみなす開始時刻</string>
     <string name="settings_earliest_leave_home">出勤: この時刻以降に家を出る</string>
     <string name="settings_work_ends_at">終業時刻</string>
+    <string name="settings_section_leave_display">出発時刻の表示</string>
+    <string name="settings_leave_display_note">ホームの「家を出る時刻」「職場を出る時刻」を出す時間帯。職場を出る時刻は終電まで、勤務先を離れて鳥取駅付近まで来たら消えます</string>
+    <string name="settings_leave_home_display_start">家を出る時刻: 表示開始</string>
+    <string name="settings_leave_home_display_end">家を出る時刻: 表示終了</string>
+    <string name="settings_leave_work_display_start">職場を出る時刻: 表示開始</string>
     <string name="settings_section_notifications">通知</string>
     <string name="settings_notifications_enabled">通知を送る</string>
     <string name="settings_notifications_note">前夜に翌日分を計算して予約します。平日のみ（土日祝・年末年始・運休日は送りません）</string>

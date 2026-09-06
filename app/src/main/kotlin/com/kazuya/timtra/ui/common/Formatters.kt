@@ -35,6 +35,29 @@ fun countdownText(
     }
 }
 
+/** 距離の表示。1 km 未満は 10 m 単位、それ以上は 0.1 km 単位（10 km 以上は整数）。 */
+@Composable
+fun distanceText(meters: Double): String =
+    when {
+        meters < 1_000 -> stringResource(R.string.map_distance_meters, (meters / 10).toInt() * 10)
+        meters < 10_000 -> stringResource(R.string.map_distance_km, String.format(java.util.Locale.JAPAN, "%.1f", meters / 1_000))
+        else -> stringResource(R.string.map_distance_km, (meters / 1_000).toInt().toString())
+    }
+
+/** 時刻表の行で使う短い残り時間。 */
+@Composable
+fun departsInText(
+    now: LocalTime,
+    targetSeconds: Int,
+): String {
+    val minutes = (targetSeconds - now.toSecondOfDay()) / 60
+    return when {
+        minutes < 1 -> stringResource(R.string.timetable_departs_now)
+        minutes < 60 -> stringResource(R.string.timetable_departs_in, minutes)
+        else -> stringResource(R.string.timetable_departs_in_hours, minutes / 60, minutes % 60)
+    }
+}
+
 @Composable
 fun statusLabel(status: JourneyStatus): String =
     stringResource(

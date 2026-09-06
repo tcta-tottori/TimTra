@@ -87,6 +87,9 @@ class SettingsRepository
                 prefs[Keys.INBOUND_WINDOW_START] = next.inboundWindowStart.toSecondOfDay()
                 prefs[Keys.EARLIEST_LEAVE_HOME] = next.earliestLeaveHome.toSecondOfDay()
                 prefs[Keys.WORK_ENDS_AT] = next.workEndsAt.toSecondOfDay()
+                prefs[Keys.LEAVE_HOME_DISPLAY_START] = next.leaveHomeDisplayStart.toSecondOfDay()
+                prefs[Keys.LEAVE_HOME_DISPLAY_END] = next.leaveHomeDisplayEnd.toSecondOfDay()
+                prefs[Keys.LEAVE_WORK_DISPLAY_START] = next.leaveWorkDisplayStart.toSecondOfDay()
             }
         }
 
@@ -207,6 +210,9 @@ class SettingsRepository
                     inboundWindowStart = time(Keys.INBOUND_WINDOW_START, d.inboundWindowStart),
                     earliestLeaveHome = time(Keys.EARLIEST_LEAVE_HOME, d.earliestLeaveHome),
                     workEndsAt = time(Keys.WORK_ENDS_AT, d.workEndsAt),
+                    leaveHomeDisplayStart = time(Keys.LEAVE_HOME_DISPLAY_START, d.leaveHomeDisplayStart),
+                    leaveHomeDisplayEnd = time(Keys.LEAVE_HOME_DISPLAY_END, d.leaveHomeDisplayEnd),
+                    leaveWorkDisplayStart = time(Keys.LEAVE_WORK_DISPLAY_START, d.leaveWorkDisplayStart),
                 )
             val t = NotificationTiming()
             val r = TrainReminderSettings()
@@ -243,6 +249,9 @@ class SettingsRepository
             val INBOUND_WINDOW_START = intPreferencesKey("inbound_window_start_sec")
             val EARLIEST_LEAVE_HOME = intPreferencesKey("earliest_leave_home_sec")
             val WORK_ENDS_AT = intPreferencesKey("work_ends_at_sec")
+            val LEAVE_HOME_DISPLAY_START = intPreferencesKey("leave_home_display_start_sec")
+            val LEAVE_HOME_DISPLAY_END = intPreferencesKey("leave_home_display_end_sec")
+            val LEAVE_WORK_DISPLAY_START = intPreferencesKey("leave_work_display_start_sec")
             val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
             val DAY_OFF = stringPreferencesKey("day_off_date")
             val NOTIFY_BEFORE_LEAVE = intPreferencesKey("notify_before_leave_min")

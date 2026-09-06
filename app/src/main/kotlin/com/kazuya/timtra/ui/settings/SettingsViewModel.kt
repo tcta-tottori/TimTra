@@ -43,6 +43,9 @@ enum class TimeField {
     INBOUND_WINDOW_START,
     EARLIEST_LEAVE_HOME,
     WORK_ENDS_AT,
+    LEAVE_HOME_DISPLAY_START,
+    LEAVE_HOME_DISPLAY_END,
+    LEAVE_WORK_DISPLAY_START,
 }
 
 /** 通知タイミング（分）。 */
@@ -153,6 +156,9 @@ class SettingsViewModel
                         TimeField.INBOUND_WINDOW_START -> s.copy(inboundWindowStart = step(s.inboundWindowStart))
                         TimeField.EARLIEST_LEAVE_HOME -> s.copy(earliestLeaveHome = step(s.earliestLeaveHome))
                         TimeField.WORK_ENDS_AT -> s.copy(workEndsAt = step(s.workEndsAt))
+                        TimeField.LEAVE_HOME_DISPLAY_START -> s.copy(leaveHomeDisplayStart = step(s.leaveHomeDisplayStart))
+                        TimeField.LEAVE_HOME_DISPLAY_END -> s.copy(leaveHomeDisplayEnd = step(s.leaveHomeDisplayEnd))
+                        TimeField.LEAVE_WORK_DISPLAY_START -> s.copy(leaveWorkDisplayStart = step(s.leaveWorkDisplayStart))
                     }
                 }
             }

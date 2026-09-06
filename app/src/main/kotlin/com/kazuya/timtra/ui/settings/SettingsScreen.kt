@@ -139,6 +139,23 @@ private fun SettingsContent(
         TimeRow(R.string.settings_earliest_leave_home, c.earliestLeaveHome) { viewModel.adjust(TimeField.EARLIEST_LEAVE_HOME, it) }
         TimeRow(R.string.settings_work_ends_at, c.workEndsAt) { viewModel.adjust(TimeField.WORK_ENDS_AT, it) }
 
+        SectionTitle(stringResource(R.string.settings_section_leave_display))
+        Text(
+            text = stringResource(R.string.settings_leave_display_note),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 4.dp),
+        )
+        TimeRow(R.string.settings_leave_home_display_start, c.leaveHomeDisplayStart, step = FINE_TIME_STEP_MINUTES) {
+            viewModel.adjust(TimeField.LEAVE_HOME_DISPLAY_START, it)
+        }
+        TimeRow(R.string.settings_leave_home_display_end, c.leaveHomeDisplayEnd, step = FINE_TIME_STEP_MINUTES) {
+            viewModel.adjust(TimeField.LEAVE_HOME_DISPLAY_END, it)
+        }
+        TimeRow(R.string.settings_leave_work_display_start, c.leaveWorkDisplayStart, step = FINE_TIME_STEP_MINUTES) {
+            viewModel.adjust(TimeField.LEAVE_WORK_DISPLAY_START, it)
+        }
+
         SectionTitle(stringResource(R.string.settings_section_notifications))
         SwitchRow(
             title = stringResource(R.string.settings_notifications_enabled),
@@ -392,9 +409,10 @@ private fun DurationRow(
 private fun TimeRow(
     labelRes: Int,
     value: LocalTime,
+    step: Long = TIME_STEP_MINUTES,
     onStep: (Long) -> Unit,
 ) {
-    StepperRow(labelRes, value.hhmm(), onStep, step = TIME_STEP_MINUTES)
+    StepperRow(labelRes, value.hhmm(), onStep, step = step)
 }
 
 @Composable
@@ -414,3 +432,6 @@ private fun SwitchRow(
 }
 
 private const val TIME_STEP_MINUTES = 15L
+
+/** 出発時刻の表示時間帯は 6:50 のような半端な時刻を使うので 5 分刻み。 */
+private const val FINE_TIME_STEP_MINUTES = 5L

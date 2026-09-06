@@ -10,10 +10,12 @@ import com.kazuya.timtra.data.repository.BusTimetableRepository
 import com.kazuya.timtra.data.repository.JrTimetableRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
@@ -28,12 +30,19 @@ data class TimetableEntry(
     /** 0 時起点の秒。深夜便は 86400 以上（表示は折り返す）。 */
     val seconds: Int,
     val kind: EntryKind,
-    /** 系統番号 / 列車番号 */
+    /** 路線名 / 系統（例: "用瀬智頭線"、"山陰本線"）。 */
     val line: String,
     val destination: String,
     val platform: String?,
+    /** 列車番号など、便を特定する短い記号。無ければ null。 */
+    val code: String? = null,
+    /** 備考（JR の note）。 */
+    val note: String? = null,
 ) {
     val time: LocalTime get() = LocalTime.ofSecondOfDay((seconds % SECONDS_PER_DAY).toLong())
+
+    /** 時間帯ごとの見出しに使う「時」。深夜便は 24, 25 … のまま（表示は 0 時台に折り返さない）。 */
+    val hour: Int get() = seconds / 3600
 
     private companion object {
         const val SECONDS_PER_DAY = 24 * 3600
@@ -80,7 +89,26 @@ data class TimetableUiState(
 
     /** 現在時刻以降の最初の便。今日の表示でのみ自動スクロールとハイライトに使う。 */
     val upcomingIndex: Int get() = if (isToday) entries.indexOfFirst { it.seconds >= now.toSecondOfDay() } else -1
+
+    /** 時間帯ごとにまとめた表示用の並び。 */
+    val hourGroups: List<HourGroup>
+        get() =
+            entries
+                .withIndex()
+                .groupBy { it.value.hour }
+                .toSortedMap()
+                .map { (hour, items) -> HourGroup(hour, items.map { IndexedEntry(it.index, it.value) }) }
 }
+
+data class IndexedEntry(
+    val index: Int,
+    val entry: TimetableEntry,
+)
+
+data class HourGroup(
+    val hour: Int,
+    val items: List<IndexedEntry>,
+)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -95,8 +123,17 @@ class TimetableViewModel
         private val day = MutableStateFlow(DaySelection.TODAY)
         private val stationFilter = MutableStateFlow(StationFilter.ALL)
 
+        /** 「あと n 分」と現在位置のハイライトを最新に保つため、表示中は 30 秒ごとに読み直す。 */
+        private val ticker =
+            flow {
+                while (true) {
+                    emit(Unit)
+                    delay(TICK_MILLIS)
+                }
+            }
+
         val uiState: StateFlow<TimetableUiState> =
-            combine(tab, day, stationFilter) { t, d, f -> Triple(t, d, f) }
+            combine(tab, day, stationFilter, ticker) { t, d, f, _ -> Triple(t, d, f) }
                 .mapLatest { (t, d, f) -> load(t, d, f) }
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), TimetableUiState())
 
@@ -141,14 +178,30 @@ class TimetableViewModel
                         val leg = jrTimetable.leg(JrLegIds.TOTTORI_TO_HOUGI)
                         val trains =
                             jrTimetable.servicesOn(today, leg.id).map {
-                                TimetableEntry(it.departure.toSecondOfDay(), EntryKind.JR, it.trainId, leg.to, it.platform.ifBlank { null })
+                                TimetableEntry(
+                                    seconds = it.departure.toSecondOfDay(),
+                                    kind = EntryKind.JR,
+                                    line = leg.line,
+                                    destination = leg.to,
+                                    platform = it.platform.ifBlank { null },
+                                    code = it.trainId,
+                                    note = it.note.ifBlank { null },
+                                )
                             }
                         (buses + trains).filter { filter.accepts(it.kind) }
                     }
                     TimetableTab.HOUGI -> {
                         val leg = jrTimetable.leg(JrLegIds.HOUGI_TO_TOTTORI)
                         jrTimetable.servicesOn(today, leg.id).map {
-                            TimetableEntry(it.departure.toSecondOfDay(), EntryKind.JR, it.trainId, leg.to, it.platform.ifBlank { null })
+                            TimetableEntry(
+                                seconds = it.departure.toSecondOfDay(),
+                                kind = EntryKind.JR,
+                                line = leg.line,
+                                destination = leg.to,
+                                platform = it.platform.ifBlank { null },
+                                code = it.trainId,
+                                note = it.note.ifBlank { null },
+                            )
                         }
                     }
                 }.sortedWith(compareBy({ it.seconds }, { it.kind }, { it.line }))
@@ -165,6 +218,7 @@ class TimetableViewModel
 
         private companion object {
             const val STOP_TIMEOUT_MILLIS = 5_000L
+            const val TICK_MILLIS = 30_000L
 
             /** 日種別を探す範囲。祝日を含む連休でも 2 週間あれば各種別が 1 日は見つかる。 */
             const val LOOKAHEAD_DAYS = 14L

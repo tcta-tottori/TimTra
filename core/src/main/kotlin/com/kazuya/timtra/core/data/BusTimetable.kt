@@ -37,10 +37,15 @@ class BusTimetable(
     val feedVersion: String? get() = meta[META_FEED_VERSION]
 
     /** 自宅側バス停（南吉成）の位置。往路/復路の現在地判定に使う。複数乗り場があれば最初のもの。 */
-    val homeStopLocation: GeoPoint? =
-        this.trips
+    val homeStopLocation: GeoPoint? = firstLocationOf(StopRole.HOME)
+
+    /** 駅側バス停（鳥取駅バスターミナル）の位置。ホーム画面の地図に使う。 */
+    val stationStopLocation: GeoPoint? = firstLocationOf(StopRole.STATION)
+
+    private fun firstLocationOf(role: StopRole): GeoPoint? =
+        trips
             .flatMap { listOf(it.boardStop, it.alightStop) }
-            .firstOrNull { it.role == StopRole.HOME && it.location != null }
+            .firstOrNull { it.role == role && it.location != null }
             ?.location
 
     /** 合成サンプル（tools/testdata）から生成した DB か。UI で警告を出す。 */

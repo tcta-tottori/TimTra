@@ -3,13 +3,16 @@ package com.kazuya.timtra.ui.home
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kazuya.timtra.core.geo.RouteLandmarks
 import com.kazuya.timtra.core.journey.BoundBasis
 import com.kazuya.timtra.core.journey.BoundDecision
 import com.kazuya.timtra.core.journey.BoundResolver
 import com.kazuya.timtra.core.journey.CommuteSettings
 import com.kazuya.timtra.core.journey.Journey
+import com.kazuya.timtra.core.journey.LeaveDisplayPolicy
 import com.kazuya.timtra.core.journey.PlanRequest
 import com.kazuya.timtra.core.model.Bound
+import com.kazuya.timtra.core.model.GeoPoint
 import com.kazuya.timtra.data.di.AppClock
 import com.kazuya.timtra.data.realtime.RealtimeRepository
 import com.kazuya.timtra.data.realtime.RealtimeState
@@ -48,6 +51,15 @@ sealed interface HomeUiState {
         val boundBasis: BoundBasis,
         /** 位置情報の許可があるか。無ければホームに小さな案内を出す。 */
         val locationPermitted: Boolean,
+        /** 現在地。許可が無い・取れないときは null。地図と距離表示に使う。 */
+        val location: GeoPoint?,
+        /** 地図に出す地点（南吉成・鳥取駅・宝木駅・勤務先）。 */
+        val landmarks: RouteLandmarks,
+        /**
+         * 「家を出る時刻」「職場を出る時刻」を出すか（[LeaveDisplayPolicy]）。
+         * false のときは代わりに最初の便（バス / JR）の発車を主役にする。
+         */
+        val showLeaveTime: Boolean,
         /** 直近の案。運行が無ければ null。 */
         val journey: Journey?,
         /** 1 本後の候補。 */
@@ -124,6 +136,13 @@ class HomeViewModel
             val bound = decision.bound
             // 勤務先を離れていれば、その日の「次の電車」リマインダーを止める
             trainReminders.onLocationObserved(here, now)
+            val workplace = TrainReminderScheduler.workplaceOf(settings)
+            val landmarks =
+                RouteLandmarks.build(
+                    homeStop = timetable.homeStopLocation,
+                    stationBusStop = timetable.stationStopLocation,
+                    workplace = settings.workplace,
+                )
 
             suspend fun plan(delays: Map<String, Duration>) =
                 journeys.candidates(PlanRequest(now = now, bound = bound, delays = delays), CANDIDATE_COUNT)
@@ -139,12 +158,31 @@ class HomeViewModel
                 realtimeState = refreshed
             }
 
+            val primaryJourney = candidates.getOrNull(0)
+            // 出発時刻は決まった時間帯にだけ出す（家: 朝の時間帯、職場: 17 時以降〜終電、勤務先付近にいる間）
+            val showLeaveTime =
+                primaryJourney != null &&
+                    when (bound) {
+                        Bound.OUTBOUND -> LeaveDisplayPolicy.showLeaveHome(now, settings.commute)
+                        Bound.INBOUND ->
+                            LeaveDisplayPolicy.showLeaveWork(
+                                now = now,
+                                trainDate = primaryJourney.train.date,
+                                location = here,
+                                workplace = workplace,
+                                settings = settings.commute,
+                            )
+                    }
+
             return HomeUiState.Ready(
                 now = now,
                 bound = bound,
                 boundBasis = decision.basis,
                 locationPermitted = location.hasPermission,
-                journey = candidates.getOrNull(0),
+                location = here,
+                landmarks = landmarks,
+                showLeaveTime = showLeaveTime,
+                journey = primaryJourney,
                 next = candidates.getOrNull(1),
                 dayOff = settings.isDayOff(now.toLocalDate()),
                 settings = settings.commute,
