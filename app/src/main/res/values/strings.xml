@@ -105,6 +105,9 @@
     <string name="map_landmark_hougi">宝木駅</string>
     <string name="map_landmark_workplace">勤務先</string>
     <string name="map_updated">%1$s 時点の位置</string>
+    <string name="map_attribution">© OpenStreetMap contributors</string>
+    <string name="map_tiles_loading">地図を読み込み中…</string>
+    <string name="map_tiles_offline">地図タイルを取得できません（通信なし）。キャッシュ済みの範囲だけ表示します</string>
     <string name="map_bus_target">乗るバス</string>
     <string name="map_bus_other">バス</string>
     <string name="map_bus_off_screen">乗るバスは画面外（%1$s）</string>
@@ -195,7 +198,7 @@
     <string name="settings_reminder_window_start">この時刻以降の電車が対象</string>
     <string name="settings_workplace">勤務先の位置</string>
     <string name="settings_workplace_registered">登録済み（%1$.4f, %2$.4f）</string>
-    <string name="settings_workplace_default">未登録（宝木駅の位置で代用中）</string>
+    <string name="settings_workplace_default">未登録（既定の位置: 気高電機付近を使用中）</string>
     <string name="settings_workplace_register">現在地を勤務先に登録</string>
     <string name="settings_workplace_clear">解除</string>
     <string name="settings_workplace_registered_toast">現在地を勤務先として登録しました</string>
@@ -274,6 +277,7 @@
     <string name="about_sources_title">出典</string>
     <string name="about_source_bus">バス時刻・車両位置情報: 鳥取県オープンデータ（日ノ丸自動車）</string>
     <string name="about_source_jr">JR時刻: JR西日本 駅時刻表より手動転記。最新情報は公式サイトでご確認ください。</string>
+    <string name="about_source_map">地図: © OpenStreetMap contributors（ODbL）。タイルは openstreetmap.org から取得し端末内にキャッシュしています。</string>
     <string name="about_data_title">同梱データ</string>
     <string name="about_bus_feed">バス時刻表: %1$s（%2$s）</string>
     <string name="about_bus_feed_period">有効期間: %1$s 〜 %2$s</string>

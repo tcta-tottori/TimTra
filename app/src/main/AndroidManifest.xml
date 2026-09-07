@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- GTFS-RT の車両位置と、ホームの地図の OpenStreetMap タイル（表示中だけ取得し、端末内にキャッシュ） -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <!-- 通知（Android 13+ は実行時許可） -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- 正確な時刻の通知。Android 14+ では既定で拒否されるので設定画面へ誘導する -->

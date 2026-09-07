@@ -21,11 +21,11 @@ class MapProjectionTest {
         val proj = MapProjection.fit(points, width = 360.0, height = 220.0, paddingPx = 24.0)
         for (p in points) {
             val m = proj.project(p)
-            assertTrue(m.x in 24.0..336.0 && m.y in 24.0..196.0, "$p -> $m")
+            assertTrue(m.x in 23.99..336.01 && m.y in 23.99..196.01, "$p -> $m")
         }
-        // 東西に約 14 km あるので横幅で決まる: 14 km / (360 − 48) px
+        // 東西に約 14 km あるので横幅で決まる: おおむね 14 km / (360 − 48) px（大円距離には南北成分も入るので 5% 見る）
         val span = minamiYoshinari.distanceMetersTo(Places.HOUGI_STATION)
-        assertTrue(abs(proj.metersPerPixel - span / 312.0) < 5.0, "${proj.metersPerPixel}")
+        assertTrue(abs(proj.groundMetersPerPixel - span / 312.0) < span / 312.0 * 0.05, "${proj.groundMetersPerPixel}")
     }
 
     @Test
@@ -44,7 +44,7 @@ class MapProjectionTest {
         val b = proj.project(busTerminal)
         val px = kotlin.math.hypot(a.x - b.x, a.y - b.y)
         val meters = minamiYoshinari.distanceMetersTo(busTerminal)
-        assertTrue(abs(px * proj.metersPerPixel - meters) < meters * 0.01, "${px * proj.metersPerPixel} vs $meters")
+        assertTrue(abs(px * proj.groundMetersPerPixel - meters) < meters * 0.01, "${px * proj.groundMetersPerPixel} vs $meters")
     }
 
     @Test
@@ -53,7 +53,7 @@ class MapProjectionTest {
         val m = proj.project(minamiYoshinari)
         assertEquals(100.0, m.x, 1e-6)
         assertEquals(50.0, m.y, 1e-6)
-        assertEquals(800.0 / 80.0, proj.metersPerPixel, 1e-6)
+        assertEquals(800.0 / 80.0, proj.groundMetersPerPixel, 1e-3)
     }
 
     @Test
@@ -71,11 +71,55 @@ class MapProjectionTest {
     }
 
     @Test
+    fun `tiles cover the whole viewport and align with the projection`() {
+        val proj = MapProjection.fit(listOf(minamiYoshinari, busTerminal), 360.0, 220.0, 24.0)
+        val zoom = proj.tileZoom(targetTilePixels = 256.0)
+        assertTrue(zoom in 13..16, "$zoom")
+        val tiles = proj.tiles(zoom)
+        assertTrue(tiles.isNotEmpty())
+        // 1 枚の大きさはおよそ 256px（ズームは 2 倍刻みなので 181〜362px）
+        val size = tiles.first().size
+        assertTrue(size in 180.0..363.0, "$size")
+        // 左上のタイルは画面の左上を覆い、右下のタイルは右下を覆う
+        assertTrue(tiles.minOf { it.left } <= 0.0 && tiles.minOf { it.top } <= 0.0)
+        assertTrue(tiles.maxOf { it.left + it.size } >= 360.0 && tiles.maxOf { it.top + it.size } >= 220.0)
+        // タイルの原点を投影し直すと、その描画位置に一致する
+        val t = tiles.first()
+        val (ox, oy) = WebMercator.tileOrigin(t.x, t.y, t.zoom)
+        val p = proj.project(WebMercator.toGeo(ox, oy))
+        assertEquals(t.left, p.x, 1e-6)
+        assertEquals(t.top, p.y, 1e-6)
+        // 高密度画面では 1 タイルを大きく描く = 1 枚が広い範囲を覆う = 低いズームを選ぶ
+        assertTrue(proj.tileZoom(256.0 * 2.75) <= zoom - 1, "${proj.tileZoom(256.0 * 2.75)} vs $zoom")
+    }
+
+    @Test
+    fun `web mercator round trips and tile indices follow the slippy map convention`() {
+        val p = GeoPoint(35.5158, 134.0778)
+        val (x, y) = WebMercator.toMeters(p)
+        val back = WebMercator.toGeo(x, y)
+        assertEquals(p.lat, back.lat, 1e-9)
+        assertEquals(p.lon, back.lon, 1e-9)
+        // 赤道・本初子午線は zoom 1 で (1, 1)
+        val (ex, ey) = WebMercator.toMeters(GeoPoint(0.0, 0.0))
+        assertEquals(1 to 1, WebMercator.tileIndex(ex, ey, 1))
+        // 鳥取付近（北緯 35.5°、東経 134°）は zoom 10 で x=893, y=403
+        val (tx, ty) = WebMercator.tileIndex(x, y, 10)
+        assertEquals(893, tx)
+        assertEquals(403, ty)
+        // タイルの原点はそのタイルに属し、1 枚分ずらすと隣のタイル
+        val (ox, oy) = WebMercator.tileOrigin(tx, ty, 10)
+        assertEquals(tx to ty, WebMercator.tileIndex(ox + 1.0, oy - 1.0, 10))
+        val tileSize = WebMercator.tileSizeMeters(10)
+        assertEquals(tx + 1 to ty + 1, WebMercator.tileIndex(ox + tileSize + 1.0, oy - tileSize - 1.0, 10))
+    }
+
+    @Test
     fun `scale bar picks a round number that fits`() {
         val proj = MapProjection.fit(listOf(minamiYoshinari, Places.HOUGI_STATION), 360.0, 220.0, 24.0)
-        val (meters, px) = proj.scaleBar(maxPixels = 120.0)
+        val (meters, px) = proj.scaleBar(maxPixels = 130.0)
         assertEquals(5_000, meters)
-        assertTrue(px <= 120.0 && px > 40.0, "$px")
+        assertTrue(px <= 130.0 && px > 40.0, "$px")
     }
 
     private val workplace = GeoPoint(35.5183, 134.0636)

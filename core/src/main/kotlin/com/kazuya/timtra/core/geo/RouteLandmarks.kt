@@ -90,7 +90,7 @@ data class RouteLandmarks(
         /**
          * @param homeStop 南吉成の位置（GTFS）。無ければ地点から外す。
          * @param stationBusStop 鳥取駅バスターミナルの位置（GTFS）。無ければ JR 駅舎の位置で代用する。
-         * @param workplace 設定で登録した勤務先。未登録なら null（宝木駅で代用せず、地点から外す）。
+         * @param workplace 勤務先（設定で登録した値、無ければ Places.WORKPLACE_DEFAULT）。null なら地点から外す。
          */
         fun build(
             homeStop: GeoPoint?,

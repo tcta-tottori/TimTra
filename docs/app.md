@@ -82,12 +82,18 @@ AGP 9 系を採用した。AGP 9 では `org.jetbrains.kotlin.android` を適用
 
 ## 地図（ホーム中央）
 
-`ui/home/RouteMapCard.kt`。地図タイルや外部 API は使わず（CLAUDE.md 3-5、13）、経路上の地点と現在地を端末内の座標だけで描く簡易地図。
+`ui/home/RouteMapCard.kt`。下地は OpenStreetMap の標準ラスタタイル、その上に経路上の地点・現在地・バスの位置を重ねる。
+サーバーは持たない（CLAUDE.md 3-5）: タイルは openstreetmap.org から表示中にだけ取得し、端末内にキャッシュする
+（`ui/map/MapTileLoader`: メモリ 64 枚 + `cacheDir/osm_tiles` 60 MB、14 日で取り直し、同時 2 本、User-Agent 明示。
+OSM タイル利用規約に従う）。通信できないときはキャッシュ済みのタイルだけを使い、1 枚も無ければ方眼の簡易地図になる。
+出典「© OpenStreetMap contributors」を地図の右下と About 画面に出す（ODbL / 利用規約で必須）。
 
 - 地点は core の `geo/RouteLandmarks`（南吉成 = GTFS の HOME 停留所、鳥取駅 = GTFS の STATION 停留所（バスターミナル）、
   宝木駅 = `Places.HOUGI_STATION`、勤務先 = 設定で登録した位置。未登録なら勤務先は出さない）。
-- 投影は core の `geo/MapProjection`（正距円筒 + 緯度補正、テストあり）。全地点が余白つきで収まる縮尺を選び、
-  左下に縮尺バー（50 m〜50 km のきりのよい値）を出す。
+- 投影は core の `geo/MapProjection`（Web メルカトル = タイルと同じ。`geo/WebMercator` にタイル番号の計算。テストあり）。
+  全地点が余白つきで収まる縮尺を選び、左下に縮尺バー（地上距離で 50 m〜50 km のきりのよい値）を出す。
+  タイルのズームは「1 タイルが画面上で 256 × density × 0.8 px」になる値を選ぶ（高密度画面で文字が読める大きさ。
+  OSM 標準タイルに @2x が無いため多少ぼやける）。地図 1 枚あたり 6〜12 タイル。
 - 初期表示は**現在地に近い側**だけを拡大する（`RouteLandmarks.sideFor`）: 最寄りの地点が 4 km 以内なら
   その側（自宅側 = 南吉成・鳥取駅 / 勤務先側 = 宝木駅・勤務先）、4 km 超なら移動中とみなして経路全体、40 km 超（出張先など）や
   位置が無いときは向きで決める（往路 → 自宅側、復路 → 勤務先側）。経路全体（約 14 km）を常に出すと自宅側の 2 点が重なるため。

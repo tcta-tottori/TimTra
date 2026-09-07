@@ -31,7 +31,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -42,8 +44,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -51,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.kazuya.timtra.R
 import com.kazuya.timtra.core.geo.Landmark
@@ -58,6 +64,7 @@ import com.kazuya.timtra.core.geo.LandmarkKind
 import com.kazuya.timtra.core.geo.MapPoint
 import com.kazuya.timtra.core.geo.MapProjection
 import com.kazuya.timtra.core.geo.RouteLandmarks
+import com.kazuya.timtra.core.geo.WebMercator
 import com.kazuya.timtra.core.model.Bound
 import com.kazuya.timtra.core.model.GeoPoint
 import com.kazuya.timtra.core.realtime.VehiclePosition
@@ -67,12 +74,16 @@ import com.kazuya.timtra.ui.common.distanceText
 import com.kazuya.timtra.ui.common.hhmm
 import com.kazuya.timtra.ui.common.iconRes
 import com.kazuya.timtra.ui.common.labelRes
+import com.kazuya.timtra.ui.map.MapTileLoader
 import com.kazuya.timtra.ui.theme.TimTraCard
 import com.kazuya.timtra.ui.theme.TimTraColors
 import com.kazuya.timtra.ui.theme.TransitColors
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
+import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.roundToInt
 
 /** 地図に出すバスの車両位置（GTFS-RT）。 */
@@ -89,8 +100,9 @@ data class MapVehicles(
 }
 
 /**
- * ホーム中央の地図。サーバーやタイル画像は使わず（CLAUDE.md 3-5）、経路上の地点と現在地を
- * 端末内の座標だけで描く簡易地図。現在地から各地点までの距離を線と数字で示す。
+ * ホーム中央の地図。下地は OpenStreetMap の標準タイル（[MapTileLoader]。表示中だけ取得し端末内にキャッシュ）、
+ * その上に経路上の地点と現在地を Web メルカトル（core の MapProjection）で重ねる。
+ * タイルが取れない（圏外・初回オフライン）ときは方眼だけの簡易地図になる。
  *
  * 初期表示は現在地に近い側（南吉成〜鳥取駅、または宝木駅〜勤務先。現在地が無ければ向きで決める）を拡大し、
  * 右上のボタンで経路全体（約 14 km）に切り替えられる。
@@ -256,6 +268,31 @@ private fun RouteMap(
         val nearest = here?.let { h -> landmarks.distancesFrom(h).firstOrNull() }
         val nearestPoint = nearest?.let { (lm, _) -> points.first { it.first == lm }.second }
         val (scaleMeters, scaleBarPx) = remember(projection) { projection.scaleBar(widthPx / 3.0) }
+
+        // 下地の OSM タイル。高密度画面では 1 タイルを density 倍弱で描く（文字が読める大きさ）
+        val context = LocalContext.current
+        val tileLoader = remember(context) { MapTileLoader.get(context) }
+        val zoom =
+            remember(projection, density) {
+                projection.tileZoom((WebMercator.TILE_PIXELS * density.density * TILE_SCALE).toDouble())
+            }
+        val tiles = remember(projection, zoom) { projection.tiles(zoom) }
+        val tileBitmaps = remember { mutableStateMapOf<String, ImageBitmap>() }
+        var tilesFailed by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { tileLoader.trim() }
+        LaunchedEffect(tiles) {
+            tilesFailed = false
+            val jobs =
+                tiles
+                    .filter { it.key !in tileBitmaps }
+                    .map { tile ->
+                        tileLoader.cached(tile)?.let { tileBitmaps[tile.key] = it }
+                        launch { tileLoader.load(tile)?.let { tileBitmaps[tile.key] = it } }
+                    }
+            jobs.forEach { it.join() }
+            tilesFailed = tiles.none { it.key in tileBitmaps }
+        }
+        val anyTile = tiles.any { it.key in tileBitmaps }
         val busPoints = buses.vehicles.map { it to projection.project(GeoPoint(it.latitude, it.longitude)) }
         val targetBusRaw = targetBus?.let { projection.project(it) }
         val targetBusInside = targetBusRaw?.isInside(widthPx.toDouble(), heightPx.toDouble()) == true
@@ -269,17 +306,37 @@ private fun RouteMap(
             )
 
         Canvas(modifier = Modifier.fillMaxSize()) {
-            // 方眼。地図らしさと縮尺感のため
-            val grid = GRID_STEP.toPx()
-            var x = grid
-            while (x < size.width) {
-                drawLine(TransitColors.mapGrid, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1f)
-                x += grid
+            // 下地: OSM タイル。無ければ方眼（地図らしさと縮尺感のため）
+            var drewTile = false
+            tiles.forEach { tile ->
+                val image = tileBitmaps[tile.key] ?: return@forEach
+                // 隣のタイルとの継ぎ目に隙間が出ないよう 1px 大きく描く
+                val side = ceil(tile.size).toInt() + 1
+                drawImage(
+                    image = image,
+                    srcOffset = IntOffset.Zero,
+                    srcSize = IntSize(image.width, image.height),
+                    dstOffset = IntOffset(floor(tile.left).toInt(), floor(tile.top).toInt()),
+                    dstSize = IntSize(side, side),
+                    filterQuality = FilterQuality.Medium,
+                )
+                drewTile = true
             }
-            var y = grid
-            while (y < size.height) {
-                drawLine(TransitColors.mapGrid, Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
-                y += grid
+            if (drewTile) {
+                // 経路線とラベルを読みやすくするため、ほんの少し白をかける
+                drawRect(Color.White.copy(alpha = TILE_WASH_ALPHA))
+            } else {
+                val grid = GRID_STEP.toPx()
+                var x = grid
+                while (x < size.width) {
+                    drawLine(TransitColors.mapGrid, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1f)
+                    x += grid
+                }
+                var y = grid
+                while (y < size.height) {
+                    drawLine(TransitColors.mapGrid, Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
+                    y += grid
+                }
             }
 
             // 経路。地点の並び（南吉成 → 鳥取駅 → 宝木駅 → 勤務先）を結ぶ
@@ -342,6 +399,33 @@ private fun RouteMap(
             color = TimTraColors.onSurfaceVariant,
             modifier = Modifier.align(Alignment.BottomStart).padding(start = SCALE_MARGIN, bottom = SCALE_MARGIN + 4.dp),
         )
+
+        // 出典（OSM のタイル利用規約で必須）
+        Text(
+            text = stringResource(R.string.map_attribution),
+            style = MaterialTheme.typography.labelSmall,
+            color = TimTraColors.onSurfaceVariant,
+            modifier =
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(6.dp)
+                    .background(Color.White.copy(alpha = 0.8f), RoundedCornerShape(50))
+                    .padding(horizontal = 6.dp, vertical = 1.dp),
+        )
+        if (!anyTile) {
+            Text(
+                text = stringResource(if (tilesFailed) R.string.map_tiles_offline else R.string.map_tiles_loading),
+                style = MaterialTheme.typography.labelSmall,
+                color = TimTraColors.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 28.dp, start = 60.dp, end = 60.dp)
+                        .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(50))
+                        .padding(horizontal = 10.dp, vertical = 3.dp),
+            )
+        }
 
         // 地点のマーカー（画面内のものだけ。少しはみ出す程度なら描く）
         val marginPx = with(density) { MARKER_SIZE.toPx() }
@@ -616,3 +700,7 @@ private const val MIN_SPAN_METERS = 1_200.0
 private const val INCLUDE_HERE_FOCUS_METERS = 6_000.0
 private const val INCLUDE_HERE_FULL_METERS = 40_000.0
 private const val INCLUDE_BUS_METERS = 12_000.0
+
+/** 1 タイル（256px）を画面上で 256 × density × この倍率で描く。1.0 だと文字が大きすぎ、0.5 だと読めない。 */
+private const val TILE_SCALE = 0.8f
+private const val TILE_WASH_ALPHA = 0.10f

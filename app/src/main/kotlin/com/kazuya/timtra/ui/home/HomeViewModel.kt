@@ -141,7 +141,7 @@ class HomeViewModel
                 RouteLandmarks.build(
                     homeStop = timetable.homeStopLocation,
                     stationBusStop = timetable.stationStopLocation,
-                    workplace = settings.workplace,
+                    workplace = workplace,
                 )
 
             suspend fun plan(delays: Map<String, Duration>) =
