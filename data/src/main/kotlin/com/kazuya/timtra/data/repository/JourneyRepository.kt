@@ -3,8 +3,11 @@ package com.kazuya.timtra.data.repository
 import com.kazuya.timtra.core.journey.Journey
 import com.kazuya.timtra.core.journey.JourneyPlanner
 import com.kazuya.timtra.core.journey.PlanRequest
+import com.kazuya.timtra.core.journey.ScheduledBus
 import com.kazuya.timtra.core.model.Bound
+import com.kazuya.timtra.core.model.BusDirection
 import java.time.LocalDate
+import java.time.LocalDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,6 +27,13 @@ class JourneyRepository
             request: PlanRequest,
             count: Int,
         ): List<Journey> = planner().candidates(request, count)
+
+        /** JR と関係なく「次のバス」だけ（復路で鳥取駅へ向かっている / 着いたあと）。 */
+        suspend fun nextBuses(
+            from: LocalDateTime,
+            direction: BusDirection,
+            count: Int,
+        ): List<ScheduledBus> = planner().nextBuses(from, direction, count)
 
         /** 前夜のジョブ用（手順 4）。 */
         suspend fun planForDate(

@@ -57,10 +57,12 @@ import com.kazuya.timtra.core.geo.LandmarkKind
 import com.kazuya.timtra.core.geo.RouteLandmarks
 import com.kazuya.timtra.core.journey.BoundBasis
 import com.kazuya.timtra.core.journey.CommuteSettings
+import com.kazuya.timtra.core.journey.InboundPhase
 import com.kazuya.timtra.core.journey.Journey
 import com.kazuya.timtra.core.journey.JourneyStatus
 import com.kazuya.timtra.core.journey.Pace
 import com.kazuya.timtra.core.journey.PaceAdvisor
+import com.kazuya.timtra.core.journey.ScheduledBus
 import com.kazuya.timtra.core.model.Bound
 import com.kazuya.timtra.core.model.GeoPoint
 import com.kazuya.timtra.data.realtime.RealtimeState
@@ -178,7 +180,29 @@ private fun HomeContent(
         if (state.reminderOffToday) ReminderOffBanner(onResume = onResumeReminders)
 
         val journey = state.journey
-        if (journey == null) {
+        val stationBus = state.stationBuses.firstOrNull()
+        if (state.inboundPhase == InboundPhase.TO_BUS && stationBus != null) {
+            // 復路で宝木駅エリアを離れた（乗車中・鳥取駅到着後）: 電車の時刻はやめて、鳥取駅発のバスを主役にする
+            val delay = state.realtime.delays[stationBus.trip.tripId] ?: Duration.ZERO
+            NextStationBusCard(nowSecond, stationBus, delay, state.settings, state.location, state.landmarks)
+            RouteMapCard(
+                landmarks = state.landmarks,
+                here = state.location,
+                bound = state.bound,
+                locationPermitted = state.locationPermitted,
+                buses =
+                    MapVehicles(
+                        vehicles = state.realtime.vehicles,
+                        targetTripId = stationBus.trip.tripId,
+                        targetDelayMinutes = delay.toMinutes(),
+                        fetchedAt = state.realtime.fetchedAt?.takeIf { state.realtime.vehicles.isNotEmpty() },
+                    ),
+                walkToWorkMinutes = state.settings.walkStationToWork.toMinutes(),
+            )
+            StationBusCard(stationBus, delay, state.realtime) { onOpenPeek(PeekKind.BUS_STATION) }
+            HomeArrivalCard(stationBus.arrivalAt.plus(delay).plus(state.settings.walkHomeToStop))
+            state.stationBuses.getOrNull(1)?.let { NextStationBusCandidate(it) }
+        } else if (journey == null) {
             Text(stringResource(R.string.home_empty), style = MaterialTheme.typography.bodyLarge)
             RouteMapCard(
                 landmarks = state.landmarks,
@@ -376,12 +400,23 @@ private fun PaceRow(
     here: GeoPoint?,
     landmarks: RouteLandmarks,
 ) {
-    if (here == null) return
     val (placeKind, departAt) =
         when (journey.bound) {
             Bound.OUTBOUND -> LandmarkKind.HOME_STOP to journey.busDepartureEstimatedAt
             Bound.INBOUND -> LandmarkKind.HOUGI_STATION to journey.train.departureAt
         }
+    PaceRow(now, placeKind, departAt, here, landmarks)
+}
+
+@Composable
+private fun PaceRow(
+    now: LocalDateTime,
+    placeKind: LandmarkKind,
+    departAt: LocalDateTime,
+    here: GeoPoint?,
+    landmarks: RouteLandmarks,
+) {
+    if (here == null) return
     val place = landmarks.find(placeKind) ?: return
     val advice = PaceAdvisor.advise(here.distanceMetersTo(place.location), Duration.between(now, departAt))
     val placeName = stringResource(placeKind.labelRes)
@@ -492,6 +527,214 @@ private fun NextDepartureCard(
                 color = Color.White.copy(alpha = 0.65f),
                 textAlign = TextAlign.Center,
             )
+        }
+    }
+}
+
+/**
+ * 復路で宝木駅エリアを離れたあとの主役: 鳥取駅を出る次のバスの発車までの残り時間。
+ * 電車の時刻は出さない（もう乗っている、または降りたあと）。
+ */
+@Composable
+private fun NextStationBusCard(
+    now: LocalDateTime,
+    bus: ScheduledBus,
+    delay: Duration,
+    settings: CommuteSettings,
+    here: GeoPoint?,
+    landmarks: RouteLandmarks,
+) {
+    val departAt = bus.departureAt.plus(delay)
+    GradientCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ModeBadge(mode = TransitMode.BUS, size = 28.dp, color = TimTraColors.pillFill)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text =
+                        stringResource(R.string.home_next_departure_bus) + "  " +
+                            stringResource(R.string.home_departs_from, bus.trip.boardStop.name) + " " + departAt.hhmm(),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White.copy(alpha = 0.9f),
+                )
+            }
+            Text(
+                text = stringResource(R.string.home_countdown_label),
+                style = MaterialTheme.typography.labelLarge,
+                color = TimTraColors.accentLight,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+            Text(
+                text = remainingText(now, departAt),
+                style = MaterialTheme.typography.displayLarge.copy(fontFeatureSettings = "tnum"),
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+            )
+            if (!delay.isZero) {
+                Text(
+                    text = stringResource(R.string.home_delay_estimated, delay.toMinutes()),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.9f),
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier =
+                    Modifier
+                        .background(TimTraColors.pillFill, RoundedCornerShape(50))
+                        .border(1.dp, TimTraColors.pillBorder, RoundedCornerShape(50))
+                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    painterResource(TransitMode.BUS.iconRes),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(departAt.hhmm(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                Icon(
+                    painter = painterResource(R.drawable.ic_arrow_forward),
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(horizontal = 10.dp).size(16.dp),
+                )
+                Icon(
+                    painter = painterResource(R.drawable.ic_home),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text =
+                        bus.arrivalAt
+                            .plus(delay)
+                            .plus(settings.walkHomeToStop)
+                            .hhmm(),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                )
+            }
+            PaceRow(now, LandmarkKind.STATION, departAt, here, landmarks)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.home_phase_to_bus_hint),
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White.copy(alpha = 0.65f),
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+/** 鳥取駅発のバスの区間カード（復路・宝木駅エリアを離れたあと）。 */
+@Composable
+private fun StationBusCard(
+    bus: ScheduledBus,
+    delay: Duration,
+    realtime: RealtimeState,
+    onClick: () -> Unit,
+) {
+    val trip = bus.trip
+    LegCard(
+        mode = TransitMode.BUS,
+        title = stringResource(R.string.mode_bus_full),
+        from = trip.boardStop.name,
+        departure = bus.departureAt.hhmm(),
+        to = trip.alightStop.name,
+        arrival = bus.arrivalAt.hhmm(),
+        onClick = onClick,
+        chips = {
+            InfoPill(
+                text =
+                    if (trip.hasRouteNumber) {
+                        stringResource(R.string.home_route_line, trip.routeShortName, trip.headsign)
+                    } else {
+                        stringResource(R.string.home_route_line_named, trip.routeDisplayName, trip.headsign)
+                    },
+            )
+            trip.boardStop.platformCode?.takeIf { it.isNotBlank() }?.let {
+                InfoPill(
+                    text = stringResource(R.string.home_platform, it),
+                    color = TransitColors.bus,
+                    container = TransitColors.bus.copy(alpha = 0.12f),
+                )
+            }
+        },
+    ) {
+        if (!delay.isZero) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text =
+                    stringResource(R.string.home_delay_estimated, delay.toMinutes()) + " ・ " +
+                        stringResource(R.string.home_delay_arrival_estimated, bus.arrivalAt.plus(delay).hhmm()),
+                color = StatusColors.tight,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        val fetched = realtime.fetchedAt?.let { LocalDateTime.ofInstant(it, ZoneId.systemDefault()).hhmm() }
+        if (fetched != null && delay.isZero) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text =
+                    if (realtime.estimates.any { it.tripId == trip.tripId }) {
+                        stringResource(R.string.home_rt_on_time, fetched)
+                    } else {
+                        stringResource(R.string.home_rt_no_vehicle, fetched)
+                    },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun HomeArrivalCard(arriveAt: LocalDateTime) {
+    TimTraCard(modifier = Modifier.fillMaxWidth(), containerColor = Color.White) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CircleIcon(iconRes = R.drawable.ic_home, color = TransitColors.place, size = 30.dp)
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = stringResource(R.string.home_arrival_label_home),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            Text(arriveAt.hhmm(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun NextStationBusCandidate(bus: ScheduledBus) {
+    TimTraCard(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            ModeChip(TransitMode.BUS)
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(stringResource(R.string.home_next_candidate), style = MaterialTheme.typography.labelLarge)
+                Text(
+                    text =
+                        stringResource(
+                            R.string.home_next_bus_candidate,
+                            bus.departureAt.hhmm(),
+                            bus.trip.alightStop.name,
+                            bus.arrivalAt.hhmm(),
+                        ),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
         }
     }
 }

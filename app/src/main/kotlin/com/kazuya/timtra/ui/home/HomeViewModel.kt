@@ -8,10 +8,14 @@ import com.kazuya.timtra.core.journey.BoundBasis
 import com.kazuya.timtra.core.journey.BoundDecision
 import com.kazuya.timtra.core.journey.BoundResolver
 import com.kazuya.timtra.core.journey.CommuteSettings
+import com.kazuya.timtra.core.journey.InboundPhase
+import com.kazuya.timtra.core.journey.InboundPhaseResolver
 import com.kazuya.timtra.core.journey.Journey
 import com.kazuya.timtra.core.journey.LeaveDisplayPolicy
 import com.kazuya.timtra.core.journey.PlanRequest
+import com.kazuya.timtra.core.journey.ScheduledBus
 import com.kazuya.timtra.core.model.Bound
+import com.kazuya.timtra.core.model.BusDirection
 import com.kazuya.timtra.core.model.GeoPoint
 import com.kazuya.timtra.data.di.AppClock
 import com.kazuya.timtra.data.realtime.RealtimeRepository
@@ -97,6 +101,13 @@ sealed interface HomeUiState {
          * false のときは代わりに最初の便（バス / JR）の発車を主役にする。
          */
         val showLeaveTime: Boolean,
+        /**
+         * 復路の段階。宝木駅エリアを離れて鳥取方面へ向かっていれば [InboundPhase.TO_BUS] で、
+         * 主役は電車ではなく鳥取駅発のバス（[stationBuses]）になる。
+         */
+        val inboundPhase: InboundPhase,
+        /** [InboundPhase.TO_BUS] のときの、鳥取駅を出る次のバス（先頭が直近、2 本目が次の候補）。 */
+        val stationBuses: List<ScheduledBus>,
         /** 直近の案。運行が無ければ null。 */
         val journey: Journey?,
         /** 1 本後の候補。 */
@@ -220,7 +231,18 @@ class HomeViewModel
             var realtimeState = realtime.state.value
             var candidates = plan(realtimeState.delays)
             val primary = candidates.firstOrNull()
-            if (primary != null && shouldPoll(primary, now)) {
+            // 復路で宝木駅エリアを離れたら（乗車中・鳥取駅到着後）、電車ではなく鳥取駅発の次のバスを主役にする
+            val inboundPhase = InboundPhaseResolver.resolve(bound, here)
+            val stationBuses =
+                if (inboundPhase ==
+                    InboundPhase.TO_BUS
+                ) {
+                    journeys.nextBuses(now, BusDirection.FROM_STATION, CANDIDATE_COUNT)
+                } else {
+                    emptyList()
+                }
+            val pollForStationBus = stationBuses.firstOrNull()?.let { shouldPoll(it, now) } == true
+            if ((primary != null && shouldPoll(primary, now)) || pollForStationBus) {
                 val refreshed = realtime.refresh()
                 if (refreshed.delays != realtimeState.delays) candidates = plan(refreshed.delays)
                 realtimeState = refreshed
@@ -250,6 +272,8 @@ class HomeViewModel
                 location = here,
                 landmarks = landmarks,
                 showLeaveTime = showLeaveTime,
+                inboundPhase = inboundPhase,
+                stationBuses = stationBuses,
                 journey = primaryJourney,
                 next = candidates.getOrNull(1),
                 dayOff = settings.isDayOff(now.toLocalDate()),
@@ -266,9 +290,14 @@ class HomeViewModel
         private fun shouldPoll(
             journey: Journey,
             now: LocalDateTime,
+        ): Boolean = shouldPoll(journey.bus, now)
+
+        private fun shouldPoll(
+            bus: ScheduledBus,
+            now: LocalDateTime,
         ): Boolean {
-            val from = journey.bus.departureAt.minus(POLL_BEFORE_DEPARTURE)
-            val until = journey.bus.arrivalAt.plus(POLL_AFTER_ARRIVAL)
+            val from = bus.departureAt.minus(POLL_BEFORE_DEPARTURE)
+            val until = bus.arrivalAt.plus(POLL_AFTER_ARRIVAL)
             return !now.isBefore(from) && !now.isAfter(until)
         }
 

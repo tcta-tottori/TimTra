@@ -467,6 +467,8 @@ private fun BoxScope.MapLayer(
                 null
             }
         }
+    // 鳥取駅 ⇔ 宝木駅 の JR は山陰本線の線路に沿って描く（両端は地図上の駅の点につなぐ）
+    val railPath = remember(projection) { Places.TOTTORI_TO_HOUGI_RAIL.map { projection.project(it) } }
     val hereRaw = here?.let { projection.project(it) }
     val hereInside = hereRaw?.isInside(widthPx.toDouble(), heightPx.toDouble()) == true
     val hereDrawn = hereRaw?.let { if (hereInside) it else projection.clampToEdge(it, edgeInsetPx.toDouble()) }
@@ -555,11 +557,13 @@ private fun BoxScope.MapLayer(
             val end = Offset(pb.x.toFloat(), pb.y.toFloat())
             val segment = segmentStyle(a.kind, b.kind)
             val isWalkToWork = a.kind == LandmarkKind.WORKPLACE || b.kind == LandmarkKind.WORKPLACE
+            val isRail = setOf(a.kind, b.kind) == setOf(LandmarkKind.STATION, LandmarkKind.HOUGI_STATION)
             val polyline =
-                if (isWalkToWork && walkPath != null) {
-                    walkPath.map { Offset(it.x.toFloat(), it.y.toFloat()) }
-                } else {
-                    listOf(start, end)
+                when {
+                    isWalkToWork && walkPath != null -> walkPath.map { Offset(it.x.toFloat(), it.y.toFloat()) }
+                    // 線路の折れ線。先頭・末尾を地図上の駅の点に差し替えて、点と線が離れないようにする
+                    isRail -> listOf(start) + railPath.drop(1).dropLast(1).map { Offset(it.x.toFloat(), it.y.toFloat()) } + listOf(end)
+                    else -> listOf(start, end)
                 }
             val dash = if (segment.dashed) PathEffect.dashPathEffect(floatArrayOf(routeWidth * 2, routeWidth * 2), 0f) else null
             for (k in 0 until polyline.size - 1) {

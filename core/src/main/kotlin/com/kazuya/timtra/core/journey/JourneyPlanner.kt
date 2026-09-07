@@ -231,6 +231,27 @@ class JourneyPlanner(
             fallback = fallback,
         )
 
+    /**
+     * [from] 以降に出る [direction] のバスを発車順に [count] 本。JR と関係なく「次のバス」だけが欲しいとき
+     * （復路で鳥取駅に着いたあとなど）に使う。当日に無ければ翌日以降の便。
+     */
+    fun nextBuses(
+        from: LocalDateTime,
+        direction: BusDirection,
+        count: Int,
+    ): List<ScheduledBus> {
+        require(count > 0)
+        val start = from.toLocalDate()
+        // 前日のサービス日に属する深夜便（24:30 など）が当日 0 時台に走るので、前日分から見る
+        return (-1..TimTraConstants.MAX_LOOKAHEAD_DAYS)
+            .asSequence()
+            .flatMap { offset -> bus.tripsOn(start.plusDays(offset), direction).map { ScheduledBus(it, start.plusDays(offset)) } }
+            .filter { !it.departureAt.isBefore(from) }
+            .sortedWith(compareBy({ it.departureAt }, { it.trip.tripId }))
+            .take(count)
+            .toList()
+    }
+
     // ---------------------------------------------------------------- 共通
 
     /** 手順 4: 余裕による分類。境界値は「以上」で上のランクに入る。 */

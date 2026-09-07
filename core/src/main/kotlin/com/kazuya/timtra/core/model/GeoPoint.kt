@@ -71,4 +71,27 @@ object Places {
 
     /** 登録した勤務先が既定位置からこの距離以内なら、上の徒歩経路をそのまま使う。 */
     const val WALK_PATH_MATCH_METERS = 200.0
+
+    /**
+     * JR 山陰本線 鳥取 → 宝木 の線路の概略（地図の描画用）。
+     * 鳥取駅から千代川を渡って湖山・鳥取大学前までは OSM タイル上の線路からなぞった値、
+     * 末恒〜宝木は駅位置と地形からの推定。ずれがあれば点を足して直す。
+     */
+    val TOTTORI_TO_HOUGI_RAIL: List<GeoPoint> =
+        listOf(
+            TOTTORI_STATION,
+            GeoPoint(35.4960, 134.2153),
+            GeoPoint(35.4998, 134.2078),
+            GeoPoint(35.5039, 134.2002),
+            GeoPoint(35.5088, 134.1907),
+            GeoPoint(35.5122, 134.1825),
+            GeoPoint(35.5153, 134.1718),
+            GeoPoint(35.5172, 134.1600),
+            GeoPoint(35.5175, 134.1490),
+            GeoPoint(35.5155, 134.1375),
+            GeoPoint(35.5150, 134.1230),
+            GeoPoint(35.5140, 134.1080),
+            GeoPoint(35.5159, 134.0899),
+            HOUGI_STATION,
+        )
 }
