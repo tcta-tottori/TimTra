@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -22,20 +24,28 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -146,15 +156,15 @@ private fun SettingsContent(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 4.dp),
         )
-        TimeRow(R.string.settings_leave_home_display_start, c.leaveHomeDisplayStart, step = FINE_TIME_STEP_MINUTES) {
-            viewModel.adjust(TimeField.LEAVE_HOME_DISPLAY_START, it)
-        }
-        TimeRow(R.string.settings_leave_home_display_end, c.leaveHomeDisplayEnd, step = FINE_TIME_STEP_MINUTES) {
-            viewModel.adjust(TimeField.LEAVE_HOME_DISPLAY_END, it)
-        }
-        TimeRow(R.string.settings_leave_work_display_start, c.leaveWorkDisplayStart, step = FINE_TIME_STEP_MINUTES) {
-            viewModel.adjust(TimeField.LEAVE_WORK_DISPLAY_START, it)
-        }
+        TimeRow(
+            R.string.settings_leave_home_display_start,
+            c.leaveHomeDisplayStart,
+        ) { viewModel.adjust(TimeField.LEAVE_HOME_DISPLAY_START, it) }
+        TimeRow(R.string.settings_leave_home_display_end, c.leaveHomeDisplayEnd) { viewModel.adjust(TimeField.LEAVE_HOME_DISPLAY_END, it) }
+        TimeRow(
+            R.string.settings_leave_work_display_start,
+            c.leaveWorkDisplayStart,
+        ) { viewModel.adjust(TimeField.LEAVE_WORK_DISPLAY_START, it) }
 
         SectionTitle(stringResource(R.string.settings_section_notifications))
         SwitchRow(
@@ -376,43 +386,147 @@ private fun SectionTitle(text: String) {
     )
 }
 
+/**
+ * 値の行。設定画面には現在の値と編集ボタンだけを置き、変更はポップアップで行う。
+ * [onEdit] を押すと呼び出し側がダイアログを開く。
+ */
 @Composable
-private fun StepperRow(
+private fun ValueRow(
     labelRes: Int,
     value: String,
-    onStep: (Long) -> Unit,
-    step: Long,
+    onEdit: () -> Unit,
 ) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onEdit).padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(stringResource(labelRes), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-        OutlinedButton(onClick = { onStep(-step) }) { Text("−") }
         Text(
             text = value,
-            modifier = Modifier.width(72.dp),
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.End,
         )
-        OutlinedButton(onClick = { onStep(step) }) { Text("+") }
+        IconButton(onClick = onEdit) {
+            Icon(
+                painter = painterResource(R.drawable.ic_edit),
+                contentDescription = stringResource(R.string.settings_edit),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
     }
 }
 
+/** 分の設定。行には値だけ、編集はポップアップ（数値入力 + −/+）。[onStep] には現在値との差分（分）を渡す。 */
 @Composable
 private fun DurationRow(
     labelRes: Int,
     value: Duration,
     onStep: (Long) -> Unit,
 ) {
-    StepperRow(labelRes, stringResource(R.string.settings_minutes_value, value.toMinutes()), onStep, step = 1)
+    var editing by rememberSaveable { mutableStateOf(false) }
+    ValueRow(labelRes, stringResource(R.string.settings_minutes_value, value.toMinutes())) { editing = true }
+    if (editing) {
+        MinutesEditDialog(
+            title = stringResource(labelRes),
+            initial = value.toMinutes(),
+            onDismiss = { editing = false },
+            onConfirm = { minutes ->
+                editing = false
+                onStep(minutes - value.toMinutes())
+            },
+        )
+    }
 }
 
+/** 時刻の設定。行には値だけ、編集はポップアップの時刻ピッカー。[onStep] には現在値との差分（分）を渡す。 */
 @Composable
 private fun TimeRow(
     labelRes: Int,
     value: LocalTime,
-    step: Long = TIME_STEP_MINUTES,
     onStep: (Long) -> Unit,
 ) {
-    StepperRow(labelRes, value.hhmm(), onStep, step = step)
+    var editing by rememberSaveable { mutableStateOf(false) }
+    ValueRow(labelRes, value.hhmm()) { editing = true }
+    if (editing) {
+        TimeEditDialog(
+            title = stringResource(labelRes),
+            initial = value,
+            onDismiss = { editing = false },
+            onConfirm = { time ->
+                editing = false
+                onStep(Duration.between(value, time).toMinutes())
+            },
+        )
+    }
+}
+
+@Composable
+private fun MinutesEditDialog(
+    title: String,
+    initial: Long,
+    onDismiss: () -> Unit,
+    onConfirm: (Long) -> Unit,
+) {
+    var text by rememberSaveable { mutableStateOf(initial.toString()) }
+    val parsed = text.trim().toLongOrNull()?.takeIf { it in 0..MAX_EDIT_MINUTES }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedButton(onClick = { text = ((parsed ?: initial) - 1).coerceAtLeast(0).toString() }) { Text("−") }
+                    OutlinedTextField(
+                        value = text,
+                        onValueChange = { text = it.filter(Char::isDigit).take(MAX_EDIT_DIGITS) },
+                        singleLine = true,
+                        isError = parsed == null,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        suffix = { Text(stringResource(R.string.settings_minutes_unit)) },
+                        textStyle = MaterialTheme.typography.headlineSmall.copy(textAlign = TextAlign.Center),
+                        modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+                    )
+                    OutlinedButton(onClick = { text = ((parsed ?: initial) + 1).coerceAtMost(MAX_EDIT_MINUTES).toString() }) { Text("+") }
+                }
+                if (parsed == null) {
+                    Text(
+                        text = stringResource(R.string.settings_minutes_range, MAX_EDIT_MINUTES),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { parsed?.let(onConfirm) }, enabled = parsed != null) { Text(stringResource(R.string.settings_dialog_ok)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_dialog_cancel)) } },
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimeEditDialog(
+    title: String,
+    initial: LocalTime,
+    onDismiss: () -> Unit,
+    onConfirm: (LocalTime) -> Unit,
+) {
+    val state = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = true)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { TimePicker(state = state) },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(LocalTime.of(state.hour, state.minute)) },
+            ) { Text(stringResource(R.string.settings_dialog_ok)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_dialog_cancel)) } },
+    )
 }
 
 @Composable
@@ -431,7 +545,6 @@ private fun SwitchRow(
     }
 }
 
-private const val TIME_STEP_MINUTES = 15L
-
-/** 出発時刻の表示時間帯は 6:50 のような半端な時刻を使うので 5 分刻み。 */
-private const val FINE_TIME_STEP_MINUTES = 5L
+/** 分の入力の上限。所要時間・通知タイミングとも 2 時間あれば足りる（ViewModel 側でも同じ上限に丸める）。 */
+private const val MAX_EDIT_MINUTES = 120L
+private const val MAX_EDIT_DIGITS = 3

@@ -77,6 +77,7 @@ import com.kazuya.timtra.core.geo.RouteLandmarks
 import com.kazuya.timtra.core.geo.WebMercator
 import com.kazuya.timtra.core.model.Bound
 import com.kazuya.timtra.core.model.GeoPoint
+import com.kazuya.timtra.core.model.Places
 import com.kazuya.timtra.core.realtime.VehiclePosition
 import com.kazuya.timtra.ui.common.CircleIcon
 import com.kazuya.timtra.ui.common.color
@@ -126,11 +127,20 @@ fun RouteMapCard(
     locationPermitted: Boolean,
     modifier: Modifier = Modifier,
     buses: MapVehicles = MapVehicles(),
+    /** 宝木駅 ⇔ 勤務先 の徒歩所要（設定値）。徒歩経路のラベルに出す。0 なら出さない。 */
+    walkToWorkMinutes: Long = 0,
 ) {
     var full by rememberSaveable { mutableStateOf(false) }
     var fullscreen by rememberSaveable { mutableStateOf(false) }
     if (fullscreen) {
-        FullscreenMapDialog(landmarks = landmarks, here = here, bound = bound, buses = buses, onClose = { fullscreen = false })
+        FullscreenMapDialog(
+            landmarks = landmarks,
+            here = here,
+            bound = bound,
+            buses = buses,
+            walkToWorkMinutes = walkToWorkMinutes,
+            onClose = { fullscreen = false },
+        )
     }
     TimTraCard(modifier = modifier.fillMaxWidth(), containerColor = Color.White) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -176,6 +186,7 @@ fun RouteMapCard(
                 bound = bound,
                 full = full,
                 buses = buses,
+                walkToWorkMinutes = walkToWorkMinutes,
                 modifier =
                     Modifier
                         .fillMaxWidth()
@@ -278,6 +289,7 @@ private fun RouteMapPreview(
     bound: Bound,
     full: Boolean,
     buses: MapVehicles,
+    walkToWorkMinutes: Long,
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier = modifier.clipToBounds()) {
@@ -291,7 +303,14 @@ private fun RouteMapPreview(
             remember(fitPoints, widthPx, heightPx) {
                 MapProjection.fit(fitPoints, widthPx.toDouble(), heightPx.toDouble(), paddingPx.toDouble(), MIN_SPAN_METERS)
             }
-        MapLayer(projection = projection, landmarks = landmarks, here = here, buses = buses, fallbackOrigin = fitPoints.first())
+        MapLayer(
+            projection = projection,
+            landmarks = landmarks,
+            here = here,
+            buses = buses,
+            walkToWorkMinutes = walkToWorkMinutes,
+            fallbackOrigin = fitPoints.first(),
+        )
     }
 }
 
@@ -305,6 +324,7 @@ private fun FullscreenMapDialog(
     here: GeoPoint?,
     bound: Bound,
     buses: MapVehicles,
+    walkToWorkMinutes: Long,
     onClose: () -> Unit,
 ) {
     Dialog(
@@ -344,7 +364,14 @@ private fun FullscreenMapDialog(
                             }
                         },
             ) {
-                MapLayer(projection = projection, landmarks = landmarks, here = here, buses = buses, fallbackOrigin = fitPoints.first())
+                MapLayer(
+                    projection = projection,
+                    landmarks = landmarks,
+                    here = here,
+                    buses = buses,
+                    walkToWorkMinutes = walkToWorkMinutes,
+                    fallbackOrigin = fitPoints.first(),
+                )
             }
 
             // 左上: 閉じる + 見出し
@@ -419,6 +446,7 @@ private fun BoxScope.MapLayer(
     landmarks: RouteLandmarks,
     here: GeoPoint?,
     buses: MapVehicles,
+    walkToWorkMinutes: Long,
     /** 乗るバスが画面外のとき、距離を測る起点（現在地が無いとき用）。 */
     fallbackOrigin: GeoPoint,
 ) {
@@ -429,6 +457,16 @@ private fun BoxScope.MapLayer(
     val edgeInsetPx = with(density) { HERE_DOT_SIZE.toPx() }
     val targetBus = buses.target?.let { GeoPoint(it.latitude, it.longitude) }
     val points = landmarks.all.map { it to projection.project(it.location) }
+    // 勤務先 ⇔ 宝木駅 は、既定の勤務先なら道なりの徒歩経路（Google マップの徒歩ルートをなぞったもの）で描く
+    val workplace = landmarks.find(LandmarkKind.WORKPLACE)
+    val walkPath =
+        remember(projection, workplace) {
+            if (workplace != null && workplace.location.distanceMetersTo(Places.WORKPLACE_DEFAULT) <= Places.WALK_PATH_MATCH_METERS) {
+                Places.WORKPLACE_TO_HOUGI_WALK.map { projection.project(it) }
+            } else {
+                null
+            }
+        }
     val hereRaw = here?.let { projection.project(it) }
     val hereInside = hereRaw?.isInside(widthPx.toDouble(), heightPx.toDouble()) == true
     val hereDrawn = hereRaw?.let { if (hereInside) it else projection.clampToEdge(it, edgeInsetPx.toDouble()) }
@@ -516,15 +554,33 @@ private fun BoxScope.MapLayer(
             val start = Offset(pa.x.toFloat(), pa.y.toFloat())
             val end = Offset(pb.x.toFloat(), pb.y.toFloat())
             val segment = segmentStyle(a.kind, b.kind)
-            drawLine(segment.color.copy(alpha = 0.18f), start, end, strokeWidth = routeWidth * 2.2f, cap = StrokeCap.Round)
-            drawLine(
-                color = segment.color,
-                start = start,
-                end = end,
-                strokeWidth = routeWidth,
-                cap = StrokeCap.Round,
-                pathEffect = if (segment.dashed) PathEffect.dashPathEffect(floatArrayOf(routeWidth * 2, routeWidth * 2), 0f) else null,
-            )
+            val isWalkToWork = a.kind == LandmarkKind.WORKPLACE || b.kind == LandmarkKind.WORKPLACE
+            val polyline =
+                if (isWalkToWork && walkPath != null) {
+                    walkPath.map { Offset(it.x.toFloat(), it.y.toFloat()) }
+                } else {
+                    listOf(start, end)
+                }
+            val dash = if (segment.dashed) PathEffect.dashPathEffect(floatArrayOf(routeWidth * 2, routeWidth * 2), 0f) else null
+            for (k in 0 until polyline.size - 1) {
+                drawLine(
+                    segment.color.copy(alpha = 0.18f),
+                    polyline[k],
+                    polyline[k + 1],
+                    strokeWidth = routeWidth * 2.2f,
+                    cap = StrokeCap.Round,
+                )
+            }
+            for (k in 0 until polyline.size - 1) {
+                drawLine(
+                    color = segment.color,
+                    start = polyline[k],
+                    end = polyline[k + 1],
+                    strokeWidth = routeWidth,
+                    cap = StrokeCap.Round,
+                    pathEffect = dash,
+                )
+            }
         }
 
         // 現在地 → 最寄り地点 の距離線
@@ -601,6 +657,19 @@ private fun BoxScope.MapLayer(
     points.forEach { (landmark, p) ->
         if (p.x in -marginPx..(widthPx + marginPx) && p.y in -marginPx..(heightPx + marginPx)) {
             LandmarkMarker(landmark, p)
+        }
+    }
+
+    // 徒歩経路の所要（Google マップと同じ見せ方）。経路の中ほどに置く
+    if (walkPath != null && walkToWorkMinutes > 0) {
+        val mid = walkPath[walkPath.size / 2]
+        if (mid.isInside(widthPx.toDouble(), heightPx.toDouble())) {
+            FloatingLabel(
+                text = stringResource(R.string.map_walk_minutes, walkToWorkMinutes),
+                point = MapPoint(mid.x, mid.y - with(density) { 14.dp.toPx() }),
+                color = TransitColors.walk,
+                bold = true,
+            )
         }
     }
 

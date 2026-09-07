@@ -14,8 +14,8 @@ data class CommuteSettings(
     val transferBusToJr: Duration = Duration.ofMinutes(8),
     /** 準備時間（バッファ）。通知を早める余裕。 */
     val prepBuffer: Duration = Duration.ofMinutes(5),
-    /** 宝木駅 → 勤務先 の所要時間。到着予測に使う。 */
-    val walkStationToWork: Duration = Duration.ofMinutes(10),
+    /** 宝木駅 → 勤務先 の所要時間（徒歩約 1.4 km。Google マップの徒歩 19〜20 分に合わせた既定値）。到着予測と職場を出る時刻に使う。 */
+    val walkStationToWork: Duration = Duration.ofMinutes(20),
     /** 最低乗換許容。余裕がこれを下回る接続は RISK。バス便選択の締切にも使う。 */
     val minTransfer: Duration = Duration.ofMinutes(5),
     /** これ以上の余裕があれば OK。未満は TIGHT。 */

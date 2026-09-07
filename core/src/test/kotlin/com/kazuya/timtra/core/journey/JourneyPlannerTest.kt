@@ -48,8 +48,8 @@ class JourneyPlannerTest {
         assertEquals(JourneyStatus.OK, j.status)
         // 家を出る = 07:05 − 徒歩 5 − 準備 5
         assertEquals(at(Fixtures.monday, "06:55"), j.leaveAt)
-        // 到着予測 = 08:07 + 10
-        assertEquals(at(Fixtures.monday, "08:17"), j.arriveAt)
+        // 到着予測 = 08:07 + 20
+        assertEquals(at(Fixtures.monday, "08:27"), j.arriveAt)
         assertNull(j.fallback)
         assertEquals(Bound.OUTBOUND, j.bound)
         assertEquals(Duration.ZERO, j.busDelay)
@@ -264,8 +264,8 @@ class JourneyPlannerTest {
         assertEquals("R1830", j.bus.trip.tripId)
         assertEquals(Duration.ofMinutes(25), j.transferMargin)
         assertEquals(JourneyStatus.OK, j.status)
-        // 職場を出る = 17:35 − 10 − 5
-        assertEquals(at(Fixtures.monday, "17:20"), j.leaveAt)
+        // 職場を出る = 17:35 − 20 − 5
+        assertEquals(at(Fixtures.monday, "17:10"), j.leaveAt)
         // 帰宅 = 18:47 + 5
         assertEquals(at(Fixtures.monday, "18:52"), j.arriveAt)
     }

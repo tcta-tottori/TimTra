@@ -163,7 +163,13 @@ private fun HomeContent(
         val journey = state.journey
         if (journey == null) {
             Text(stringResource(R.string.home_empty), style = MaterialTheme.typography.bodyLarge)
-            RouteMapCard(state.landmarks, state.location, state.bound, state.locationPermitted)
+            RouteMapCard(
+                landmarks = state.landmarks,
+                here = state.location,
+                bound = state.bound,
+                locationPermitted = state.locationPermitted,
+                walkToWorkMinutes = state.settings.walkStationToWork.toMinutes(),
+            )
         } else {
             // 1. 家 / 職場を出る時刻と残り時間。決まった時間帯の外では最初の便の発車を主役にする
             if (state.showLeaveTime) {
@@ -184,6 +190,7 @@ private fun HomeContent(
                         targetDelayMinutes = journey.busDelay.toMinutes(),
                         fetchedAt = state.realtime.fetchedAt?.takeIf { state.realtime.vehicles.isNotEmpty() },
                     ),
+                walkToWorkMinutes = state.settings.walkStationToWork.toMinutes(),
             )
             when (journey.bound) {
                 Bound.OUTBOUND -> {
