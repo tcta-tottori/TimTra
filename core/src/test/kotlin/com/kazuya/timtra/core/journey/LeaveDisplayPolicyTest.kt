@@ -14,7 +14,7 @@ class LeaveDisplayPolicyTest {
     private val monday: LocalDate = LocalDate.of(2026, 9, 7)
 
     /** 勤務先（気高電機付近の仮の位置。宝木駅の西 1 km）。 */
-    private val workplace = GeoPoint(35.5214, 134.0086)
+    private val workplace = GeoPoint(35.5183, 134.0636)
 
     private fun at(
         hour: Int,
@@ -62,7 +62,7 @@ class LeaveDisplayPolicyTest {
         assertFalse(LeaveDisplayPolicy.showLeaveWork(at(17, 30), monday, nearStation, workplace, settings))
         assertFalse(LeaveDisplayPolicy.showLeaveWork(at(17, 30), monday, busTerminal, workplace, settings))
         // 鳥取駅と同じだけ離れた別方向（出張先など）でも出さない
-        val farWest = GeoPoint(35.5214, 134.0086 - 0.25)
+        val farWest = GeoPoint(35.5183, 134.0636 - 0.25)
         assertFalse(LeaveDisplayPolicy.showLeaveWork(at(17, 30), monday, farWest, workplace, settings))
     }
 

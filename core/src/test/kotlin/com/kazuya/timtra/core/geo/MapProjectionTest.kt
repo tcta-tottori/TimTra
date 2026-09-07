@@ -23,7 +23,7 @@ class MapProjectionTest {
             val m = proj.project(p)
             assertTrue(m.x in 24.0..336.0 && m.y in 24.0..196.0, "$p -> $m")
         }
-        // 東西に約 18 km あるので横幅で決まる: 18 km / (360 − 48) px
+        // 東西に約 14 km あるので横幅で決まる: 14 km / (360 − 48) px
         val span = minamiYoshinari.distanceMetersTo(Places.HOUGI_STATION)
         assertTrue(abs(proj.metersPerPixel - span / 312.0) < 5.0, "${proj.metersPerPixel}")
     }
@@ -78,15 +78,39 @@ class MapProjectionTest {
         assertTrue(px <= 120.0 && px > 40.0, "$px")
     }
 
+    private val workplace = GeoPoint(35.5183, 134.0636)
+
     @Test
-    fun `landmarks focus on the near side of the commute`() {
-        val landmarks = RouteLandmarks.build(minamiYoshinari, busTerminal, workplace = GeoPoint(35.5214, 134.0086))
+    fun `without a location the map focuses on the side implied by the bound`() {
+        val landmarks = RouteLandmarks.build(minamiYoshinari, busTerminal, workplace)
         assertEquals(4, landmarks.all.size)
         assertEquals(listOf(LandmarkKind.HOME_STOP, LandmarkKind.STATION), landmarks.focusFor(Bound.OUTBOUND).map { it.kind })
         assertEquals(listOf(LandmarkKind.HOUGI_STATION, LandmarkKind.WORKPLACE), landmarks.focusFor(Bound.INBOUND).map { it.kind })
         val nearest = landmarks.distancesFrom(GeoPoint(35.4790, 134.2200)).first()
         assertEquals(LandmarkKind.HOME_STOP, nearest.first.kind)
         assertTrue(nearest.second < 300.0)
+    }
+
+    @Test
+    fun `with a location the map focuses on the side the user is actually on`() {
+        val landmarks = RouteLandmarks.build(minamiYoshinari, busTerminal, workplace)
+        // 宝木駅のすぐそば（朝で向きが往路でも勤務先側を出す）
+        val atHougi = GeoPoint(35.5170, 134.0750)
+        assertEquals(RouteSide.WORK, landmarks.sideFor(Bound.OUTBOUND, atHougi))
+        assertEquals(
+            listOf(LandmarkKind.HOUGI_STATION, LandmarkKind.WORKPLACE),
+            landmarks.focusFor(Bound.OUTBOUND, atHougi).map { it.kind },
+        )
+        // 南吉成の近く（夕方で向きが復路でも自宅側）
+        assertEquals(RouteSide.HOME, landmarks.sideFor(Bound.INBOUND, GeoPoint(35.4790, 134.2200)))
+        // 鳥取駅も自宅側
+        assertEquals(RouteSide.HOME, landmarks.sideFor(Bound.INBOUND, Places.TOTTORI_STATION))
+        // 途中（浜村付近、どちらからも 4 km 超）は経路全体
+        assertNull(landmarks.sideFor(Bound.INBOUND, GeoPoint(35.5230, 134.1300)))
+        assertEquals(4, landmarks.focusFor(Bound.INBOUND, GeoPoint(35.5230, 134.1300)).size)
+        // 通勤圏外（大阪）は向きで決める
+        assertEquals(RouteSide.HOME, landmarks.sideFor(Bound.OUTBOUND, GeoPoint(34.7024, 135.4959)))
+        assertEquals(RouteSide.WORK, landmarks.sideFor(Bound.INBOUND, GeoPoint(34.7024, 135.4959)))
     }
 
     @Test

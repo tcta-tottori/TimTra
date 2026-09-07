@@ -60,22 +60,41 @@ import com.kazuya.timtra.core.geo.MapProjection
 import com.kazuya.timtra.core.geo.RouteLandmarks
 import com.kazuya.timtra.core.model.Bound
 import com.kazuya.timtra.core.model.GeoPoint
+import com.kazuya.timtra.core.realtime.VehiclePosition
 import com.kazuya.timtra.ui.common.CircleIcon
 import com.kazuya.timtra.ui.common.color
 import com.kazuya.timtra.ui.common.distanceText
+import com.kazuya.timtra.ui.common.hhmm
 import com.kazuya.timtra.ui.common.iconRes
 import com.kazuya.timtra.ui.common.labelRes
 import com.kazuya.timtra.ui.theme.TimTraCard
 import com.kazuya.timtra.ui.theme.TimTraColors
 import com.kazuya.timtra.ui.theme.TransitColors
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
 import kotlin.math.roundToInt
+
+/** 地図に出すバスの車両位置（GTFS-RT）。 */
+data class MapVehicles(
+    val vehicles: List<VehiclePosition> = emptyList(),
+    /** 乗る予定の便の trip_id。この車両だけ大きく描き、ラベルを付ける。 */
+    val targetTripId: String? = null,
+    /** 乗る予定の便の推定遅延（分）。0 以下なら出さない。 */
+    val targetDelayMinutes: Long = 0,
+    /** 車両位置を取得した時刻。 */
+    val fetchedAt: Instant? = null,
+) {
+    val target: VehiclePosition? get() = targetTripId?.let { id -> vehicles.firstOrNull { it.tripId == id } }
+}
 
 /**
  * ホーム中央の地図。サーバーやタイル画像は使わず（CLAUDE.md 3-5）、経路上の地点と現在地を
  * 端末内の座標だけで描く簡易地図。現在地から各地点までの距離を線と数字で示す。
  *
- * 初期表示は現在の向きに近い側（往路: 南吉成〜鳥取駅、復路: 宝木駅〜勤務先）を拡大し、
- * 右上のボタンで経路全体（約 18 km）に切り替えられる。
+ * 初期表示は現在地に近い側（南吉成〜鳥取駅、または宝木駅〜勤務先。現在地が無ければ向きで決める）を拡大し、
+ * 右上のボタンで経路全体（約 14 km）に切り替えられる。
+ * GTFS-RT の車両位置が取れていれば、対象区間を走るバスも描く（乗る予定の便は大きく、遅延も添える）。
  */
 @Composable
 fun RouteMapCard(
@@ -84,6 +103,7 @@ fun RouteMapCard(
     bound: Bound,
     locationPermitted: Boolean,
     modifier: Modifier = Modifier,
+    buses: MapVehicles = MapVehicles(),
 ) {
     var full by rememberSaveable { mutableStateOf(false) }
     TimTraCard(modifier = modifier.fillMaxWidth(), containerColor = Color.White) {
@@ -121,6 +141,7 @@ fun RouteMapCard(
                 here = here,
                 bound = bound,
                 full = full,
+                buses = buses,
                 modifier =
                     Modifier
                         .fillMaxWidth()
@@ -201,6 +222,7 @@ private fun RouteMap(
     here: GeoPoint?,
     bound: Bound,
     full: Boolean,
+    buses: MapVehicles,
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier = modifier.clipToBounds()) {
@@ -210,13 +232,17 @@ private fun RouteMap(
         val paddingPx = with(density) { MAP_PADDING.toPx() }
         val edgeInsetPx = with(density) { HERE_DOT_SIZE.toPx() }
 
-        val focus = if (full) landmarks.all else landmarks.focusFor(bound)
+        // 現在地に近い側を拡大する。宝木にいれば宝木側、南吉成にいれば自宅側（向きは現在地が無いときの予備）
+        val focus = if (full) landmarks.all else landmarks.focusFor(bound, here)
+        val targetBus = buses.target?.let { GeoPoint(it.latitude, it.longitude) }
         val fitPoints =
-            remember(focus, here, full) {
+            remember(focus, here, full, targetBus) {
                 buildList {
                     addAll(focus.map { it.location })
                     // 現在地が近ければ画面に収める。遠い（出張中など）ときは縁に矢印代わりの点を出すだけにする。
                     if (here != null && focus.any { it.location.distanceMetersTo(here) <= includeHereWithin(full) }) add(here)
+                    // 乗る予定のバスが近づいていれば、それも収める（「バスはいまどこか」が地図の主目的のひとつ）
+                    if (targetBus != null && focus.any { it.location.distanceMetersTo(targetBus) <= INCLUDE_BUS_METERS }) add(targetBus)
                 }
             }
         val projection =
@@ -230,6 +256,9 @@ private fun RouteMap(
         val nearest = here?.let { h -> landmarks.distancesFrom(h).firstOrNull() }
         val nearestPoint = nearest?.let { (lm, _) -> points.first { it.first == lm }.second }
         val (scaleMeters, scaleBarPx) = remember(projection) { projection.scaleBar(widthPx / 3.0) }
+        val busPoints = buses.vehicles.map { it to projection.project(GeoPoint(it.latitude, it.longitude)) }
+        val targetBusRaw = targetBus?.let { projection.project(it) }
+        val targetBusInside = targetBusRaw?.isInside(widthPx.toDouble(), heightPx.toDouble()) == true
 
         val pulse by
             rememberInfiniteTransition(label = "here").animateFloat(
@@ -320,6 +349,41 @@ private fun RouteMap(
             if (p.x in -marginPx..(widthPx + marginPx) && p.y in -marginPx..(heightPx + marginPx)) {
                 LandmarkMarker(landmark, p)
             }
+        }
+
+        // バスの車両位置（GTFS-RT）。乗る予定の便は大きく、他の便は小さく
+        val busMarginPx = with(density) { BUS_MARKER_SIZE.toPx() }
+        busPoints.forEach { (vehicle, p) ->
+            val isTarget = vehicle.tripId == buses.targetTripId
+            if (p.x in -busMarginPx..(widthPx + busMarginPx) && p.y in -busMarginPx..(heightPx + busMarginPx)) {
+                BusMarker(point = p, isTarget = isTarget, delayMinutes = if (isTarget) buses.targetDelayMinutes else 0)
+            }
+        }
+        if (targetBus != null && targetBusRaw != null && !targetBusInside) {
+            val edge = projection.clampToEdge(targetBusRaw, edgeInsetPx.toDouble())
+            BusMarker(point = edge, isTarget = true, delayMinutes = 0, label = false)
+            // 距離は現在地から。現在地が無ければ拡大している側の最初の地点（南吉成 / 宝木駅）から
+            val from = here ?: focus.first().location
+            FloatingLabel(
+                text = stringResource(R.string.map_bus_off_screen, distanceText(from.distanceMetersTo(targetBus))),
+                point = MapPoint(widthPx / 2.0, heightPx - paddingPx / 2.0),
+                color = TransitColors.bus,
+                bold = false,
+                width = 240.dp,
+            )
+        }
+        buses.fetchedAt?.let { fetched ->
+            Text(
+                text = stringResource(R.string.map_bus_fetched, LocalDateTime.ofInstant(fetched, ZoneId.systemDefault()).hhmm()),
+                style = MaterialTheme.typography.labelSmall,
+                color = TransitColors.bus,
+                modifier =
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(50))
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+            )
         }
 
         // 距離のラベル（現在地と最寄り地点の中間）
@@ -438,6 +502,64 @@ private fun HereMarker(
     }
 }
 
+/** バスの車両位置。乗る予定の便は大きな橙の丸に「乗るバス」と遅延、他の便は小さな丸だけ。 */
+@Composable
+private fun BusMarker(
+    point: MapPoint,
+    isTarget: Boolean,
+    delayMinutes: Long,
+    label: Boolean = isTarget,
+) {
+    val density = LocalDensity.current
+    val size = if (isTarget) BUS_MARKER_SIZE else BUS_MARKER_SIZE_OTHER
+    val half = with(density) { (size / 2).roundToPx() }
+    Box(
+        modifier =
+            Modifier
+                .offset { IntOffset(point.x.roundToInt() - half, point.y.roundToInt() - half) }
+                .size(size)
+                .background(Color.White, CircleShape)
+                .padding(2.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        CircleIcon(
+            iconRes = R.drawable.ic_bus,
+            color = if (isTarget) TransitColors.bus else TransitColors.bus.copy(alpha = 0.7f),
+            size = size - 4.dp,
+            contentDescription = stringResource(if (isTarget) R.string.map_bus_target else R.string.map_bus_other),
+        )
+    }
+    if (label) {
+        val labelHalf = with(density) { (BUS_LABEL_WIDTH / 2).roundToPx() }
+        val below = with(density) { (size / 2 + 3.dp).roundToPx() }
+        Box(
+            modifier =
+                Modifier
+                    .offset { IntOffset(point.x.roundToInt() - labelHalf, point.y.roundToInt() + below) }
+                    .width(BUS_LABEL_WIDTH),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text =
+                    if (delayMinutes > 0) {
+                        stringResource(R.string.map_bus_target) + " " + stringResource(R.string.map_bus_delay, delayMinutes)
+                    } else {
+                        stringResource(R.string.map_bus_target)
+                    },
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                modifier =
+                    Modifier
+                        .background(TransitColors.bus, RoundedCornerShape(50))
+                        .padding(horizontal = 6.dp, vertical = 1.dp),
+            )
+        }
+    }
+}
+
 /** 地図の上に浮かせる小さなラベル（距離など）。[point] を中心に置く。 */
 @Composable
 private fun FloatingLabel(
@@ -482,6 +604,9 @@ private val ROUTE_WIDTH = 5.dp
 private val MARKER_SIZE = 30.dp
 private val MARKER_LABEL_WIDTH = 96.dp
 private val HERE_DOT_SIZE = 16.dp
+private val BUS_MARKER_SIZE = 30.dp
+private val BUS_MARKER_SIZE_OTHER = 20.dp
+private val BUS_LABEL_WIDTH = 150.dp
 private val HERE_LABEL_WIDTH = 56.dp
 private val FLOATING_LABEL_WIDTH = 88.dp
 private val PULSE_RADIUS = 22.dp
@@ -490,3 +615,4 @@ private const val PULSE_MILLIS = 1_800
 private const val MIN_SPAN_METERS = 1_200.0
 private const val INCLUDE_HERE_FOCUS_METERS = 6_000.0
 private const val INCLUDE_HERE_FULL_METERS = 40_000.0
+private const val INCLUDE_BUS_METERS = 12_000.0

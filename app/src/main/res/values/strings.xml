@@ -105,6 +105,11 @@
     <string name="map_landmark_hougi">宝木駅</string>
     <string name="map_landmark_workplace">勤務先</string>
     <string name="map_updated">%1$s 時点の位置</string>
+    <string name="map_bus_target">乗るバス</string>
+    <string name="map_bus_other">バス</string>
+    <string name="map_bus_off_screen">乗るバスは画面外（%1$s）</string>
+    <string name="map_bus_fetched">車両位置 %1$s 取得</string>
+    <string name="map_bus_delay">約%1$d分遅れ（推定）</string>
 
     <!-- ステータス -->
     <string name="status_ok">余裕あり</string>

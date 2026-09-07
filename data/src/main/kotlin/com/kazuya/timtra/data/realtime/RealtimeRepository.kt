@@ -7,6 +7,7 @@ import com.kazuya.timtra.core.realtime.DelayEstimator
 import com.kazuya.timtra.core.realtime.FetchResult
 import com.kazuya.timtra.core.realtime.GtfsRtClient
 import com.kazuya.timtra.core.realtime.TripStopTime
+import com.kazuya.timtra.core.realtime.VehiclePosition
 import com.kazuya.timtra.core.realtime.VehiclePositionFeed
 import com.kazuya.timtra.data.db.GtfsDao
 import com.kazuya.timtra.data.di.AppClock
@@ -28,6 +29,8 @@ data class RealtimeState(
     /** 乗り継ぎ計算に足す遅延（早発は 0）。trip_id → 遅延。 */
     val delays: Map<String, Duration> = emptyMap(),
     val estimates: List<DelayEstimate> = emptyList(),
+    /** 対象区間（南吉成⇔鳥取駅）を走る便の車両位置。地図に出す。 */
+    val vehicles: List<VehiclePosition> = emptyList(),
     /** 最後に成功した取得の時刻。 */
     val fetchedAt: Instant? = null,
     val errorMessage: String? = null,
@@ -115,6 +118,7 @@ class RealtimeRepository
                 status = RealtimeState.Status.OK,
                 delays = estimates.associate { it.tripId to it.delayForPlanning },
                 estimates = estimates,
+                vehicles = feed.vehicles.filter { it.tripId != null && it.tripId in commuteTrips },
                 fetchedAt = feed.fetchedAt,
                 errorMessage = null,
             )

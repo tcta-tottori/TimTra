@@ -171,8 +171,20 @@ private fun HomeContent(
             } else {
                 NextDepartureCard(state.now, journey, state.settings)
             }
-            // 地図: 現在地と、駅・バス停までの距離
-            RouteMapCard(state.landmarks, state.location, state.bound, state.locationPermitted)
+            // 地図: 現在地と、駅・バス停までの距離。GTFS-RT が取れていればバスの位置も
+            RouteMapCard(
+                landmarks = state.landmarks,
+                here = state.location,
+                bound = state.bound,
+                locationPermitted = state.locationPermitted,
+                buses =
+                    MapVehicles(
+                        vehicles = state.realtime.vehicles,
+                        targetTripId = journey.bus.trip.tripId,
+                        targetDelayMinutes = journey.busDelay.toMinutes(),
+                        fetchedAt = state.realtime.fetchedAt?.takeIf { state.realtime.vehicles.isNotEmpty() },
+                    ),
+            )
             when (journey.bound) {
                 Bound.OUTBOUND -> {
                     // 2. バス 3. 乗り継ぎ 4. JR
