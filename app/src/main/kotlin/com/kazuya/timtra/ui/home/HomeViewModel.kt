@@ -104,6 +104,13 @@ sealed interface HomeUiState {
          */
         val showLeaveTime: Boolean,
         /**
+         * 「今日の通勤は終わり」（夜、鳥取駅を離れて帰路 / 自宅側にいる）。残り時間の表示をやめ、
+         * 翌朝の表示開始時刻から再開する（core の RestPolicy）。
+         */
+        val resting: Boolean,
+        /** 休止中に出す「次の出発」（翌朝の往路）。 */
+        val nextMorning: Journey?,
+        /**
          * 復路の段階。宝木駅エリアを離れて鳥取方面へ向かっていれば [InboundPhase.TO_BUS] で、
          * 主役は電車ではなく鳥取駅発のバス（[stationBuses]）になる。
          */
@@ -301,7 +308,9 @@ class HomeViewModel
                 locationPermitted = location.hasPermission,
                 location = here,
                 landmarks = landmarks,
-                showLeaveTime = showLeaveTime,
+                showLeaveTime = showLeaveTime && !resting,
+                resting = resting,
+                nextMorning = nextMorning,
                 inboundPhase = inboundPhase,
                 stationBuses = stationBuses,
                 journey = primaryJourney,
