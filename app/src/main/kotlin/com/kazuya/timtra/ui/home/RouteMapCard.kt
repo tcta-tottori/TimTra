@@ -129,6 +129,8 @@ fun RouteMapCard(
     buses: MapVehicles = MapVehicles(),
     /** 宝木駅 ⇔ 勤務先 の徒歩所要（設定値）。徒歩経路のラベルに出す。0 なら出さない。 */
     walkToWorkMinutes: Long = 0,
+    /** 自宅 ⇔ 南吉成 の徒歩所要（設定値）。 */
+    walkHomeMinutes: Long = 0,
 ) {
     var full by rememberSaveable { mutableStateOf(false) }
     var fullscreen by rememberSaveable { mutableStateOf(false) }
@@ -139,6 +141,7 @@ fun RouteMapCard(
             bound = bound,
             buses = buses,
             walkToWorkMinutes = walkToWorkMinutes,
+            walkHomeMinutes = walkHomeMinutes,
             onClose = { fullscreen = false },
         )
     }
@@ -187,6 +190,7 @@ fun RouteMapCard(
                 full = full,
                 buses = buses,
                 walkToWorkMinutes = walkToWorkMinutes,
+                walkHomeMinutes = walkHomeMinutes,
                 modifier =
                     Modifier
                         .fillMaxWidth()
@@ -290,6 +294,7 @@ private fun RouteMapPreview(
     full: Boolean,
     buses: MapVehicles,
     walkToWorkMinutes: Long,
+    walkHomeMinutes: Long,
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier = modifier.clipToBounds()) {
@@ -309,6 +314,7 @@ private fun RouteMapPreview(
             here = here,
             buses = buses,
             walkToWorkMinutes = walkToWorkMinutes,
+            walkHomeMinutes = walkHomeMinutes,
             fallbackOrigin = fitPoints.first(),
         )
     }
@@ -325,6 +331,7 @@ private fun FullscreenMapDialog(
     bound: Bound,
     buses: MapVehicles,
     walkToWorkMinutes: Long,
+    walkHomeMinutes: Long,
     onClose: () -> Unit,
 ) {
     Dialog(
@@ -370,6 +377,7 @@ private fun FullscreenMapDialog(
                     here = here,
                     buses = buses,
                     walkToWorkMinutes = walkToWorkMinutes,
+                    walkHomeMinutes = walkHomeMinutes,
                     fallbackOrigin = fitPoints.first(),
                 )
             }
@@ -447,6 +455,7 @@ private fun BoxScope.MapLayer(
     here: GeoPoint?,
     buses: MapVehicles,
     walkToWorkMinutes: Long,
+    walkHomeMinutes: Long,
     /** 乗るバスが画面外のとき、距離を測る起点（現在地が無いとき用）。 */
     fallbackOrigin: GeoPoint,
 ) {
@@ -463,6 +472,16 @@ private fun BoxScope.MapLayer(
         remember(projection, workplace) {
             if (workplace != null && workplace.location.distanceMetersTo(Places.WORKPLACE_DEFAULT) <= Places.WALK_PATH_MATCH_METERS) {
                 Places.WORKPLACE_TO_HOUGI_WALK.map { projection.project(it) }
+            } else {
+                null
+            }
+        }
+    // 自宅 ⇔ 南吉成 も同様（本人が描いたルート）
+    val homeLandmark = landmarks.find(LandmarkKind.HOME)
+    val homeWalkPath =
+        remember(projection, homeLandmark) {
+            if (homeLandmark != null && homeLandmark.location.distanceMetersTo(Places.HOME_DEFAULT) <= Places.WALK_PATH_MATCH_METERS) {
+                Places.HOME_TO_MINAMIYOSHINARI_WALK.map { projection.project(it) }
             } else {
                 null
             }
@@ -557,10 +576,12 @@ private fun BoxScope.MapLayer(
             val end = Offset(pb.x.toFloat(), pb.y.toFloat())
             val segment = segmentStyle(a.kind, b.kind)
             val isWalkToWork = a.kind == LandmarkKind.WORKPLACE || b.kind == LandmarkKind.WORKPLACE
+            val isWalkFromHome = a.kind == LandmarkKind.HOME || b.kind == LandmarkKind.HOME
             val isRail = setOf(a.kind, b.kind) == setOf(LandmarkKind.STATION, LandmarkKind.HOUGI_STATION)
             val polyline =
                 when {
                     isWalkToWork && walkPath != null -> walkPath.map { Offset(it.x.toFloat(), it.y.toFloat()) }
+                    isWalkFromHome && homeWalkPath != null -> homeWalkPath.map { Offset(it.x.toFloat(), it.y.toFloat()) }
                     // 線路の折れ線。先頭・末尾を地図上の駅の点に差し替えて、点と線が離れないようにする
                     isRail -> listOf(start) + railPath.drop(1).dropLast(1).map { Offset(it.x.toFloat(), it.y.toFloat()) } + listOf(end)
                     else -> listOf(start, end)
@@ -664,6 +685,19 @@ private fun BoxScope.MapLayer(
         }
     }
 
+    // 自宅 → 南吉成 の徒歩所要
+    if (homeWalkPath != null && walkHomeMinutes > 0) {
+        val mid = homeWalkPath[homeWalkPath.size / 2]
+        if (mid.isInside(widthPx.toDouble(), heightPx.toDouble())) {
+            FloatingLabel(
+                text = stringResource(R.string.map_walk_minutes, walkHomeMinutes),
+                point = MapPoint(mid.x + with(density) { 30.dp.toPx() }, mid.y),
+                color = TransitColors.walk,
+                bold = true,
+            )
+        }
+    }
+
     // 徒歩経路の所要（Google マップと同じ見せ方）。経路の中ほどに置く
     if (walkPath != null && walkToWorkMinutes > 0) {
         val mid = walkPath[walkPath.size / 2]
@@ -749,6 +783,7 @@ private fun segmentStyle(
     to: LandmarkKind,
 ): SegmentStyle =
     when {
+        from == LandmarkKind.HOME || to == LandmarkKind.HOME -> SegmentStyle(TransitColors.walk, dashed = true)
         from == LandmarkKind.HOME_STOP || to == LandmarkKind.HOME_STOP -> SegmentStyle(TransitColors.bus, dashed = false)
         from == LandmarkKind.WORKPLACE || to == LandmarkKind.WORKPLACE -> SegmentStyle(TransitColors.walk, dashed = true)
         else -> SegmentStyle(TransitColors.jr, dashed = false)

@@ -198,6 +198,7 @@ private fun SettingsContent(
         )
         TimeRow(R.string.settings_reminder_window_start, settings.trainReminder.windowStart) { viewModel.adjustReminderWindowStart(it) }
         WorkplaceRow(settings, viewModel)
+        HomeRow(settings, viewModel)
         BackgroundLocationRow(viewModel)
         if (viewModel.isTrainReminderOffToday) {
             Text(
@@ -268,6 +269,47 @@ private fun WorkplaceRow(
             ) { Text(stringResource(R.string.settings_workplace_register)) }
             if (workplace != null) {
                 TextButton(onClick = viewModel::clearWorkplace) { Text(stringResource(R.string.settings_workplace_clear)) }
+            }
+        }
+    }
+}
+
+/** 自宅の位置。地図の「自宅」と南吉成までの徒歩経路の起点に使う。登録は現在地を 1 回取るだけ。 */
+@Composable
+private fun HomeRow(
+    settings: AppSettings,
+    viewModel: SettingsViewModel,
+) {
+    val launcher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+            viewModel.permissionsChanged()
+            if (result.values.any { it }) viewModel.registerHomeHere()
+        }
+    val home = settings.home
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+        Text(stringResource(R.string.settings_home), style = MaterialTheme.typography.bodyLarge)
+        Text(
+            text =
+                if (home != null) {
+                    stringResource(R.string.settings_home_registered, home.lat, home.lon)
+                } else {
+                    stringResource(R.string.settings_home_default)
+                },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row {
+            TextButton(
+                onClick = {
+                    if (viewModel.hasLocationPermission) {
+                        viewModel.registerHomeHere()
+                    } else {
+                        launcher.launch(LocationProvider.PERMISSIONS)
+                    }
+                },
+            ) { Text(stringResource(R.string.settings_home_register)) }
+            if (home != null) {
+                TextButton(onClick = viewModel::clearHome) { Text(stringResource(R.string.settings_workplace_clear)) }
             }
         }
     }

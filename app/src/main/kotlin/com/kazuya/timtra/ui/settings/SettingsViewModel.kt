@@ -112,6 +112,23 @@ class SettingsViewModel
             update { repository.setWorkplace(null) }
         }
 
+        /** 現在地を 1 回取り、自宅として保存する（地図の自宅と徒歩経路に使う）。 */
+        fun registerHomeHere() {
+            viewModelScope.launch {
+                val here = location.current(maxCacheMillis = 0)
+                if (here == null) {
+                    message.value = R.string.settings_workplace_failed
+                } else {
+                    repository.setHome(here)
+                    message.value = R.string.settings_home_registered_toast
+                }
+            }
+        }
+
+        fun clearHome() {
+            viewModelScope.launch { repository.setHome(null) }
+        }
+
         fun consumeMessage() {
             message.value = null
         }

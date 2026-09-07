@@ -162,13 +162,23 @@ class MapProjectionTest {
 
     @Test
     fun `without a location the map focuses on the side implied by the bound`() {
-        val landmarks = RouteLandmarks.build(minamiYoshinari, busTerminal, workplace)
-        assertEquals(4, landmarks.all.size)
-        assertEquals(listOf(LandmarkKind.HOME_STOP, LandmarkKind.STATION), landmarks.focusFor(Bound.OUTBOUND).map { it.kind })
+        val landmarks = RouteLandmarks.build(minamiYoshinari, busTerminal, workplace, home = Places.HOME_DEFAULT)
+        assertEquals(5, landmarks.all.size)
+        assertEquals(
+            listOf(LandmarkKind.HOME, LandmarkKind.HOME_STOP, LandmarkKind.STATION),
+            landmarks.focusFor(Bound.OUTBOUND).map { it.kind },
+        )
         assertEquals(listOf(LandmarkKind.HOUGI_STATION, LandmarkKind.WORKPLACE), landmarks.focusFor(Bound.INBOUND).map { it.kind })
         val nearest = landmarks.distancesFrom(GeoPoint(35.4790, 134.2200)).first()
-        assertEquals(LandmarkKind.HOME_STOP, nearest.first.kind)
+        assertEquals(LandmarkKind.HOME, nearest.first.kind)
         assertTrue(nearest.second < 300.0)
+        assertEquals(
+            LandmarkKind.HOME_STOP,
+            landmarks
+                .distancesFrom(GeoPoint(35.4803, 134.2186))
+                .first()
+                .first.kind,
+        )
     }
 
     @Test
@@ -198,8 +208,10 @@ class MapProjectionTest {
         val landmarks = RouteLandmarks.build(minamiYoshinari, busTerminal, workplace = null)
         assertNull(landmarks.find(LandmarkKind.WORKPLACE))
         assertNotNull(landmarks.find(LandmarkKind.HOUGI_STATION))
-        // バスターミナルの位置が無ければ JR 駅舎で代用
-        assertEquals(Places.TOTTORI_STATION, RouteLandmarks.build(null, null, null).find(LandmarkKind.STATION)?.location)
+        // バスターミナルの位置が無ければ JR 駅舎で代用。自宅も未指定なら出さない
+        val bare = RouteLandmarks.build(null, null, null)
+        assertEquals(Places.TOTTORI_STATION, bare.find(LandmarkKind.STATION)?.location)
+        assertNull(bare.find(LandmarkKind.HOME))
         assertEquals(listOf(LandmarkKind.HOUGI_STATION), landmarks.focusFor(Bound.INBOUND).map { it.kind })
     }
 }

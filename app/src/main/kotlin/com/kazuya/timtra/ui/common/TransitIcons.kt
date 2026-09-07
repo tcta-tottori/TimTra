@@ -76,6 +76,7 @@ fun Bound.destinationIconRes(): Int =
 val LandmarkKind.iconRes: Int
     get() =
         when (this) {
+            LandmarkKind.HOME -> R.drawable.ic_home
             LandmarkKind.HOME_STOP -> R.drawable.ic_bus
             LandmarkKind.STATION -> R.drawable.ic_train
             LandmarkKind.HOUGI_STATION -> R.drawable.ic_train
@@ -85,6 +86,7 @@ val LandmarkKind.iconRes: Int
 val LandmarkKind.color: Color
     get() =
         when (this) {
+            LandmarkKind.HOME -> TransitColors.place
             LandmarkKind.HOME_STOP -> TransitColors.bus
             LandmarkKind.STATION -> TransitColors.jr
             LandmarkKind.HOUGI_STATION -> TransitColors.jr
@@ -94,6 +96,7 @@ val LandmarkKind.color: Color
 val LandmarkKind.labelRes: Int
     get() =
         when (this) {
+            LandmarkKind.HOME -> R.string.map_landmark_home
             LandmarkKind.HOME_STOP -> R.string.map_landmark_home_stop
             LandmarkKind.STATION -> R.string.map_landmark_station
             LandmarkKind.HOUGI_STATION -> R.string.map_landmark_hougi

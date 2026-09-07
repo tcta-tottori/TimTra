@@ -42,6 +42,12 @@
     <string name="home_pace_run">走らないと間に合いません（%1$s まで %2$s）</string>
     <string name="home_pace_too_late">この便には間に合いません（%1$s まで %2$s）。次の便を確認してください</string>
     <string name="home_tap_for_timetable">タップで時刻表</string>
+    <string name="home_rest_title">本日の通勤はおつかれさまでした</string>
+    <string name="home_rest_note">残り時間の表示は明朝 %1$s から再開します</string>
+    <string name="home_rest_next">次の出発: %1$s %2$s のバス（家を出る %3$s）</string>
+    <string name="home_rest_next_unknown">次の出発は明朝の時刻表を確認してください</string>
+    <string name="home_rest_tomorrow">明日</string>
+    <string name="home_rest_today">今日</string>
     <string name="home_phase_to_bus_hint">宝木駅エリアを離れたため、鳥取駅発のバスを表示しています</string>
     <string name="home_next_bus_candidate">次のバス %1$s 発 → %2$s %3$s 着</string>
     <string name="peek_title_bus_home">南吉成 発 鳥取駅方面</string>
@@ -117,6 +123,7 @@
     <string name="map_distance_km">%1$s km</string>
     <string name="map_distance_to">%1$s まで %2$s</string>
     <string name="map_scale">%1$s</string>
+    <string name="map_landmark_home">自宅</string>
     <string name="map_landmark_home_stop">南吉成</string>
     <string name="map_landmark_station">鳥取駅</string>
     <string name="map_landmark_hougi">宝木駅</string>
@@ -221,6 +228,11 @@
     <string name="settings_reminder_enabled">勤務先にいるとき、次の電車まで 30 / 20 / 15 分前に通知</string>
     <string name="settings_reminder_note">対象は宝木発（鳥取方面）。鳴る直前に現在地を確認し、勤務先を離れていればその日は止めます</string>
     <string name="settings_reminder_window_start">この時刻以降の電車が対象</string>
+    <string name="settings_home">自宅の位置</string>
+    <string name="settings_home_registered">登録済み（%1$.4f, %2$.4f）</string>
+    <string name="settings_home_default">未登録（既定の位置: 南吉成の南 約 160 m を使用中）</string>
+    <string name="settings_home_register">現在地を自宅に登録</string>
+    <string name="settings_home_registered_toast">現在地を自宅として登録しました</string>
     <string name="settings_workplace">勤務先の位置</string>
     <string name="settings_workplace_registered">登録済み（%1$.4f, %2$.4f）</string>
     <string name="settings_workplace_default">未登録（既定の位置: 気高電機付近を使用中）</string>

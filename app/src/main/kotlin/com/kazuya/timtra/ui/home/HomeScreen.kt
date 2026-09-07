@@ -181,7 +181,18 @@ private fun HomeContent(
 
         val journey = state.journey
         val stationBus = state.stationBuses.firstOrNull()
-        if (state.inboundPhase == InboundPhase.TO_BUS && stationBus != null) {
+        if (state.resting) {
+            // 今日の通勤は終わり。残り時間は出さず、翌朝の予定だけ静かに示す
+            RestCard(state.nextMorning, state.settings, state.now)
+            RouteMapCard(
+                landmarks = state.landmarks,
+                here = state.location,
+                bound = state.bound,
+                locationPermitted = state.locationPermitted,
+                walkToWorkMinutes = state.settings.walkStationToWork.toMinutes(),
+                walkHomeMinutes = state.settings.walkHomeToStop.toMinutes(),
+            )
+        } else if (state.inboundPhase == InboundPhase.TO_BUS && stationBus != null) {
             // 復路で宝木駅エリアを離れた（乗車中・鳥取駅到着後）: 電車の時刻はやめて、鳥取駅発のバスを主役にする
             val delay = state.realtime.delays[stationBus.trip.tripId] ?: Duration.ZERO
             NextStationBusCard(nowSecond, stationBus, delay, state.settings, state.location, state.landmarks)
@@ -198,6 +209,7 @@ private fun HomeContent(
                         fetchedAt = state.realtime.fetchedAt?.takeIf { state.realtime.vehicles.isNotEmpty() },
                     ),
                 walkToWorkMinutes = state.settings.walkStationToWork.toMinutes(),
+                walkHomeMinutes = state.settings.walkHomeToStop.toMinutes(),
             )
             StationBusCard(stationBus, delay, state.realtime) { onOpenPeek(PeekKind.BUS_STATION) }
             HomeArrivalCard(stationBus.arrivalAt.plus(delay).plus(state.settings.walkHomeToStop))
@@ -210,6 +222,7 @@ private fun HomeContent(
                 bound = state.bound,
                 locationPermitted = state.locationPermitted,
                 walkToWorkMinutes = state.settings.walkStationToWork.toMinutes(),
+                walkHomeMinutes = state.settings.walkHomeToStop.toMinutes(),
             )
         } else {
             // 1. 家 / 職場を出る時刻と残り時間。決まった時間帯の外では最初の便の発車を主役にする
@@ -232,6 +245,7 @@ private fun HomeContent(
                         fetchedAt = state.realtime.fetchedAt?.takeIf { state.realtime.vehicles.isNotEmpty() },
                     ),
                 walkToWorkMinutes = state.settings.walkStationToWork.toMinutes(),
+                walkHomeMinutes = state.settings.walkHomeToStop.toMinutes(),
             )
             // 各カードをタップすると、現在時刻から一番近い便以降の時刻表をポップアップで出す
             when (journey.bound) {
@@ -330,6 +344,58 @@ private fun Banner(
 ) {
     Surface(color = color, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
         Text(text, modifier = Modifier.padding(14.dp), style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/** 夜の帰宅後〜翌朝の表示開始まで。残り時間は出さず、翌朝の往路（バスと家を出る時刻）だけ。 */
+@Composable
+private fun RestCard(
+    nextMorning: Journey?,
+    settings: CommuteSettings,
+    now: LocalDateTime,
+) {
+    GradientCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            CircleIcon(iconRes = R.drawable.ic_home, color = TimTraColors.pillFill, size = 40.dp)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.home_rest_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+            )
+            Text(
+                text = stringResource(R.string.home_rest_note, settings.leaveHomeDisplayStart.hhmm()),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.8f),
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text =
+                    if (nextMorning != null) {
+                        val dayLabel =
+                            stringResource(
+                                if (nextMorning.bus.departureAt.toLocalDate() ==
+                                    now.toLocalDate()
+                                ) {
+                                    R.string.home_rest_today
+                                } else {
+                                    R.string.home_rest_tomorrow
+                                },
+                            )
+                        stringResource(R.string.home_rest_next, dayLabel, nextMorning.bus.departureAt.hhmm(), nextMorning.leaveAt.hhmm())
+                    } else {
+                        stringResource(R.string.home_rest_next_unknown)
+                    },
+                style = MaterialTheme.typography.bodyMedium,
+                color = TimTraColors.accentLight,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 

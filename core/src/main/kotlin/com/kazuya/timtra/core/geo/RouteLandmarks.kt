@@ -17,6 +17,9 @@ enum class RouteSide {
 enum class LandmarkKind(
     val side: RouteSide,
 ) {
+    /** 自宅（設定で登録した位置、無ければ既定位置） */
+    HOME(RouteSide.HOME),
+
     /** 南吉成 バス停（自宅側） */
     HOME_STOP(RouteSide.HOME),
 
@@ -37,8 +40,8 @@ data class Landmark(
 )
 
 /**
- * 固定経路（CLAUDE.md 2）上の地点。往路の順に並ぶ。
- * バス停は GTFS の stops から、JR 駅は [Places]、勤務先は設定値。
+ * 固定経路（CLAUDE.md 2）上の地点。往路の順（自宅 → 南吉成 → 鳥取駅 → 宝木駅 → 勤務先）に並ぶ。
+ * バス停は GTFS の stops から、JR 駅は [Places]、自宅と勤務先は設定値（無ければ既定位置）。
  */
 data class RouteLandmarks(
     val all: List<Landmark>,
@@ -96,13 +99,16 @@ data class RouteLandmarks(
             homeStop: GeoPoint?,
             stationBusStop: GeoPoint?,
             workplace: GeoPoint?,
+            home: GeoPoint? = null,
             homeStopName: String = "南吉成",
             stationName: String = "鳥取駅",
             hougiName: String = "宝木駅",
             workplaceName: String = "勤務先",
+            homeName: String = "自宅",
         ): RouteLandmarks =
             RouteLandmarks(
                 listOfNotNull(
+                    home?.let { Landmark(LandmarkKind.HOME, homeName, it) },
                     homeStop?.let { Landmark(LandmarkKind.HOME_STOP, homeStopName, it) },
                     Landmark(LandmarkKind.STATION, stationName, stationBusStop ?: Places.TOTTORI_STATION),
                     Landmark(LandmarkKind.HOUGI_STATION, hougiName, Places.HOUGI_STATION),

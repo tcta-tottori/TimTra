@@ -13,10 +13,12 @@ import com.kazuya.timtra.core.journey.InboundPhaseResolver
 import com.kazuya.timtra.core.journey.Journey
 import com.kazuya.timtra.core.journey.LeaveDisplayPolicy
 import com.kazuya.timtra.core.journey.PlanRequest
+import com.kazuya.timtra.core.journey.RestPolicy
 import com.kazuya.timtra.core.journey.ScheduledBus
 import com.kazuya.timtra.core.model.Bound
 import com.kazuya.timtra.core.model.BusDirection
 import com.kazuya.timtra.core.model.GeoPoint
+import com.kazuya.timtra.core.model.Places
 import com.kazuya.timtra.data.di.AppClock
 import com.kazuya.timtra.data.realtime.RealtimeRepository
 import com.kazuya.timtra.data.realtime.RealtimeState
@@ -216,12 +218,40 @@ class HomeViewModel
             // 勤務先を離れていれば、その日の「次の電車」リマインダーを止める
             trainReminders.onLocationObserved(here, now)
             val workplace = TrainReminderScheduler.workplaceOf(settings)
+            val home = settings.home ?: Places.HOME_DEFAULT
             val landmarks =
                 RouteLandmarks.build(
                     homeStop = timetable.homeStopLocation,
                     stationBusStop = timetable.stationStopLocation,
                     workplace = workplace,
+                    home = home,
                 )
+            // 夜、鳥取駅を離れて帰路についたら（自宅側にいたら）残り時間は出さない。翌朝 leaveHomeDisplayStart から再開
+            val resting =
+                RestPolicy.isResting(
+                    now = now,
+                    bound = bound,
+                    here = here,
+                    homeStop = timetable.homeStopLocation,
+                    station = timetable.stationStopLocation ?: Places.TOTTORI_STATION,
+                    settings = settings.commute,
+                )
+            val nextMorning =
+                if (resting) {
+                    // 朝の時間帯より前（深夜〜早朝）なら今日、それ以降（夕方・夜）なら明日の往路
+                    val date =
+                        if (now.toLocalTime().isBefore(
+                                settings.commute.leaveHomeDisplayStart,
+                            )
+                        ) {
+                            now.toLocalDate()
+                        } else {
+                            now.toLocalDate().plusDays(1)
+                        }
+                    journeys.planForDate(date, Bound.OUTBOUND)
+                } else {
+                    null
+                }
 
             suspend fun plan(delays: Map<String, Duration>) =
                 journeys.candidates(PlanRequest(now = now, bound = bound, delays = delays), CANDIDATE_COUNT)

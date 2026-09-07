@@ -102,6 +102,13 @@ core の `journey/InboundPhaseResolver`: 復路で現在地が宝木駅から 2 
 時刻はいずれも設定画面「出発時刻の表示」で 5 分刻みに変更できる（DataStore、Wear へも同期）。
 位置が取れないときは時刻だけで判定する。Wear のタイルとウィジェットはこの規則を適用していない（従来どおり常に出発時刻を出す）。
 
+## 休止（夜〜翌朝）
+
+夜、鳥取駅を離れて帰路についたら（または自宅側にいたら）残り時間の表示をやめ、翌朝の表示開始時刻（既定 05:30）から再開する
+（core の `journey/RestPolicy`、テストあり）。判定は「朝の時間帯（leaveHomeDisplayStart 以上 inboundWindowStart 未満）の外」かつ
+「南吉成から 1.2 km 以内、または復路で鳥取駅から 1 km 超離れて鳥取駅〜南吉成の間にいる」。休止中は主役カードの代わりに
+「本日の通勤はおつかれさまでした」と翌朝の往路（バスの発車と家を出る時刻）だけを出し、地図はそのまま残す。
+
 ## 地図（ホーム中央）
 
 `ui/home/RouteMapCard.kt`。下地は OpenStreetMap の標準ラスタタイル、その上に経路上の地点・現在地・バスの位置を重ねる。
@@ -110,8 +117,10 @@ core の `journey/InboundPhaseResolver`: 復路で現在地が宝木駅から 2 
 OSM タイル利用規約に従う）。通信できないときはキャッシュ済みのタイルだけを使い、1 枚も無ければ方眼の簡易地図になる。
 出典「© OpenStreetMap contributors」を地図の右下と About 画面に出す（ODbL / 利用規約で必須）。
 
-- 地点は core の `geo/RouteLandmarks`（南吉成 = GTFS の HOME 停留所、鳥取駅 = GTFS の STATION 停留所（バスターミナル）、
-  宝木駅 = `Places.HOUGI_STATION`、勤務先 = 設定で登録した位置。未登録なら勤務先は出さない）。
+- 地点は core の `geo/RouteLandmarks`（自宅 = 設定で登録した位置か `Places.HOME_DEFAULT`、南吉成 = GTFS の HOME 停留所、
+  鳥取駅 = GTFS の STATION 停留所（バスターミナル）、宝木駅 = `Places.HOUGI_STATION`、勤務先 = 設定で登録した位置か `Places.WORKPLACE_DEFAULT`）。
+  自宅 → 南吉成 は本人が描いた徒歩ルート `Places.HOME_TO_MINAMIYOSHINARI_WALK`（約 240 m）を灰の破線で描き、「徒歩 n 分」を添える
+  （自宅が既定位置から 200 m 以内のとき）。
 - 投影は core の `geo/MapProjection`（Web メルカトル = タイルと同じ。`geo/WebMercator` にタイル番号の計算。テストあり）。
   全地点が余白つきで収まる縮尺を選び、左下に縮尺バー（地上距離で 50 m〜50 km のきりのよい値）を出す。
   タイルのズームは「1 タイルが画面上で 256 × density × 0.8 px」になる値を選ぶ（高密度画面で文字が読める大きさ。

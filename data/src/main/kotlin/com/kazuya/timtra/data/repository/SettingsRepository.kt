@@ -40,6 +40,8 @@ data class AppSettings(
     val trainReminder: TrainReminderSettings = TrainReminderSettings(),
     /** 「現在地を勤務先に登録」で保存した位置。未登録なら null（core の Places.WORKPLACE_DEFAULT で代用）。 */
     val workplace: GeoPoint? = null,
+    /** 「現在地を自宅に登録」で保存した位置。未登録なら null（core の Places.HOME_DEFAULT で代用）。 */
+    val home: GeoPoint? = null,
     /** 勤務先を離れたのでリマインダーを止めた日。翌日になれば自動的に無効。 */
     val trainReminderOffDate: LocalDate? = null,
 ) {
@@ -114,6 +116,19 @@ class SettingsRepository
                 } else {
                     prefs[Keys.WORKPLACE_LAT] = point.lat
                     prefs[Keys.WORKPLACE_LON] = point.lon
+                }
+            }
+        }
+
+        /** 自宅の位置。null で登録解除。 */
+        suspend fun setHome(point: GeoPoint?) {
+            store.edit { prefs ->
+                if (point == null) {
+                    prefs.remove(Keys.HOME_LAT)
+                    prefs.remove(Keys.HOME_LON)
+                } else {
+                    prefs[Keys.HOME_LAT] = point.lat
+                    prefs[Keys.HOME_LON] = point.lon
                 }
             }
         }
@@ -218,6 +233,8 @@ class SettingsRepository
             val r = TrainReminderSettings()
             val workplaceLat = this[Keys.WORKPLACE_LAT]
             val workplaceLon = this[Keys.WORKPLACE_LON]
+            val homeLat = this[Keys.HOME_LAT]
+            val homeLon = this[Keys.HOME_LON]
             return AppSettings(
                 commute = commute,
                 notificationsEnabled = this[Keys.NOTIFICATIONS_ENABLED] ?: true,
@@ -234,6 +251,7 @@ class SettingsRepository
                         windowStart = time(Keys.TRAIN_REMINDER_WINDOW_START, r.windowStart),
                     ),
                 workplace = if (workplaceLat != null && workplaceLon != null) GeoPoint(workplaceLat, workplaceLon) else null,
+                home = if (homeLat != null && homeLon != null) GeoPoint(homeLat, homeLon) else null,
                 trainReminderOffDate = this[Keys.TRAIN_REMINDER_OFF_DATE]?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
             )
         }
@@ -270,6 +288,8 @@ class SettingsRepository
             val TRAIN_REMINDER_WINDOW_START = intPreferencesKey("train_reminder_window_start_sec")
             val WORKPLACE_LAT = doublePreferencesKey("workplace_lat")
             val WORKPLACE_LON = doublePreferencesKey("workplace_lon")
+            val HOME_LAT = doublePreferencesKey("home_lat")
+            val HOME_LON = doublePreferencesKey("home_lon")
             val TRAIN_REMINDER_OFF_DATE = stringPreferencesKey("train_reminder_off_date")
         }
     }
