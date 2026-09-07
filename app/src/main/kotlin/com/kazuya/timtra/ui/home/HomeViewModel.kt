@@ -165,7 +165,7 @@ class HomeViewModel
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), null)
 
         private fun locationSource(): Flow<GeoPoint?> =
-            merge(
+            merge<GeoPoint?>(
                 flow { emit(location.current()) },
                 location.updates(LocationProvider.LIVE_INTERVAL_MILLIS),
             )

@@ -27,6 +27,7 @@ import com.kazuya.timtra.R
 import com.kazuya.timtra.ui.common.InfoPill
 import com.kazuya.timtra.ui.common.ModeBadge
 import com.kazuya.timtra.ui.common.TransitMode
+import com.kazuya.timtra.ui.common.hhmm
 import com.kazuya.timtra.ui.theme.StatusColors
 import com.kazuya.timtra.ui.theme.TimTraColors
 
