@@ -106,6 +106,13 @@
     <string name="map_landmark_workplace">勤務先</string>
     <string name="map_updated">%1$s 時点の位置</string>
     <string name="map_attribution">© OpenStreetMap contributors</string>
+    <string name="map_fullscreen_open">全画面で表示</string>
+    <string name="map_fullscreen_hint">タップで全画面・ピンチで拡大</string>
+    <string name="map_close">閉じる</string>
+    <string name="map_zoom_in">拡大</string>
+    <string name="map_zoom_out">縮小</string>
+    <string name="map_recenter">現在地へ</string>
+    <string name="map_fit_route">経路全体</string>
     <string name="map_tiles_loading">地図を読み込み中…</string>
     <string name="map_tiles_offline">地図タイルを取得できません（通信なし）。キャッシュ済みの範囲だけ表示します</string>
     <string name="map_bus_target">乗るバス</string>

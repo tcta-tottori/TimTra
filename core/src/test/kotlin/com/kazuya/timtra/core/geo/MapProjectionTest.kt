@@ -115,6 +115,42 @@ class MapProjectionTest {
     }
 
     @Test
+    fun `camera pan moves the map with the finger and zoom keeps the focus point fixed`() {
+        val fit = MapProjection.fit(listOf(minamiYoshinari, busTerminal), 360.0, 640.0, 24.0)
+        val camera = fit.camera
+        assertEquals(fit.project(busTerminal), MapProjection.of(camera, 360.0, 640.0).project(busTerminal))
+
+        // 右へ 100px・下へ 50px ドラッグ → 地点も右へ 100px・下へ 50px 動く
+        val panned = MapProjection.of(camera.panned(100.0, 50.0), 360.0, 640.0)
+        val before = fit.project(busTerminal)
+        val after = panned.project(busTerminal)
+        assertEquals(before.x + 100.0, after.x, 1e-6)
+        assertEquals(before.y + 50.0, after.y, 1e-6)
+
+        // 南吉成を指の中心にして 2 倍に拡大 → 南吉成は動かず、駅までの距離（px）は 2 倍
+        val focus = fit.project(minamiYoshinari)
+        val zoomed = MapProjection.of(camera.zoomed(2.0, focus, 360.0, 640.0), 360.0, 640.0)
+        val home = zoomed.project(minamiYoshinari)
+        assertEquals(focus.x, home.x, 1e-6)
+        assertEquals(focus.y, home.y, 1e-6)
+        val d0 = kotlin.math.hypot(before.x - focus.x, before.y - focus.y)
+        val st = zoomed.project(busTerminal)
+        val d1 = kotlin.math.hypot(st.x - home.x, st.y - home.y)
+        assertEquals(d0 * 2, d1, 1e-6)
+        assertEquals(camera.metersPerPixel / 2, zoomed.metersPerPixel, 1e-9)
+
+        // 縮尺の上限・下限で止まる
+        val tooFar = camera.zoomed(1e-9, focus, 360.0, 640.0)
+        assertEquals(MapCamera.MAX_METERS_PER_PIXEL, tooFar.metersPerPixel, 1e-9)
+        val tooClose = camera.zoomed(1e9, focus, 360.0, 640.0)
+        assertEquals(MapCamera.MIN_METERS_PER_PIXEL, tooClose.metersPerPixel, 1e-9)
+        // 「現在地へ」: 中心が移り、縮尺は変わらない
+        val centered = camera.centeredOn(Places.HOUGI_STATION)
+        assertEquals(Places.HOUGI_STATION.lat, centered.center.lat, 1e-9)
+        assertEquals(camera.metersPerPixel, centered.metersPerPixel)
+    }
+
+    @Test
     fun `scale bar picks a round number that fits`() {
         val proj = MapProjection.fit(listOf(minamiYoshinari, Places.HOUGI_STATION), 360.0, 220.0, 24.0)
         val (meters, px) = proj.scaleBar(maxPixels = 130.0)

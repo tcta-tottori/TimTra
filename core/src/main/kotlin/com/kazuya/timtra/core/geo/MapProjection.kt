@@ -40,6 +40,9 @@ class MapProjection private constructor(
     /** 画面中心の緯度経度。 */
     val center: GeoPoint = WebMercator.toGeo(centerX, centerY)
 
+    /** この投影の見え方。全画面地図で動かすときの初期値に使う。 */
+    val camera: MapCamera get() = MapCamera(centerX, centerY, metersPerPixel)
+
     /** 1 ピクセルあたりの地上の距離（メートル）。縮尺バーと距離の見た目に使う。 */
     val groundMetersPerPixel: Double = metersPerPixel * cos(Math.toRadians(center.lat))
 
@@ -120,6 +123,13 @@ class MapProjection private constructor(
         private val SCALE_STEPS = listOf(50, 100, 200, 500, 1_000, 2_000, 5_000, 10_000, 20_000, 50_000)
         const val MIN_TILE_ZOOM = 3
         const val MAX_TILE_ZOOM = 18
+
+        /** カメラ（中心と縮尺）と画面の大きさから投影を作る。 */
+        fun of(
+            camera: MapCamera,
+            width: Double,
+            height: Double,
+        ): MapProjection = MapProjection(camera.centerX, camera.centerY, camera.metersPerPixel, width, height)
 
         /**
          * [points] がすべて収まる投影を作る。

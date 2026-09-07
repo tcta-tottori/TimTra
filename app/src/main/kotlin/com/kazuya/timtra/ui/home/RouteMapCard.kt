@@ -9,9 +9,12 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,9 +22,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -29,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,6 +54,7 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -58,9 +65,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.kazuya.timtra.R
 import com.kazuya.timtra.core.geo.Landmark
 import com.kazuya.timtra.core.geo.LandmarkKind
+import com.kazuya.timtra.core.geo.MapCamera
 import com.kazuya.timtra.core.geo.MapPoint
 import com.kazuya.timtra.core.geo.MapProjection
 import com.kazuya.timtra.core.geo.RouteLandmarks
@@ -118,6 +128,10 @@ fun RouteMapCard(
     buses: MapVehicles = MapVehicles(),
 ) {
     var full by rememberSaveable { mutableStateOf(false) }
+    var fullscreen by rememberSaveable { mutableStateOf(false) }
+    if (fullscreen) {
+        FullscreenMapDialog(landmarks = landmarks, here = here, bound = bound, buses = buses, onClose = { fullscreen = false })
+    }
     TimTraCard(modifier = modifier.fillMaxWidth(), containerColor = Color.White) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -147,8 +161,16 @@ fun RouteMapCard(
                         tint = TimTraColors.primary,
                     )
                 }
+                IconButton(onClick = { fullscreen = true }) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_fullscreen),
+                        contentDescription = stringResource(R.string.map_fullscreen_open),
+                        tint = TimTraColors.primary,
+                    )
+                }
             }
-            RouteMap(
+            // タップで全画面（ピンチ・ドラッグで動かせる）
+            RouteMapPreview(
                 landmarks = landmarks,
                 here = here,
                 bound = bound,
@@ -161,7 +183,8 @@ fun RouteMapCard(
                         .height(MAP_HEIGHT)
                         .clip(RoundedCornerShape(16.dp))
                         .background(TransitColors.mapGround)
-                        .border(1.dp, TimTraColors.outline, RoundedCornerShape(16.dp)),
+                        .border(1.dp, TimTraColors.outline, RoundedCornerShape(16.dp))
+                        .clickable { fullscreen = true },
             )
             if (here != null) {
                 DistanceChips(landmarks, here)
@@ -228,8 +251,28 @@ private fun DistanceChips(
     }
 }
 
+/** 収める地点: 拡大する側の地点に、近くにいれば現在地、近づいていれば乗るバスを加える。 */
+private fun fitPointsFor(
+    landmarks: RouteLandmarks,
+    here: GeoPoint?,
+    bound: Bound,
+    full: Boolean,
+    targetBus: GeoPoint?,
+): List<GeoPoint> {
+    // 現在地に近い側を拡大する。宝木にいれば宝木側、南吉成にいれば自宅側（向きは現在地が無いときの予備）
+    val focus = if (full) landmarks.all else landmarks.focusFor(bound, here)
+    return buildList {
+        addAll(focus.map { it.location })
+        // 現在地が近ければ画面に収める。遠い（出張中など）ときは縁に矢印代わりの点を出すだけにする。
+        if (here != null && focus.any { it.location.distanceMetersTo(here) <= includeHereWithin(full) }) add(here)
+        // 乗る予定のバスが近づいていれば、それも収める（「バスはいまどこか」が地図の主目的のひとつ）
+        if (targetBus != null && focus.any { it.location.distanceMetersTo(targetBus) <= INCLUDE_BUS_METERS }) add(targetBus)
+    }
+}
+
+/** カードの中の地図。地点が収まる縮尺に自動で合わせる（操作はしない）。 */
 @Composable
-private fun RouteMap(
+private fun RouteMapPreview(
     landmarks: RouteLandmarks,
     here: GeoPoint?,
     bound: Bound,
@@ -242,257 +285,382 @@ private fun RouteMap(
         val widthPx = with(density) { maxWidth.toPx() }
         val heightPx = with(density) { maxHeight.toPx() }
         val paddingPx = with(density) { MAP_PADDING.toPx() }
-        val edgeInsetPx = with(density) { HERE_DOT_SIZE.toPx() }
-
-        // 現在地に近い側を拡大する。宝木にいれば宝木側、南吉成にいれば自宅側（向きは現在地が無いときの予備）
-        val focus = if (full) landmarks.all else landmarks.focusFor(bound, here)
         val targetBus = buses.target?.let { GeoPoint(it.latitude, it.longitude) }
-        val fitPoints =
-            remember(focus, here, full, targetBus) {
-                buildList {
-                    addAll(focus.map { it.location })
-                    // 現在地が近ければ画面に収める。遠い（出張中など）ときは縁に矢印代わりの点を出すだけにする。
-                    if (here != null && focus.any { it.location.distanceMetersTo(here) <= includeHereWithin(full) }) add(here)
-                    // 乗る予定のバスが近づいていれば、それも収める（「バスはいまどこか」が地図の主目的のひとつ）
-                    if (targetBus != null && focus.any { it.location.distanceMetersTo(targetBus) <= INCLUDE_BUS_METERS }) add(targetBus)
-                }
-            }
+        val fitPoints = remember(landmarks, here, bound, full, targetBus) { fitPointsFor(landmarks, here, bound, full, targetBus) }
         val projection =
             remember(fitPoints, widthPx, heightPx) {
                 MapProjection.fit(fitPoints, widthPx.toDouble(), heightPx.toDouble(), paddingPx.toDouble(), MIN_SPAN_METERS)
             }
-        val points = landmarks.all.map { it to projection.project(it.location) }
-        val hereRaw = here?.let { projection.project(it) }
-        val hereInside = hereRaw?.isInside(widthPx.toDouble(), heightPx.toDouble()) == true
-        val hereDrawn = hereRaw?.let { if (hereInside) it else projection.clampToEdge(it, edgeInsetPx.toDouble()) }
-        val nearest = here?.let { h -> landmarks.distancesFrom(h).firstOrNull() }
-        val nearestPoint = nearest?.let { (lm, _) -> points.first { it.first == lm }.second }
-        val (scaleMeters, scaleBarPx) = remember(projection) { projection.scaleBar(widthPx / 3.0) }
+        MapLayer(projection = projection, landmarks = landmarks, here = here, buses = buses, fallbackOrigin = fitPoints.first())
+    }
+}
 
-        // 下地の OSM タイル。高密度画面では 1 タイルを density 倍弱で描く（文字が読める大きさ）
-        val context = LocalContext.current
-        val tileLoader = remember(context) { MapTileLoader.get(context) }
-        val zoom =
-            remember(projection, density) {
-                projection.tileZoom((WebMercator.TILE_PIXELS * density.density * TILE_SCALE).toDouble())
-            }
-        val tiles = remember(projection, zoom) { projection.tiles(zoom) }
-        val tileBitmaps = remember { mutableStateMapOf<String, ImageBitmap>() }
-        var tilesFailed by remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) { tileLoader.trim() }
-        LaunchedEffect(tiles) {
-            tilesFailed = false
-            val jobs =
-                tiles
-                    .filter { it.key !in tileBitmaps }
-                    .map { tile ->
-                        tileLoader.cached(tile)?.let { tileBitmaps[tile.key] = it }
-                        launch { tileLoader.load(tile)?.let { tileBitmaps[tile.key] = it } }
-                    }
-            jobs.forEach { it.join() }
-            tilesFailed = tiles.none { it.key in tileBitmaps }
-        }
-        val anyTile = tiles.any { it.key in tileBitmaps }
-        val busPoints = buses.vehicles.map { it to projection.project(GeoPoint(it.latitude, it.longitude)) }
-        val targetBusRaw = targetBus?.let { projection.project(it) }
-        val targetBusInside = targetBusRaw?.isInside(widthPx.toDouble(), heightPx.toDouble()) == true
-
-        val pulse by
-            rememberInfiniteTransition(label = "here").animateFloat(
-                initialValue = 0f,
-                targetValue = 1f,
-                animationSpec = infiniteRepeatable(tween(PULSE_MILLIS, easing = LinearEasing), RepeatMode.Restart),
-                label = "pulse",
-            )
-
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            // 下地: OSM タイル。無ければ方眼（地図らしさと縮尺感のため）
-            var drewTile = false
-            tiles.forEach { tile ->
-                val image = tileBitmaps[tile.key] ?: return@forEach
-                // 隣のタイルとの継ぎ目に隙間が出ないよう 1px 大きく描く
-                val side = ceil(tile.size).toInt() + 1
-                drawImage(
-                    image = image,
-                    srcOffset = IntOffset.Zero,
-                    srcSize = IntSize(image.width, image.height),
-                    dstOffset = IntOffset(floor(tile.left).toInt(), floor(tile.top).toInt()),
-                    dstSize = IntSize(side, side),
-                    filterQuality = FilterQuality.Medium,
-                )
-                drewTile = true
-            }
-            if (drewTile) {
-                // 経路線とラベルを読みやすくするため、ほんの少し白をかける
-                drawRect(Color.White.copy(alpha = TILE_WASH_ALPHA))
-            } else {
-                val grid = GRID_STEP.toPx()
-                var x = grid
-                while (x < size.width) {
-                    drawLine(TransitColors.mapGrid, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1f)
-                    x += grid
+/**
+ * 全画面の地図。ドラッグで移動、ピンチで拡大縮小。右下に拡大 / 縮小 / 現在地へ / 経路全体、左上に閉じる。
+ * 見え方は [MapCamera] で持ち、指を離しても保つ。閉じれば捨てる（次に開くときは自動の範囲から）。
+ */
+@Composable
+private fun FullscreenMapDialog(
+    landmarks: RouteLandmarks,
+    here: GeoPoint?,
+    bound: Bound,
+    buses: MapVehicles,
+    onClose: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onClose,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize().background(TransitColors.mapGround).clipToBounds()) {
+            val density = LocalDensity.current
+            val widthPx = with(density) { maxWidth.toPx() }
+            val heightPx = with(density) { maxHeight.toPx() }
+            val paddingPx = with(density) { MAP_PADDING.toPx() }
+            val w = widthPx.toDouble()
+            val h = heightPx.toDouble()
+            val targetBus = buses.target?.let { GeoPoint(it.latitude, it.longitude) }
+            val fitPoints = remember(landmarks, here, bound, targetBus) { fitPointsFor(landmarks, here, bound, full = false, targetBus) }
+            val fitCamera =
+                remember(fitPoints, w, h) { MapProjection.fit(fitPoints, w, h, paddingPx.toDouble(), MIN_SPAN_METERS).camera }
+            val routeCamera =
+                remember(landmarks, w, h) {
+                    MapProjection.fit(landmarks.all.map { it.location }, w, h, paddingPx.toDouble(), MIN_SPAN_METERS).camera
                 }
-                var y = grid
-                while (y < size.height) {
-                    drawLine(TransitColors.mapGrid, Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
-                    y += grid
-                }
-            }
+            var camera by remember { mutableStateOf<MapCamera?>(null) }
+            val current = camera ?: fitCamera
+            val projection = remember(current, w, h) { MapProjection.of(current, w, h) }
 
-            // 経路。地点の並び（南吉成 → 鳥取駅 → 宝木駅 → 勤務先）を結ぶ
-            val routeWidth = ROUTE_WIDTH.toPx()
-            for (i in 0 until points.size - 1) {
-                val (a, pa) = points[i]
-                val (b, pb) = points[i + 1]
-                val start = Offset(pa.x.toFloat(), pa.y.toFloat())
-                val end = Offset(pb.x.toFloat(), pb.y.toFloat())
-                val segment = segmentStyle(a.kind, b.kind)
-                drawLine(segment.color.copy(alpha = 0.18f), start, end, strokeWidth = routeWidth * 2.2f, cap = StrokeCap.Round)
-                drawLine(
-                    color = segment.color,
-                    start = start,
-                    end = end,
-                    strokeWidth = routeWidth,
-                    cap = StrokeCap.Round,
-                    pathEffect = if (segment.dashed) PathEffect.dashPathEffect(floatArrayOf(routeWidth * 2, routeWidth * 2), 0f) else null,
-                )
-            }
-
-            // 現在地 → 最寄り地点 の距離線
-            if (hereDrawn != null && hereInside && nearestPoint != null) {
-                drawLine(
-                    color = TransitColors.here,
-                    start = Offset(hereDrawn.x.toFloat(), hereDrawn.y.toFloat()),
-                    end = Offset(nearestPoint.x.toFloat(), nearestPoint.y.toFloat()),
-                    strokeWidth = 1.5.dp.toPx(),
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 5.dp.toPx()), 0f),
-                )
-            }
-
-            // 現在地の波紋
-            if (hereDrawn != null) {
-                val center = Offset(hereDrawn.x.toFloat(), hereDrawn.y.toFloat())
-                val maxRadius = PULSE_RADIUS.toPx()
-                drawCircle(TransitColors.here, radius = maxRadius * pulse, center = center, alpha = (1f - pulse) * 0.35f)
-                drawCircle(TransitColors.here, radius = HERE_DOT_SIZE.toPx() / 2 + 3.dp.toPx(), center = center, alpha = 0.18f)
-            }
-
-            // 縮尺バー（左下）
-            val barPx = scaleBarPx
-            val barY = size.height - SCALE_MARGIN.toPx()
-            val barX = SCALE_MARGIN.toPx()
-            val barColor = TimTraColors.onSurfaceVariant
-            drawLine(barColor, Offset(barX, barY), Offset(barX + barPx.toFloat(), barY), strokeWidth = 2.dp.toPx())
-            drawLine(barColor, Offset(barX, barY - 4.dp.toPx()), Offset(barX, barY + 1.dp.toPx()), strokeWidth = 2.dp.toPx())
-            drawLine(
-                barColor,
-                Offset(barX + barPx.toFloat(), barY - 4.dp.toPx()),
-                Offset(barX + barPx.toFloat(), barY + 1.dp.toPx()),
-                strokeWidth = 2.dp.toPx(),
-            )
-        }
-
-        // 縮尺の数字
-        Text(
-            text = scaleLabel(scaleMeters),
-            style = MaterialTheme.typography.labelSmall,
-            color = TimTraColors.onSurfaceVariant,
-            modifier = Modifier.align(Alignment.BottomStart).padding(start = SCALE_MARGIN, bottom = SCALE_MARGIN + 4.dp),
-        )
-
-        // 出典（OSM のタイル利用規約で必須）
-        Text(
-            text = stringResource(R.string.map_attribution),
-            style = MaterialTheme.typography.labelSmall,
-            color = TimTraColors.onSurfaceVariant,
-            modifier =
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(6.dp)
-                    .background(Color.White.copy(alpha = 0.8f), RoundedCornerShape(50))
-                    .padding(horizontal = 6.dp, vertical = 1.dp),
-        )
-        if (!anyTile) {
-            Text(
-                text = stringResource(if (tilesFailed) R.string.map_tiles_offline else R.string.map_tiles_loading),
-                style = MaterialTheme.typography.labelSmall,
-                color = TimTraColors.onSurfaceVariant,
-                textAlign = TextAlign.Center,
+            Box(
                 modifier =
                     Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 28.dp, start = 60.dp, end = 60.dp)
-                        .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(50))
-                        .padding(horizontal = 10.dp, vertical = 3.dp),
+                        .fillMaxSize()
+                        .pointerInput(w, h, fitCamera) {
+                            detectTransformGestures { centroid, pan, zoom, _ ->
+                                val base = camera ?: fitCamera
+                                camera =
+                                    base
+                                        .panned(pan.x.toDouble(), pan.y.toDouble())
+                                        .zoomed(zoom.toDouble(), MapPoint(centroid.x.toDouble(), centroid.y.toDouble()), w, h)
+                            }
+                        },
+            ) {
+                MapLayer(projection = projection, landmarks = landmarks, here = here, buses = buses, fallbackOrigin = fitPoints.first())
+            }
+
+            // 左上: 閉じる + 見出し
+            Row(
+                modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RoundButton(iconRes = R.drawable.ic_close, contentDescription = stringResource(R.string.map_close), onClick = onClose)
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = stringResource(R.string.map_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = TimTraColors.primary,
+                    modifier =
+                        Modifier
+                            .background(Color.White.copy(alpha = 0.92f), RoundedCornerShape(50))
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+            }
+
+            // 右下: 拡大 / 縮小 / 現在地へ / 経路全体
+            Column(
+                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 12.dp, bottom = 36.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalAlignment = Alignment.End,
+            ) {
+                val centerPoint = MapPoint(w / 2, h / 2)
+                RoundButton(iconRes = R.drawable.ic_add, contentDescription = stringResource(R.string.map_zoom_in)) {
+                    camera = (camera ?: fitCamera).zoomed(2.0, centerPoint, w, h)
+                }
+                RoundButton(iconRes = R.drawable.ic_remove, contentDescription = stringResource(R.string.map_zoom_out)) {
+                    camera = (camera ?: fitCamera).zoomed(0.5, centerPoint, w, h)
+                }
+                if (here != null) {
+                    RoundButton(
+                        iconRes = R.drawable.ic_my_location,
+                        contentDescription = stringResource(R.string.map_recenter),
+                        tint = TransitColors.here,
+                    ) { camera = (camera ?: fitCamera).centeredOn(here) }
+                }
+                RoundButton(iconRes = R.drawable.ic_zoom_out_map, contentDescription = stringResource(R.string.map_fit_route)) {
+                    camera = routeCamera
+                }
+            }
+        }
+    }
+}
+
+/** 全画面地図の丸いボタン（白地に影）。 */
+@Composable
+private fun RoundButton(
+    iconRes: Int,
+    contentDescription: String,
+    tint: Color = TimTraColors.primary,
+    onClick: () -> Unit,
+) {
+    Surface(shape = CircleShape, color = Color.White, shadowElevation = 4.dp) {
+        IconButton(onClick = onClick) {
+            Icon(painter = painterResource(iconRes), contentDescription = contentDescription, tint = tint)
+        }
+    }
+}
+
+/**
+ * 地図の中身: タイル、経路、地点、現在地、バス、縮尺、出典。
+ * 親の Box いっぱいに描く。[projection] の大きさが親の大きさと一致していること。
+ */
+@Composable
+private fun BoxScope.MapLayer(
+    projection: MapProjection,
+    landmarks: RouteLandmarks,
+    here: GeoPoint?,
+    buses: MapVehicles,
+    /** 乗るバスが画面外のとき、距離を測る起点（現在地が無いとき用）。 */
+    fallbackOrigin: GeoPoint,
+) {
+    val density = LocalDensity.current
+    val widthPx = projection.width.toFloat()
+    val heightPx = projection.height.toFloat()
+    val paddingPx = with(density) { MAP_PADDING.toPx() }
+    val edgeInsetPx = with(density) { HERE_DOT_SIZE.toPx() }
+    val targetBus = buses.target?.let { GeoPoint(it.latitude, it.longitude) }
+    val points = landmarks.all.map { it to projection.project(it.location) }
+    val hereRaw = here?.let { projection.project(it) }
+    val hereInside = hereRaw?.isInside(widthPx.toDouble(), heightPx.toDouble()) == true
+    val hereDrawn = hereRaw?.let { if (hereInside) it else projection.clampToEdge(it, edgeInsetPx.toDouble()) }
+    val nearest = here?.let { h -> landmarks.distancesFrom(h).firstOrNull() }
+    val nearestPoint = nearest?.let { (lm, _) -> points.first { it.first == lm }.second }
+    val (scaleMeters, scaleBarPx) = remember(projection) { projection.scaleBar(widthPx / 3.0) }
+
+    // 下地の OSM タイル。高密度画面では 1 タイルを density 倍弱で描く（文字が読める大きさ）
+    val context = LocalContext.current
+    val tileLoader = remember(context) { MapTileLoader.get(context) }
+    val zoom =
+        remember(projection, density) {
+            projection.tileZoom((WebMercator.TILE_PIXELS * density.density * TILE_SCALE).toDouble())
+        }
+    val tiles = remember(projection, zoom) { projection.tiles(zoom) }
+    // 位置は毎フレーム変わるが、必要なタイルの組が同じなら読み込みをやり直さない
+    val tileKeys = remember(tiles) { tiles.map { it.key } }
+    val tileBitmaps = remember { mutableStateMapOf<String, ImageBitmap>() }
+    var tilesFailed by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { tileLoader.trim() }
+    LaunchedEffect(tileKeys) {
+        tilesFailed = false
+        val jobs =
+            tiles
+                .filter { it.key !in tileBitmaps }
+                .map { tile ->
+                    tileLoader.cached(tile)?.let { tileBitmaps[tile.key] = it }
+                    launch { tileLoader.load(tile)?.let { tileBitmaps[tile.key] = it } }
+                }
+        jobs.forEach { it.join() }
+        tilesFailed = tiles.none { it.key in tileBitmaps }
+    }
+    val anyTile = tiles.any { it.key in tileBitmaps }
+    val busPoints = buses.vehicles.map { it to projection.project(GeoPoint(it.latitude, it.longitude)) }
+    val targetBusRaw = targetBus?.let { projection.project(it) }
+    val targetBusInside = targetBusRaw?.isInside(widthPx.toDouble(), heightPx.toDouble()) == true
+
+    val pulse by
+        rememberInfiniteTransition(label = "here").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(PULSE_MILLIS, easing = LinearEasing), RepeatMode.Restart),
+            label = "pulse",
+        )
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        // 下地: OSM タイル。無ければ方眼（地図らしさと縮尺感のため）
+        var drewTile = false
+        tiles.forEach { tile ->
+            val image = tileBitmaps[tile.key] ?: return@forEach
+            // 隣のタイルとの継ぎ目に隙間が出ないよう 1px 大きく描く
+            val side = ceil(tile.size).toInt() + 1
+            drawImage(
+                image = image,
+                srcOffset = IntOffset.Zero,
+                srcSize = IntSize(image.width, image.height),
+                dstOffset = IntOffset(floor(tile.left).toInt(), floor(tile.top).toInt()),
+                dstSize = IntSize(side, side),
+                filterQuality = FilterQuality.Medium,
+            )
+            drewTile = true
+        }
+        if (drewTile) {
+            // 経路線とラベルを読みやすくするため、ほんの少し白をかける
+            drawRect(Color.White.copy(alpha = TILE_WASH_ALPHA))
+        } else {
+            val grid = GRID_STEP.toPx()
+            var x = grid
+            while (x < size.width) {
+                drawLine(TransitColors.mapGrid, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1f)
+                x += grid
+            }
+            var y = grid
+            while (y < size.height) {
+                drawLine(TransitColors.mapGrid, Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
+                y += grid
+            }
+        }
+
+        // 経路。地点の並び（南吉成 → 鳥取駅 → 宝木駅 → 勤務先）を結ぶ
+        val routeWidth = ROUTE_WIDTH.toPx()
+        for (i in 0 until points.size - 1) {
+            val (a, pa) = points[i]
+            val (b, pb) = points[i + 1]
+            val start = Offset(pa.x.toFloat(), pa.y.toFloat())
+            val end = Offset(pb.x.toFloat(), pb.y.toFloat())
+            val segment = segmentStyle(a.kind, b.kind)
+            drawLine(segment.color.copy(alpha = 0.18f), start, end, strokeWidth = routeWidth * 2.2f, cap = StrokeCap.Round)
+            drawLine(
+                color = segment.color,
+                start = start,
+                end = end,
+                strokeWidth = routeWidth,
+                cap = StrokeCap.Round,
+                pathEffect = if (segment.dashed) PathEffect.dashPathEffect(floatArrayOf(routeWidth * 2, routeWidth * 2), 0f) else null,
             )
         }
 
-        // 地点のマーカー（画面内のものだけ。少しはみ出す程度なら描く）
-        val marginPx = with(density) { MARKER_SIZE.toPx() }
-        points.forEach { (landmark, p) ->
-            if (p.x in -marginPx..(widthPx + marginPx) && p.y in -marginPx..(heightPx + marginPx)) {
-                LandmarkMarker(landmark, p)
-            }
+        // 現在地 → 最寄り地点 の距離線
+        if (hereDrawn != null && hereInside && nearestPoint != null) {
+            drawLine(
+                color = TransitColors.here,
+                start = Offset(hereDrawn.x.toFloat(), hereDrawn.y.toFloat()),
+                end = Offset(nearestPoint.x.toFloat(), nearestPoint.y.toFloat()),
+                strokeWidth = 1.5.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 5.dp.toPx()), 0f),
+            )
         }
 
-        // バスの車両位置（GTFS-RT）。乗る予定の便は大きく、他の便は小さく
-        val busMarginPx = with(density) { BUS_MARKER_SIZE.toPx() }
-        busPoints.forEach { (vehicle, p) ->
-            val isTarget = vehicle.tripId == buses.targetTripId
-            if (p.x in -busMarginPx..(widthPx + busMarginPx) && p.y in -busMarginPx..(heightPx + busMarginPx)) {
-                BusMarker(point = p, isTarget = isTarget, delayMinutes = if (isTarget) buses.targetDelayMinutes else 0)
-            }
+        // 現在地の波紋
+        if (hereDrawn != null) {
+            val center = Offset(hereDrawn.x.toFloat(), hereDrawn.y.toFloat())
+            val maxRadius = PULSE_RADIUS.toPx()
+            drawCircle(TransitColors.here, radius = maxRadius * pulse, center = center, alpha = (1f - pulse) * 0.35f)
+            drawCircle(TransitColors.here, radius = HERE_DOT_SIZE.toPx() / 2 + 3.dp.toPx(), center = center, alpha = 0.18f)
         }
-        if (targetBus != null && targetBusRaw != null && !targetBusInside) {
-            val edge = projection.clampToEdge(targetBusRaw, edgeInsetPx.toDouble())
-            BusMarker(point = edge, isTarget = true, delayMinutes = 0, label = false)
-            // 距離は現在地から。現在地が無ければ拡大している側の最初の地点（南吉成 / 宝木駅）から
-            val from = here ?: focus.first().location
+
+        // 縮尺バー（左下）
+        val barPx = scaleBarPx
+        val barY = size.height - SCALE_MARGIN.toPx()
+        val barX = SCALE_MARGIN.toPx()
+        val barColor = TimTraColors.onSurfaceVariant
+        drawLine(barColor, Offset(barX, barY), Offset(barX + barPx.toFloat(), barY), strokeWidth = 2.dp.toPx())
+        drawLine(barColor, Offset(barX, barY - 4.dp.toPx()), Offset(barX, barY + 1.dp.toPx()), strokeWidth = 2.dp.toPx())
+        drawLine(
+            barColor,
+            Offset(barX + barPx.toFloat(), barY - 4.dp.toPx()),
+            Offset(barX + barPx.toFloat(), barY + 1.dp.toPx()),
+            strokeWidth = 2.dp.toPx(),
+        )
+    }
+
+    // 縮尺の数字
+    Text(
+        text = scaleLabel(scaleMeters),
+        style = MaterialTheme.typography.labelSmall,
+        color = TimTraColors.onSurfaceVariant,
+        modifier = Modifier.align(Alignment.BottomStart).padding(start = SCALE_MARGIN, bottom = SCALE_MARGIN + 4.dp),
+    )
+
+    // 出典（OSM のタイル利用規約で必須）
+    Text(
+        text = stringResource(R.string.map_attribution),
+        style = MaterialTheme.typography.labelSmall,
+        color = TimTraColors.onSurfaceVariant,
+        modifier =
+            Modifier
+                .align(Alignment.BottomEnd)
+                .padding(6.dp)
+                .background(Color.White.copy(alpha = 0.8f), RoundedCornerShape(50))
+                .padding(horizontal = 6.dp, vertical = 1.dp),
+    )
+    if (!anyTile) {
+        Text(
+            text = stringResource(if (tilesFailed) R.string.map_tiles_offline else R.string.map_tiles_loading),
+            style = MaterialTheme.typography.labelSmall,
+            color = TimTraColors.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 28.dp, start = 60.dp, end = 60.dp)
+                    .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(50))
+                    .padding(horizontal = 10.dp, vertical = 3.dp),
+        )
+    }
+
+    // 地点のマーカー（画面内のものだけ。少しはみ出す程度なら描く）
+    val marginPx = with(density) { MARKER_SIZE.toPx() }
+    points.forEach { (landmark, p) ->
+        if (p.x in -marginPx..(widthPx + marginPx) && p.y in -marginPx..(heightPx + marginPx)) {
+            LandmarkMarker(landmark, p)
+        }
+    }
+
+    // バスの車両位置（GTFS-RT）。乗る予定の便は大きく、他の便は小さく
+    val busMarginPx = with(density) { BUS_MARKER_SIZE.toPx() }
+    busPoints.forEach { (vehicle, p) ->
+        val isTarget = vehicle.tripId == buses.targetTripId
+        if (p.x in -busMarginPx..(widthPx + busMarginPx) && p.y in -busMarginPx..(heightPx + busMarginPx)) {
+            BusMarker(point = p, isTarget = isTarget, delayMinutes = if (isTarget) buses.targetDelayMinutes else 0)
+        }
+    }
+    if (targetBus != null && targetBusRaw != null && !targetBusInside) {
+        val edge = projection.clampToEdge(targetBusRaw, edgeInsetPx.toDouble())
+        BusMarker(point = edge, isTarget = true, delayMinutes = 0, label = false)
+        // 距離は現在地から。現在地が無ければ拡大している側の最初の地点（南吉成 / 宝木駅）から
+        val from = here ?: fallbackOrigin
+        FloatingLabel(
+            text = stringResource(R.string.map_bus_off_screen, distanceText(from.distanceMetersTo(targetBus))),
+            point = MapPoint(widthPx / 2.0, heightPx - paddingPx / 2.0),
+            color = TransitColors.bus,
+            bold = false,
+            width = 240.dp,
+        )
+    }
+    buses.fetchedAt?.let { fetched ->
+        Text(
+            text = stringResource(R.string.map_bus_fetched, LocalDateTime.ofInstant(fetched, ZoneId.systemDefault()).hhmm()),
+            style = MaterialTheme.typography.labelSmall,
+            color = TransitColors.bus,
+            modifier =
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(50))
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+        )
+    }
+
+    // 距離のラベル（現在地と最寄り地点の中間）
+    if (hereDrawn != null && hereInside && nearestPoint != null && nearest != null) {
+        val mid = MapPoint((hereDrawn.x + nearestPoint.x) / 2, (hereDrawn.y + nearestPoint.y) / 2)
+        FloatingLabel(
+            text = distanceText(nearest.second),
+            point = mid,
+            color = TransitColors.here,
+            bold = true,
+        )
+    }
+
+    // 現在地
+    if (hereDrawn != null) {
+        HereMarker(hereDrawn, inside = hereInside)
+        if (!hereInside && nearest != null) {
             FloatingLabel(
-                text = stringResource(R.string.map_bus_off_screen, distanceText(from.distanceMetersTo(targetBus))),
-                point = MapPoint(widthPx / 2.0, heightPx - paddingPx / 2.0),
-                color = TransitColors.bus,
+                text = stringResource(R.string.map_here_off_screen, distanceText(nearest.second)),
+                point = MapPoint(widthPx / 2.0, paddingPx / 2.0),
+                color = TransitColors.here,
                 bold = false,
                 width = 240.dp,
             )
-        }
-        buses.fetchedAt?.let { fetched ->
-            Text(
-                text = stringResource(R.string.map_bus_fetched, LocalDateTime.ofInstant(fetched, ZoneId.systemDefault()).hhmm()),
-                style = MaterialTheme.typography.labelSmall,
-                color = TransitColors.bus,
-                modifier =
-                    Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp)
-                        .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(50))
-                        .padding(horizontal = 8.dp, vertical = 2.dp),
-            )
-        }
-
-        // 距離のラベル（現在地と最寄り地点の中間）
-        if (hereDrawn != null && hereInside && nearestPoint != null && nearest != null) {
-            val mid = MapPoint((hereDrawn.x + nearestPoint.x) / 2, (hereDrawn.y + nearestPoint.y) / 2)
-            FloatingLabel(
-                text = distanceText(nearest.second),
-                point = mid,
-                color = TransitColors.here,
-                bold = true,
-            )
-        }
-
-        // 現在地
-        if (hereDrawn != null) {
-            HereMarker(hereDrawn, inside = hereInside)
-            if (!hereInside && nearest != null) {
-                FloatingLabel(
-                    text = stringResource(R.string.map_here_off_screen, distanceText(nearest.second)),
-                    point = MapPoint(widthPx / 2.0, paddingPx / 2.0),
-                    color = TransitColors.here,
-                    bold = false,
-                    width = 240.dp,
-                )
-            }
         }
     }
 }
