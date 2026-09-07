@@ -25,21 +25,58 @@ import com.kazuya.timtra.location.LocationProvider
 import com.kazuya.timtra.notify.NotificationScheduler
 import com.kazuya.timtra.notify.PermissionStatus
 import com.kazuya.timtra.notify.TrainReminderScheduler
+import com.kazuya.timtra.ui.timetable.StationFilter
+import com.kazuya.timtra.ui.timetable.TimetableCatalog
+import com.kazuya.timtra.ui.timetable.TimetableEntry
+import com.kazuya.timtra.ui.timetable.TimetableTab
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Duration
+import java.time.LocalDate
 import java.time.LocalDateTime
 import javax.inject.Inject
+
+/** ホームのバス / JR カードをタップしたときに出す「次の便」の時刻表。 */
+enum class PeekKind(
+    val tab: TimetableTab,
+    val filter: StationFilter,
+) {
+    /** 南吉成 発（往路のバス） */
+    BUS_HOME(TimetableTab.HOME_STOP, StationFilter.ALL),
+
+    /** 鳥取 発 宝木方面（往路の JR） */
+    JR_OUTBOUND(TimetableTab.STATION, StationFilter.JR),
+
+    /** 宝木 発 鳥取方面（復路の JR） */
+    JR_INBOUND(TimetableTab.HOUGI, StationFilter.ALL),
+
+    /** 鳥取駅 発 用瀬・智頭方面（復路のバス） */
+    BUS_STATION(TimetableTab.STATION, StationFilter.BUS),
+}
+
+data class TimetablePeek(
+    val kind: PeekKind,
+    val today: LocalDate,
+    /** 今日の残りの便（現在時刻以降）。 */
+    val upcomingToday: List<TimetableEntry>,
+    val tomorrow: LocalDate,
+    /** 翌日の始発から数本（今日の残りが少ないときの続き）。 */
+    val tomorrowHead: List<TimetableEntry>,
+)
 
 sealed interface HomeUiState {
     data object Loading : HomeUiState
@@ -93,6 +130,7 @@ class HomeViewModel
         private val realtime: RealtimeRepository,
         private val location: LocationProvider,
         private val trainReminders: TrainReminderScheduler,
+        private val timetables: TimetableCatalog,
         private val clock: AppClock,
     ) : ViewModel() {
         private val manualBound = MutableStateFlow<Bound?>(null)
@@ -107,10 +145,40 @@ class HomeViewModel
                 }
             }
 
+        /** 1 秒刻みの現在時刻。秒単位のカウントダウン用。画面が表示されている間だけ進む。 */
+        val now: StateFlow<LocalDateTime> =
+            flow {
+                while (true) {
+                    emit(clock.now())
+                    delay(SECOND_MILLIS)
+                }
+            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), clock.now())
+
+        /**
+         * 現在地。画面が表示されている間だけ数秒おきに更新する（地図と「駅まであと何分」をほぼリアルタイムに）。
+         * 許可を得た直後は [refresh] で購読し直す。数 m の揺れでは再計算しない。
+         */
+        private val liveLocation: StateFlow<GeoPoint?> =
+            refreshCount
+                .flatMapLatest { locationSource() }
+                .distinctUntilChanged { a, b -> a != null && b != null && a.distanceMetersTo(b) < LOCATION_MIN_MOVE_METERS }
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), null)
+
+        private fun locationSource(): Flow<GeoPoint?> =
+            merge(
+                flow { emit(location.current()) },
+                location.updates(LocationProvider.LIVE_INTERVAL_MILLIS),
+            )
+
         val uiState: StateFlow<HomeUiState> =
-            combine(ticker, refreshCount, settingsRepository.settings, manualBound) { _, _, settings, manual -> settings to manual }
-                .mapLatest { (settings, manual) -> compute(settings, manual) }
+            combine(ticker, refreshCount, settingsRepository.settings, manualBound, liveLocation) { _, _, settings, manual, here ->
+                Triple(settings, manual, here)
+            }.mapLatest { (settings, manual, here) -> compute(settings, manual, here) }
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), HomeUiState.Loading)
+
+        /** 開いている「次の便」ポップアップ。null なら閉じている。 */
+        private val _peek = MutableStateFlow<TimetablePeek?>(null)
+        val peek: StateFlow<TimetablePeek?> = _peek
 
         init {
             // 夜間ジョブの登録と、起動時点での予約の作り直し
@@ -120,11 +188,11 @@ class HomeViewModel
         private suspend fun compute(
             settings: AppSettings,
             manual: Bound?,
+            here: GeoPoint?,
         ): HomeUiState {
             val now = clock.now()
             val timetable = busTimetable.timetable()
             // 現在位置に近い側の出発時刻を出す。手動切替が最優先、位置が取れなければ時刻帯で決める。
-            val here = location.current()
             val decision =
                 manual?.let { BoundDecision(it, BoundBasis.MANUAL) }
                     ?: BoundResolver.resolve(
@@ -214,6 +282,30 @@ class HomeViewModel
             refreshCount.value += 1
         }
 
+        /** バス / JR カードのタップ。現在時刻以降の時刻表をポップアップで出す。 */
+        fun openPeek(kind: PeekKind) {
+            viewModelScope.launch {
+                val now = clock.now()
+                val today = now.toLocalDate()
+                val nowSec = now.toLocalTime().toSecondOfDay()
+                val todayEntries = timetables.entries(kind.tab, today, kind.filter).filter { it.seconds >= nowSec }
+                val tomorrow = today.plusDays(1)
+                val tomorrowEntries =
+                    if (todayEntries.size <
+                        PEEK_MIN_ROWS
+                    ) {
+                        timetables.entries(kind.tab, tomorrow, kind.filter).take(PEEK_TOMORROW_ROWS)
+                    } else {
+                        emptyList()
+                    }
+                _peek.value = TimetablePeek(kind, today, todayEntries.take(PEEK_MAX_ROWS), tomorrow, tomorrowEntries)
+            }
+        }
+
+        fun closePeek() {
+            _peek.value = null
+        }
+
         /** 「再開」: 勤務先を離れた記録を消してリマインダーを予約し直す。 */
         fun resumeTrainReminders() {
             viewModelScope.launch {
@@ -224,7 +316,14 @@ class HomeViewModel
 
         private companion object {
             const val TICK_MILLIS = 30_000L
+            const val SECOND_MILLIS = 1_000L
             const val STOP_TIMEOUT_MILLIS = 5_000L
+
+            /** これ未満の移動では再計算しない（測位の揺れ対策）。地図の点は再計算のたびに動く。 */
+            const val LOCATION_MIN_MOVE_METERS = 8.0
+            const val PEEK_MAX_ROWS = 20
+            const val PEEK_MIN_ROWS = 5
+            const val PEEK_TOMORROW_ROWS = 5
             const val CANDIDATE_COUNT = 2
             val POLL_BEFORE_DEPARTURE: Duration = Duration.ofMinutes(90)
             val POLL_AFTER_ARRIVAL: Duration = Duration.ofMinutes(5)

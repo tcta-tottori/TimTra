@@ -34,6 +34,21 @@
     <string name="home_leave_work">職場を出る時刻</string>
     <string name="home_next_departure_bus">次のバス</string>
     <string name="home_next_departure_jr">次の電車</string>
+    <string name="home_countdown_label">発車まで</string>
+    <string name="home_countdown_departed">発車しました</string>
+    <string name="home_pace_at_place">%1$s にいます。発車をお待ちください</string>
+    <string name="home_pace_walk">歩いて間に合います（%1$s まで %2$s・徒歩 約%3$d分）</string>
+    <string name="home_pace_fast_walk">早歩きで向かってください（%1$s まで %2$s・早歩き 約%3$d分）</string>
+    <string name="home_pace_run">走らないと間に合いません（%1$s まで %2$s）</string>
+    <string name="home_pace_too_late">この便には間に合いません（%1$s まで %2$s）。次の便を確認してください</string>
+    <string name="home_tap_for_timetable">タップで時刻表</string>
+    <string name="peek_title_bus_home">南吉成 発 鳥取駅方面</string>
+    <string name="peek_title_jr_outbound">鳥取 発 宝木方面</string>
+    <string name="peek_title_jr_inbound">宝木 発 鳥取方面</string>
+    <string name="peek_title_bus_station">鳥取駅 発 用瀬・智頭方面</string>
+    <string name="peek_next_day">翌日（%1$s）</string>
+    <string name="peek_no_more_today">本日の運行は終了しました</string>
+    <string name="peek_close">閉じる</string>
     <string name="home_departs_from">%1$s 発</string>
     <string name="home_leave_hidden_home">家を出る時刻は %1$s〜%2$s に表示します</string>
     <string name="home_leave_hidden_work">職場を出る時刻は %1$s 以降、勤務先付近にいる間に表示します</string>
@@ -259,9 +274,9 @@
     <string name="notify_channel_reminder_description">勤務先にいるとき、宝木発の次の電車まで 30 / 20 / 15 分前にお知らせ</string>
     <string name="reminder_title">次の電車（宝木 → 鳥取）</string>
     <string name="reminder_text">%1$s 発まで あと%2$d分</string>
-    <string name="reminder_hint_walk">歩いて向かえば間に合います</string>
-    <string name="reminder_hint_fast_walk">早歩きで向かってください</string>
-    <string name="reminder_hint_dash">急いで。走らないと間に合いません</string>
+    <string name="reminder_hint_early">まだ余裕があります。歩いて 18 分ほどです</string>
+    <string name="reminder_hint_walk">今出れば普通に歩いて間に合います</string>
+    <string name="reminder_hint_fast_walk">早歩きで向かってください（早歩きで 15 分）</string>
     <string name="notify_test_title">テスト通知</string>
     <string name="notify_test_text">通知はこのように届きます</string>
 

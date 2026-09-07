@@ -36,19 +36,12 @@ class NotificationPlannerTest {
     }
 
     @Test
-    fun `inbound notifications anchor on the JR departure and arrival`() {
-        // 職場を出る 17:55（JR 発 − 徒歩 20 − 準備 5）、JR 18:20 発 18:42 着、バス 20:15 発
+    fun `inbound plans only the Hougi departure notification`() {
+        // JR 18:20 発。職場を出る時刻は勤務先リマインダーが担い、鳥取駅でのバス発車は通知しない
         val list = NotificationPlanner.plan(inbound)
-        assertEquals(
-            listOf(
-                NotificationKind.LEAVE_SOON to t("17:45"),
-                NotificationKind.LEAVE_NOW to t("17:55"),
-                NotificationKind.FIRST_LEG_DEPARTING to t("18:17"),
-                NotificationKind.APPROACHING_TRANSFER to t("18:40"),
-            ),
-            list.map { it.kind to it.fireAt },
-        )
-        assertEquals(listOf(200, 201, 202, 203), list.map { it.id })
+        assertEquals(listOf(NotificationKind.FIRST_LEG_DEPARTING to t("18:17")), list.map { it.kind to it.fireAt })
+        assertEquals(listOf(202), list.map { it.id })
+        assertTrue(list.all { it.bound == Bound.INBOUND && it.journey === inbound })
     }
 
     @Test

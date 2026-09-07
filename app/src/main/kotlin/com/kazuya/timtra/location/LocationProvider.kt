@@ -7,12 +7,18 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
 import android.os.Build
+import android.os.Looper
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
+import androidx.core.location.LocationListenerCompat
 import androidx.core.location.LocationManagerCompat
+import androidx.core.location.LocationRequestCompat
 import androidx.core.os.CancellationSignal
 import com.kazuya.timtra.core.model.GeoPoint
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
@@ -20,8 +26,11 @@ import javax.inject.Singleton
 import kotlin.coroutines.resume
 
 /**
- * 現在地を 1 回だけ取る。往路/復路の判定にしか使わないので粗い精度で十分。
- * 常時取得はしない（CLAUDE.md 3-4）: ホーム画面が表示されている間だけ呼ばれ、結果は数分キャッシュする。
+ * 現在地の取得。
+ *
+ * - [current]: 1 回だけ取る（通知の直前の判定など）。結果は数分キャッシュする。
+ * - [updates]: ホーム画面が表示されている間だけ数秒おきに受け取る（地図と「駅まであと何分」用）。
+ *   購読が切れれば止まる。バックグラウンドや常駐では使わない（CLAUDE.md 3-4）。
  */
 @Singleton
 class LocationProvider
@@ -72,6 +81,45 @@ class LocationProvider
             }
         }
 
+        /**
+         * 位置の連続更新。collect している間だけ GPS / 基地局測位を [intervalMillis] 間隔で受け取る。
+         * 許可が無い、または測位が使えないときは何も流さずに終わる。
+         */
+        @SuppressLint("MissingPermission")
+        fun updates(intervalMillis: Long = LIVE_INTERVAL_MILLIS): Flow<GeoPoint> =
+            callbackFlow {
+                val manager = context.getSystemService(LocationManager::class.java)
+                if (!hasPermission || manager == null) {
+                    close()
+                    return@callbackFlow
+                }
+                val listener =
+                    LocationListenerCompat { location ->
+                        val point = GeoPoint(location.latitude, location.longitude)
+                        cached = Cached(point, SystemClock.elapsedRealtime())
+                        trySend(point)
+                    }
+                val request =
+                    LocationRequestCompat
+                        .Builder(intervalMillis)
+                        .setQuality(LocationRequestCompat.QUALITY_HIGH_ACCURACY)
+                        .setMinUpdateIntervalMillis(intervalMillis)
+                        .build()
+                val providers = LIVE_PROVIDERS.filter { runCatching { manager.isProviderEnabled(it) }.getOrDefault(false) }
+                providers.forEach { provider ->
+                    runCatching {
+                        LocationManagerCompat.requestLocationUpdates(
+                            manager,
+                            provider,
+                            request,
+                            listener,
+                            Looper.getMainLooper(),
+                        )
+                    }
+                }
+                awaitClose { LocationManagerCompat.removeUpdates(manager, listener) }
+            }
+
         @SuppressLint("MissingPermission")
         private suspend fun fetch(
             manager: LocationManager,
@@ -111,6 +159,12 @@ class LocationProvider
             /** 基地局・Wi-Fi 測位を優先する。屋内でも取れて電池も食わない。 */
             private val PROVIDER_PREFERENCE =
                 listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER, LocationManager.PASSIVE_PROVIDER)
+
+            /** 連続更新で使う測位。屋外は GPS、屋内は基地局・Wi-Fi で補う。 */
+            private val LIVE_PROVIDERS = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
+
+            /** 連続更新の間隔。「数秒単位」で追いつつ電池を使いすぎない値。 */
+            const val LIVE_INTERVAL_MILLIS = 3_000L
             const val CACHE_MILLIS = 5 * 60_000L
             private const val FRESH_MILLIS = 10 * 60_000L
             const val REQUEST_TIMEOUT_MILLIS = 8_000L

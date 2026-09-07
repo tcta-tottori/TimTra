@@ -10,14 +10,20 @@ import java.time.LocalTime
 
 /**
  * 勤務先にいるときの「次の電車まであと N 分」リマインダーの段階。
- * 30 分前は歩き、20 分前は早歩き、15 分前は走る、の目安。アイコンはこの順に切り替える。
+ * 勤務先 → 宝木駅 は早歩きで 15 分ちょうど（実測）なので、30 分前はまだ余裕、20 分前は普通に歩いて間に合う、
+ * 15 分前は早歩きで出る、の目安。アイコンはこの順に切り替える。
  */
 enum class ReminderStage(
     val before: Duration,
 ) {
-    WALK(Duration.ofMinutes(30)),
-    FAST_WALK(Duration.ofMinutes(20)),
-    DASH(Duration.ofMinutes(15)),
+    /** 30 分前: 余裕あり */
+    EARLY(Duration.ofMinutes(30)),
+
+    /** 20 分前: 普通に歩いて間に合う */
+    WALK(Duration.ofMinutes(20)),
+
+    /** 15 分前: 早歩きで（実測 15 分） */
+    FAST_WALK(Duration.ofMinutes(15)),
 }
 
 /** 勤務先リマインダーの設定。 */

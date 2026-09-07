@@ -131,9 +131,9 @@ class TrainReminderScheduler
             val hint =
                 context.getString(
                     when (r.stage) {
+                        ReminderStage.EARLY -> R.string.reminder_hint_early
                         ReminderStage.WALK -> R.string.reminder_hint_walk
                         ReminderStage.FAST_WALK -> R.string.reminder_hint_fast_walk
-                        ReminderStage.DASH -> R.string.reminder_hint_dash
                     },
                 )
             return NotificationContent(
@@ -163,9 +163,9 @@ class TrainReminderScheduler
 
             fun iconOf(stage: ReminderStage): Int =
                 when (stage) {
+                    ReminderStage.EARLY -> R.drawable.ic_walk
                     ReminderStage.WALK -> R.drawable.ic_walk
                     ReminderStage.FAST_WALK -> R.drawable.ic_walk_fast
-                    ReminderStage.DASH -> R.drawable.ic_run
                 }
         }
     }

@@ -41,6 +41,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -52,11 +53,16 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kazuya.timtra.R
+import com.kazuya.timtra.core.geo.LandmarkKind
+import com.kazuya.timtra.core.geo.RouteLandmarks
 import com.kazuya.timtra.core.journey.BoundBasis
 import com.kazuya.timtra.core.journey.CommuteSettings
 import com.kazuya.timtra.core.journey.Journey
 import com.kazuya.timtra.core.journey.JourneyStatus
+import com.kazuya.timtra.core.journey.Pace
+import com.kazuya.timtra.core.journey.PaceAdvisor
 import com.kazuya.timtra.core.model.Bound
+import com.kazuya.timtra.core.model.GeoPoint
 import com.kazuya.timtra.data.realtime.RealtimeState
 import com.kazuya.timtra.location.LocationProvider
 import com.kazuya.timtra.ui.common.CircleIcon
@@ -64,9 +70,10 @@ import com.kazuya.timtra.ui.common.InfoPill
 import com.kazuya.timtra.ui.common.ModeBadge
 import com.kazuya.timtra.ui.common.ModeChip
 import com.kazuya.timtra.ui.common.TransitMode
-import com.kazuya.timtra.ui.common.countdownText
 import com.kazuya.timtra.ui.common.destinationIconRes
+import com.kazuya.timtra.ui.common.distanceText
 import com.kazuya.timtra.ui.common.hhmm
+import com.kazuya.timtra.ui.common.labelRes
 import com.kazuya.timtra.ui.common.originIconRes
 import com.kazuya.timtra.ui.common.statusLabel
 import com.kazuya.timtra.ui.theme.GradientCard
@@ -76,8 +83,10 @@ import com.kazuya.timtra.ui.theme.TimTraColors
 import com.kazuya.timtra.ui.theme.TimTraTopBar
 import com.kazuya.timtra.ui.theme.TopBarTitle
 import com.kazuya.timtra.ui.theme.TransitColors
+import java.time.Duration
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,8 +95,12 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // 1 秒刻みの現在時刻（秒単位のカウントダウン用）と、開いている時刻表ポップアップ
+    val nowSecond by viewModel.now.collectAsStateWithLifecycle()
+    val peek by viewModel.peek.collectAsStateWithLifecycle()
     // 権限画面から戻ったときに状態を取り直す
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
+    peek?.let { TimetablePeekSheet(peek = it, now = nowSecond.toLocalTime(), onDismiss = viewModel::closePeek) }
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
@@ -128,9 +141,11 @@ fun HomeScreen(
             is HomeUiState.Ready ->
                 HomeContent(
                     state = s,
+                    nowSecond = nowSecond,
                     onBoundChange = viewModel::setBound,
                     onPermissionsChanged = viewModel::refresh,
                     onResumeReminders = viewModel::resumeTrainReminders,
+                    onOpenPeek = viewModel::openPeek,
                     modifier = Modifier.padding(padding),
                 )
         }
@@ -140,9 +155,11 @@ fun HomeScreen(
 @Composable
 private fun HomeContent(
     state: HomeUiState.Ready,
+    nowSecond: LocalDateTime,
     onBoundChange: (Bound?) -> Unit,
     onPermissionsChanged: () -> Unit,
     onResumeReminders: () -> Unit,
+    onOpenPeek: (PeekKind) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -173,9 +190,9 @@ private fun HomeContent(
         } else {
             // 1. 家 / 職場を出る時刻と残り時間。決まった時間帯の外では最初の便の発車を主役にする
             if (state.showLeaveTime) {
-                LeaveCard(state.now, journey)
+                LeaveCard(nowSecond, journey, state.location, state.landmarks)
             } else {
-                NextDepartureCard(state.now, journey, state.settings)
+                NextDepartureCard(nowSecond, journey, state.settings, state.location, state.landmarks)
             }
             // 地図: 現在地と、駅・バス停までの距離。GTFS-RT が取れていればバスの位置も
             RouteMapCard(
@@ -192,17 +209,18 @@ private fun HomeContent(
                     ),
                 walkToWorkMinutes = state.settings.walkStationToWork.toMinutes(),
             )
+            // 各カードをタップすると、現在時刻から一番近い便以降の時刻表をポップアップで出す
             when (journey.bound) {
                 Bound.OUTBOUND -> {
                     // 2. バス 3. 乗り継ぎ 4. JR
-                    BusCard(journey, state.realtime)
+                    BusCard(journey, state.realtime) { onOpenPeek(PeekKind.BUS_HOME) }
                     TransferCard(journey, state.settings)
-                    JrCard(journey)
+                    JrCard(journey) { onOpenPeek(PeekKind.JR_OUTBOUND) }
                 }
                 Bound.INBOUND -> {
-                    JrCard(journey)
+                    JrCard(journey) { onOpenPeek(PeekKind.JR_INBOUND) }
                     TransferCard(journey, state.settings)
-                    BusCard(journey, state.realtime)
+                    BusCard(journey, state.realtime) { onOpenPeek(PeekKind.BUS_STATION) }
                 }
             }
             // 5. 到着予測
@@ -296,6 +314,8 @@ private fun Banner(
 private fun LeaveCard(
     now: LocalDateTime,
     journey: Journey,
+    here: GeoPoint?,
+    landmarks: RouteLandmarks,
 ) {
     GradientCard(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -318,13 +338,86 @@ private fun LeaveCard(
                 color = Color.White,
             )
             Text(
-                text = countdownText(now, journey.leaveAt),
-                style = MaterialTheme.typography.titleLarge,
+                text = remainingText(now, journey.leaveAt),
+                style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"),
+                fontWeight = FontWeight.Bold,
                 color = TimTraColors.accentLight,
             )
             Spacer(Modifier.height(12.dp))
             HeroLegStrip(journey)
+            PaceRow(now, journey, here, landmarks)
         }
+    }
+}
+
+/** 残り時間。1 時間以上は H:MM:SS、それ未満は MM:SS。過ぎていれば「発車しました」。 */
+@Composable
+private fun remainingText(
+    now: LocalDateTime,
+    target: LocalDateTime,
+): String {
+    val remaining = Duration.between(now, target)
+    if (remaining.isNegative) return stringResource(R.string.home_countdown_departed)
+    val total = remaining.seconds
+    val h = total / 3600
+    val m = total % 3600 / 60
+    val sec = total % 60
+    return if (h > 0) String.format(Locale.JAPAN, "%d:%02d:%02d", h, m, sec) else String.format(Locale.JAPAN, "%02d:%02d", m, sec)
+}
+
+/**
+ * 現在地から出発地点（往路: 南吉成、復路: 宝木駅）までの距離と発車までの残り時間から、
+ * 歩き / 早歩き / 走る / 間に合わない を人型アイコンで示す（core の PaceAdvisor）。位置が無ければ出さない。
+ */
+@Composable
+private fun PaceRow(
+    now: LocalDateTime,
+    journey: Journey,
+    here: GeoPoint?,
+    landmarks: RouteLandmarks,
+) {
+    if (here == null) return
+    val (placeKind, departAt) =
+        when (journey.bound) {
+            Bound.OUTBOUND -> LandmarkKind.HOME_STOP to journey.busDepartureEstimatedAt
+            Bound.INBOUND -> LandmarkKind.HOUGI_STATION to journey.train.departureAt
+        }
+    val place = landmarks.find(placeKind) ?: return
+    val advice = PaceAdvisor.advise(here.distanceMetersTo(place.location), Duration.between(now, departAt))
+    val placeName = stringResource(placeKind.labelRes)
+    val distance = distanceText(advice.routeMeters)
+    val (iconRes, color) =
+        when (advice.pace) {
+            Pace.WALK -> R.drawable.ic_walk to StatusColors.ok
+            Pace.FAST_WALK -> R.drawable.ic_walk_fast to StatusColors.tight
+            Pace.RUN -> R.drawable.ic_run to StatusColors.risk
+            Pace.TOO_LATE -> R.drawable.ic_warning to StatusColors.missed
+        }
+    val text =
+        when {
+            advice.atPlace -> stringResource(R.string.home_pace_at_place, placeName)
+            advice.pace == Pace.WALK -> stringResource(R.string.home_pace_walk, placeName, distance, advice.walkMinutes)
+            advice.pace == Pace.FAST_WALK -> stringResource(R.string.home_pace_fast_walk, placeName, distance, advice.fastWalkMinutes)
+            advice.pace == Pace.RUN -> stringResource(R.string.home_pace_run, placeName, distance)
+            else -> stringResource(R.string.home_pace_too_late, placeName, distance)
+        }
+    Spacer(Modifier.height(10.dp))
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(Color.White.copy(alpha = 0.14f), RoundedCornerShape(14.dp))
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CircleIcon(iconRes = iconRes, color = color, size = 36.dp)
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+        )
     }
 }
 
@@ -337,6 +430,8 @@ private fun NextDepartureCard(
     now: LocalDateTime,
     journey: Journey,
     settings: CommuteSettings,
+    here: GeoPoint?,
+    landmarks: RouteLandmarks,
 ) {
     val outbound = journey.bound == Bound.OUTBOUND
     val mode = if (outbound) TransitMode.BUS else TransitMode.JR
@@ -353,21 +448,23 @@ private fun NextDepartureCard(
                 Text(
                     text =
                         stringResource(if (outbound) R.string.home_next_departure_bus else R.string.home_next_departure_jr) +
-                            "  " + stringResource(R.string.home_departs_from, from),
+                            "  " + stringResource(R.string.home_departs_from, from) + " " + departAt.hhmm(),
                     style = MaterialTheme.typography.titleMedium,
                     color = Color.White.copy(alpha = 0.9f),
                 )
             }
+            // 残り時間を主役に。秒まで出して 1 秒ごとに進む
             Text(
-                text = departAt.hhmm(),
-                style = MaterialTheme.typography.displayLarge,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
+                text = stringResource(R.string.home_countdown_label),
+                style = MaterialTheme.typography.labelLarge,
+                color = TimTraColors.accentLight,
+                modifier = Modifier.padding(top = 6.dp),
             )
             Text(
-                text = countdownText(now, departAt),
-                style = MaterialTheme.typography.titleLarge,
-                color = TimTraColors.accentLight,
+                text = remainingText(now, departAt),
+                style = MaterialTheme.typography.displayLarge.copy(fontFeatureSettings = "tnum"),
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
             )
             if (outbound && journey.hasDelay) {
                 Text(
@@ -378,6 +475,7 @@ private fun NextDepartureCard(
             }
             Spacer(Modifier.height(12.dp))
             HeroLegStrip(journey)
+            PaceRow(now, journey, here, landmarks)
             Spacer(Modifier.height(8.dp))
             Text(
                 text =
@@ -466,10 +564,11 @@ private fun LegCard(
     departure: String,
     to: String,
     arrival: String,
+    onClick: () -> Unit,
     chips: @Composable RowScope.() -> Unit = {},
     extra: @Composable ColumnScope.() -> Unit = {},
 ) {
-    TimTraCard(modifier = Modifier.fillMaxWidth()) {
+    TimTraCard(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).clickable(onClick = onClick)) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 ModeBadge(mode = mode, size = 34.dp)
@@ -477,6 +576,13 @@ private fun LegCard(
                 Text(title, style = MaterialTheme.typography.titleSmall, color = mode.color, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically, content = chips)
+                Spacer(Modifier.width(6.dp))
+                Icon(
+                    painter = painterResource(R.drawable.ic_schedule),
+                    contentDescription = stringResource(R.string.home_tap_for_timetable),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
             }
             Spacer(Modifier.height(10.dp))
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -523,6 +629,7 @@ private fun TimeColumn(
 private fun BusCard(
     journey: Journey,
     realtime: RealtimeState,
+    onClick: () -> Unit,
 ) {
     val trip = journey.bus.trip
     val platform = if (journey.bound == Bound.INBOUND) trip.boardStop.platformCode else trip.alightStop.platformCode
@@ -533,6 +640,7 @@ private fun BusCard(
         departure = journey.bus.departureAt.hhmm(),
         to = trip.alightStop.name,
         arrival = journey.bus.arrivalAt.hhmm(),
+        onClick = onClick,
         chips = {
             InfoPill(
                 text =
@@ -649,7 +757,10 @@ private fun TransferCard(
 }
 
 @Composable
-private fun JrCard(journey: Journey) {
+private fun JrCard(
+    journey: Journey,
+    onClick: () -> Unit,
+) {
     val service = journey.train.service
     val (from, to) =
         when (journey.bound) {
@@ -663,6 +774,7 @@ private fun JrCard(journey: Journey) {
         departure = journey.train.departureAt.hhmm(),
         to = to,
         arrival = journey.train.arrivalAt.hhmm(),
+        onClick = onClick,
         chips = {
             InfoPill(text = service.trainId)
             if (service.platform.isNotBlank()) {
