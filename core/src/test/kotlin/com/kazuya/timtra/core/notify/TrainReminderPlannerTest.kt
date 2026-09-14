@@ -44,11 +44,14 @@ class TrainReminderPlannerTest {
     }
 
     @Test
-    fun `irregular trains are not reminded`() {
-        // ◆特定日のみ運転の便（宝木 23:14 発）は走るとは限らないのでリマインダーを作らない。
+    fun `the last train from hougi gets reminders too`() {
+        // 終電（宝木 23:14 発）を逃すと帰れないので、ここのリマインダーは必ず作る。
         val reminders = TrainReminderPlanner.plan(monday, jr, TrainReminderSettings())
-        assertTrue(reminders.none { it.train.irregular })
-        assertTrue(reminders.none { it.train.departure == LocalTime.of(23, 14) })
+        assertEquals(LocalTime.of(23, 14), reminders.last().train.departure)
+        assertEquals(
+            listOf(LocalTime.of(22, 44), LocalTime.of(22, 54), LocalTime.of(22, 59)),
+            reminders.filter { it.train.departure == LocalTime.of(23, 14) }.map { it.fireAt.toLocalTime() },
+        )
     }
 
     @Test
