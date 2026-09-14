@@ -2,7 +2,9 @@ package com.kazuya.timtra.notify
 
 import android.content.Context
 import com.kazuya.timtra.R
+import com.kazuya.timtra.core.model.DayType
 import com.kazuya.timtra.core.model.GeoPoint
+import com.kazuya.timtra.core.model.JrTimetable
 import com.kazuya.timtra.core.model.Places
 import com.kazuya.timtra.core.notify.ReminderStage
 import com.kazuya.timtra.core.notify.TrainReminder
@@ -49,7 +51,7 @@ class TrainReminderScheduler
             val today = now.toLocalDate()
             val days =
                 listOf(
-                    today to if (appSettings.isTrainReminderOff(today)) emptyList() else plannerFor(today, appSettings, now),
+                    today to plannerFor(today, appSettings, now),
                     today.plusDays(1) to plannerFor(today.plusDays(1), appSettings, null),
                 )
             val planned =
@@ -75,7 +77,25 @@ class TrainReminderScheduler
             date: LocalDate,
             appSettings: AppSettings,
             notBefore: LocalDateTime?,
-        ): List<TrainReminder> = TrainReminderPlanner.plan(date, jr.timetable(), appSettings.trainReminder, notBefore = notBefore)
+        ): List<TrainReminder> {
+            val timetable = jr.timetable()
+            if (!isWorkday(date, appSettings, timetable)) return emptyList()
+            return TrainReminderPlanner.plan(date, timetable, appSettings.trainReminder, notBefore = notBefore)
+        }
+
+        /**
+         * その日にリマインダーを鳴らすか。通勤通知と同じ前提（平日のみ・「今日は休み」は出さない）に合わせる。
+         * 位置が取れないときは鳴らす側に倒すので、ここで土日祝と休みの日を落としておかないと
+         * 家にいる休日に鳴ってしまう。
+         */
+        private fun isWorkday(
+            date: LocalDate,
+            appSettings: AppSettings,
+            timetable: JrTimetable,
+        ): Boolean =
+            !appSettings.isTrainReminderOff(date) &&
+                appSettings.dayOff != date &&
+                timetable.dayTypeOf(date) == DayType.WEEKDAY
 
         /**
          * 鳴る瞬間の判定。出すなら true。
@@ -88,7 +108,8 @@ class TrainReminderScheduler
         suspend fun shouldShowNow(date: LocalDate): Boolean {
             val appSettings = settings.current()
             if (!appSettings.notificationsEnabled || !appSettings.trainReminder.enabled) return false
-            if (appSettings.isTrainReminderOff(date)) return false
+            // 予約後に休みへ切り替えた場合も鳴らさない（予約は残っているので、鳴る瞬間にもう一度見る）
+            if (!isWorkday(date, appSettings, jr.timetable())) return false
             val fix = location.currentFix(maxCacheMillis = RECEIVER_CACHE_MILLIS, timeoutMillis = RECEIVER_TIMEOUT_MILLIS)
             // 位置が取れない / 古い位置しか無い → 判断できないので出す
             if (fix == null || fix.isStale) return true

@@ -31,6 +31,9 @@ jobs:
           cmdline-tools-version: latest
           accept-android-sdk-licenses: true
           log-accepted-android-sdk-licenses: false
+          # 既定の "tools platform-tools" は tools が配信終了していて sdkmanager が落ちる。
+          # 必要な platforms / build-tools は次のステップで入れるので、ここでは何も入れない。
+          packages: ''
 
       - name: 利用可能な SDK を確認
         run: |
