@@ -75,9 +75,7 @@ class WearBoardProvider
         val locationPermitted: Boolean get() = location.hasPermission
 
         /** どの地点を出すか決める。位置の取得はここでだけ行う。 */
-        suspend fun resolvePlace(
-            locationTimeoutMillis: Long = WearLocationProvider.REQUEST_TIMEOUT_MILLIS,
-        ): PlaceResolution {
+        suspend fun resolvePlace(locationTimeoutMillis: Long = WearLocationProvider.REQUEST_TIMEOUT_MILLIS): PlaceResolution {
             val manual = manualPlace()
             if (manual != null) return PlaceResolution(manual, PlaceBasis.MANUAL, null)
             val here = location.current(timeoutMillis = locationTimeoutMillis)
