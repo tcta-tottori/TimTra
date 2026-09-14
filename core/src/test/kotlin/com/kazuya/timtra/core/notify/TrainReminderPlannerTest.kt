@@ -23,7 +23,7 @@ class TrainReminderPlannerTest {
         assertTrue(reminders.none { it.train.departure == LocalTime.of(16, 59) })
         val first = reminders.filter { it.train.departure == LocalTime.of(18, 10) }
         assertEquals(
-            listOf(LocalTime.of(17, 40), LocalTime.of(17, 50), LocalTime.of(17, 55)),
+            listOf(LocalTime.of(17, 40), LocalTime.of(17, 50), LocalTime.of(18, 0)),
             first.map { it.fireAt.toLocalTime() },
         )
         assertEquals(listOf(ReminderStage.WALK, ReminderStage.FAST_WALK, ReminderStage.DASH), first.map { it.stage })
@@ -41,6 +41,24 @@ class TrainReminderPlannerTest {
         assertTrue(reminders.none { it.fireAt.isBefore(now) })
         assertEquals(ReminderStage.DASH, reminders.first().stage)
         assertTrue(TrainReminderPlanner.plan(monday, jr, TrainReminderSettings(enabled = false)).isEmpty())
+    }
+
+    @Test
+    fun `stages are spaced enough for doze`() {
+        // ドーズ中の setExactAndAllowWhileIdle は 1 アプリ 9 分に 1 回まで。
+        // これより詰めると後の段階が遅れて届くので、段階の間隔を 9 分以上に保つ。
+        val offsets = ReminderStage.entries.map { it.before }
+        offsets.zipWithNext().forEach { (earlier, later) ->
+            assertTrue(earlier.minus(later) >= ReminderStage.MIN_SPACING, "$earlier と $later の間隔が狭すぎる")
+        }
+    }
+
+    @Test
+    fun `irregular trains are not reminded`() {
+        // ◆特定日のみ運転の便（宝木 23:14 発）は走るとは限らないのでリマインダーを作らない。
+        val reminders = TrainReminderPlanner.plan(monday, jr, TrainReminderSettings())
+        assertTrue(reminders.none { it.train.irregular })
+        assertTrue(reminders.none { it.train.departure == LocalTime.of(23, 14) })
     }
 
     @Test

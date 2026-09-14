@@ -123,8 +123,8 @@
     <string name="settings_notify_before_first_leg">発車の何分前に「まもなく発車」</string>
     <string name="settings_notify_before_transfer">鳥取駅到着の何分前に「次は鳥取駅」</string>
     <string name="settings_section_reminder">勤務先の「次の電車」リマインダー</string>
-    <string name="settings_reminder_enabled">勤務先にいるとき、次の電車まで 30 / 20 / 15 分前に通知</string>
-    <string name="settings_reminder_note">対象は宝木発（鳥取方面）。鳴る直前に現在地を確認し、勤務先を離れていればその日は止めます</string>
+    <string name="settings_reminder_enabled">勤務先にいるとき、次の電車まで 30 / 20 / 10 分前に通知</string>
+    <string name="settings_reminder_note">対象は宝木発（鳥取方面）。鳴る直前に現在地を確認し、勤務先を離れたと確認できた場合だけその日は止めます（位置が取れないときは通知します）</string>
     <string name="settings_reminder_window_start">この時刻以降の電車が対象</string>
     <string name="settings_workplace">勤務先の位置</string>
     <string name="settings_workplace_registered">登録済み（%1$.4f, %2$.4f）</string>
@@ -134,13 +134,14 @@
     <string name="settings_workplace_registered_toast">現在地を勤務先として登録しました</string>
     <string name="settings_workplace_failed">現在地を取得できませんでした。位置情報を ON にして再度お試しください</string>
     <string name="settings_background_location">位置情報「常に許可」</string>
-    <string name="settings_background_location_note">通知が鳴る直前に勤務先にいるか確認するために必要です。無いとリマインダーは出ません</string>
+    <string name="settings_background_location_note">通知が鳴る直前に勤務先にいるか確認するために使います。無い場合は場所を確認できないため、勤務先を離れていてもリマインダーが出ます</string>
     <string name="settings_reminder_off_today">本日は勤務先を離れたため停止中</string>
     <string name="settings_plan_status">通知の予約状況</string>
     <string name="settings_plan_today">今日（%1$s）: %2$s</string>
     <string name="settings_plan_tomorrow">明日（%1$s）: %2$s</string>
     <string name="settings_plan_count">%1$d 件予約済み</string>
     <string name="settings_plan_none">予約なし</string>
+    <string name="settings_plan_reminders">次の電車リマインダー（今日の残り + 明日）: %1$s</string>
     <string name="settings_plan_computed_at">%1$s に計算</string>
     <string name="settings_plan_not_computed">まだ計算していません</string>
     <string name="settings_plan_inexact">正確なアラームが許可されていないため、通知が数分ずれることがあります</string>
@@ -173,7 +174,7 @@
     <string name="notify_summary_outbound">出発 %1$s / バス %2$s→%3$s / JR %4$s→%5$s / 余裕 %6$d分</string>
     <string name="notify_summary_inbound">出発 %1$s / JR %2$s→%3$s / バス %4$s→%5$s / 余裕 %6$d分</string>
     <string name="notify_channel_reminder_name">次の電車のリマインダー</string>
-    <string name="notify_channel_reminder_description">勤務先にいるとき、宝木発の次の電車まで 30 / 20 / 15 分前にお知らせ</string>
+    <string name="notify_channel_reminder_description">勤務先にいるとき、宝木発の次の電車まで 30 / 20 / 10 分前にお知らせ</string>
     <string name="reminder_title">次の電車（宝木 → 鳥取）</string>
     <string name="reminder_text">%1$s 発まで あと%2$d分</string>
     <string name="reminder_hint_walk">歩いて向かえば間に合います</string>

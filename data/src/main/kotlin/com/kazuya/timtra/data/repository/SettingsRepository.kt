@@ -60,6 +60,8 @@ data class NotificationPlanSummary(
     val tomorrowReason: String? = null,
     /** 正確なアラームで予約できたか。 */
     val exactAlarms: Boolean = true,
+    /** 勤務先の「次の電車」リマインダーの予約件数（今日の残り + 明日）。 */
+    val reminderCount: Int = 0,
 )
 
 @Singleton
@@ -154,6 +156,7 @@ class SettingsRepository
                     tomorrowCount = p[Keys.PLAN_TOMORROW_COUNT] ?: 0,
                     tomorrowReason = p[Keys.PLAN_TOMORROW_REASON],
                     exactAlarms = p[Keys.PLAN_EXACT] ?: true,
+                    reminderCount = p[Keys.PLAN_REMINDER_COUNT] ?: 0,
                 )
             }
 
@@ -173,6 +176,7 @@ class SettingsRepository
                 p[Keys.PLAN_TOMORROW_COUNT] = summary.tomorrowCount
                 put(Keys.PLAN_TOMORROW_REASON, summary.tomorrowReason)
                 p[Keys.PLAN_EXACT] = summary.exactAlarms
+                p[Keys.PLAN_REMINDER_COUNT] = summary.reminderCount
             }
         }
 
@@ -256,6 +260,7 @@ class SettingsRepository
             val PLAN_TOMORROW_COUNT = intPreferencesKey("plan_tomorrow_count")
             val PLAN_TOMORROW_REASON = stringPreferencesKey("plan_tomorrow_reason")
             val PLAN_EXACT = booleanPreferencesKey("plan_exact_alarms")
+            val PLAN_REMINDER_COUNT = intPreferencesKey("plan_reminder_count")
             val LAST_SYNCED_AT = longPreferencesKey("last_synced_at")
             val TRAIN_REMINDER_ENABLED = booleanPreferencesKey("train_reminder_enabled")
             val TRAIN_REMINDER_WINDOW_START = intPreferencesKey("train_reminder_window_start_sec")

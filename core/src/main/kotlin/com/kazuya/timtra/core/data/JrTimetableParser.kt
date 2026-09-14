@@ -34,6 +34,7 @@ object JrTimetableParser {
                                 arrival = LocalTime.parse(s.arrival, timeFormat),
                                 platform = s.platform,
                                 note = s.note,
+                                irregular = s.irregular,
                             )
                         },
                 )
@@ -71,6 +72,8 @@ object JrTimetableParser {
         val arrival: String,
         val platform: String = "",
         val note: String = "",
+        /** 駅時刻表の ◆ 印（特定日のみ運転）。 */
+        val irregular: Boolean = false,
     )
 
     @Serializable

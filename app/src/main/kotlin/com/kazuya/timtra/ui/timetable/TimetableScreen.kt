@@ -44,6 +44,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kazuya.timtra.R
 import com.kazuya.timtra.ui.common.hhmm
+import com.kazuya.timtra.ui.theme.StatusColors
 import com.kazuya.timtra.ui.theme.TimTraColors
 import com.kazuya.timtra.ui.theme.TimTraTopBar
 import java.time.format.DateTimeFormatter
@@ -265,6 +266,10 @@ private fun TimetableList(state: TimetableUiState) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(entry.destination, style = MaterialTheme.typography.bodyMedium)
                     Text(entry.line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    // 「特定日のみ運転」など。毎日は走らない便であることが一目で分かるようにする。
+                    if (entry.note.isNotBlank()) {
+                        Text(entry.note, style = MaterialTheme.typography.labelMedium, color = StatusColors.tight)
+                    }
                 }
                 entry.platform?.let {
                     Spacer(Modifier.width(8.dp))

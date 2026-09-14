@@ -46,8 +46,21 @@ class RealJrTimetableTest {
         val upHoliday = deps(sunday, JrLegIds.HOUGI_TO_TOTTORI)
         assertTrue(LocalTime.of(8, 25) in upWeekday && LocalTime.of(8, 25) !in upHoliday)
         assertEquals(upWeekday.size - 1, upHoliday.size)
-        assertFalse(LocalTime.of(23, 14) in upWeekday, "◆ 特定日のみ運転は除外")
+        assertFalse(LocalTime.of(23, 14) in upWeekday, "◆ 特定日のみ運転は通勤案の計算には使わない")
         assertTrue(upWeekday == upWeekday.sorted())
+    }
+
+    @Test
+    fun `timetable listing shows the last train including irregular services`() {
+        val monday = LocalDate.of(2026, 9, 7)
+        // 時刻表画面は終電まで見せる（◆特定日のみ運転も含める）
+        val listed = jr.servicesOn(monday, JrLegIds.HOUGI_TO_TOTTORI, includeIrregular = true)
+        val last = listed.last()
+        assertEquals(LocalTime.of(23, 14), last.departure, "宝木発の終電")
+        assertTrue(last.irregular)
+        assertTrue(last.note.isNotBlank(), "毎日は走らないことが分かる備考を付ける")
+        // 計算用（既定）は 1 本少ない
+        assertEquals(listed.size - 1, jr.servicesOn(monday, JrLegIds.HOUGI_TO_TOTTORI).size)
     }
 
     @Test

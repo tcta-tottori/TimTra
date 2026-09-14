@@ -57,6 +57,11 @@ data class JrService(
     val arrival: LocalTime,
     val platform: String = "",
     val note: String = "",
+    /**
+     * 駅時刻表の ◆ 印（特定日のみ運転）。時刻表の一覧には出すが、
+     * 毎日走る保証が無いので通勤案の計算とリマインダーの予約には使わない。
+     */
+    val irregular: Boolean = false,
 ) {
     /** 到着が出発より早い時刻なら日付をまたいでいる（例: 23:50 発 00:12 着）。 */
     val arrivesNextDay: Boolean get() = arrival.isBefore(departure)
@@ -95,13 +100,22 @@ data class JrTimetable(
             else -> DayType.WEEKDAY
         }
 
-    /** その日にその区間で運行する便を発時刻順で返す。 */
+    /**
+     * その日にその区間で運行する便を発時刻順で返す。
+     *
+     * @param includeIrregular ◆特定日のみ運転の便も含めるか。
+     *   時刻表の一覧（終電まで見せたい）は true、通勤案・リマインダーの計算は false。
+     */
     fun servicesOn(
         date: LocalDate,
         legId: String,
         holidays: HolidayCalendar = JapaneseHolidays,
+        includeIrregular: Boolean = false,
     ): List<JrService> {
         val dayType = dayTypeOf(date, holidays)
-        return leg(legId).services.filter { it.calendar.runsOn(dayType) }.sortedBy { it.departure }
+        return leg(legId)
+            .services
+            .filter { it.calendar.runsOn(dayType) && (includeIrregular || !it.irregular) }
+            .sortedBy { it.departure }
     }
 }

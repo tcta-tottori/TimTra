@@ -11,6 +11,7 @@ import com.kazuya.timtra.data.di.AppClock
 import com.kazuya.timtra.data.repository.AppSettings
 import com.kazuya.timtra.data.repository.JrTimetableRepository
 import com.kazuya.timtra.data.repository.SettingsRepository
+import com.kazuya.timtra.location.LocationFix
 import com.kazuya.timtra.location.LocationProvider
 import com.kazuya.timtra.ui.common.hhmm
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -20,11 +21,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * 勤務先（気高電機）にいるときの「次の電車まであと 30 / 20 / 15 分」リマインダー。
+ * 勤務先（気高電機）にいるときの「次の電車まであと 30 / 20 / 10 分」リマインダー。
  *
  * - 予約は通勤通知と同じく前夜（と再計算時）に AlarmManager へ入れる。常駐はしない。
- * - 鳴る瞬間に [shouldShowNow] で位置を 1 回だけ確認し、勤務先にいなければ出さず、その日の残りを取り消す
- *   （「気高電機から離れた時点でその日の通知機能はオフ」）。
+ * - 鳴る瞬間に [shouldShowNow] で位置を 1 回だけ確認し、**確かに** 勤務先から離れていれば出さず、
+ *   その日の残りを取り消す（「気高電機から離れた時点でその日の通知機能はオフ」）。
+ * - 位置が取れない・古い位置しか無いときは **通知を出す**。バックグラウンドの測位は
+ *   「常に許可」やドーズの影響で失敗しやすく、黙って鳴らさないと勤務先にいても通知が来なくなるため。
  * - 勤務先の位置は設定で登録した値、未登録なら [Places.WORKPLACE_DEFAULT]。
  */
 @Singleton
@@ -75,18 +78,23 @@ class TrainReminderScheduler
         ): List<TrainReminder> = TrainReminderPlanner.plan(date, jr.timetable(), appSettings.trainReminder, notBefore = notBefore)
 
         /**
-         * 鳴る瞬間の判定。勤務先にいれば true。
-         * 離れていれば（または位置が取れなければ）false を返し、離れていた場合はその日のリマインダーを止める。
+         * 鳴る瞬間の判定。出すなら true。
+         *
+         * 「勤務先から離れた」と断定できたときだけ止める。バックグラウンドの測位は
+         * 「常に許可」が無い・ドーズ中・屋内などで簡単に失敗し、古い位置（今朝の自宅など）が
+         * 返ってくることもある。それを「離れた」と解釈すると、勤務先にいるのに通知が来ないうえ
+         * その日の残りまで取り消されてしまうので、確信が持てないときは出す側に倒す。
          */
         suspend fun shouldShowNow(date: LocalDate): Boolean {
             val appSettings = settings.current()
             if (!appSettings.notificationsEnabled || !appSettings.trainReminder.enabled) return false
             if (appSettings.isTrainReminderOff(date)) return false
-            // バックグラウンドの位置は「常に許可」が無いと取れない。取れないときは出さない（家で鳴るよりまし）。
-            val here = location.current(maxCacheMillis = RECEIVER_CACHE_MILLIS, timeoutMillis = RECEIVER_TIMEOUT_MILLIS) ?: return false
-            val atWork = isAtWorkplace(here, appSettings)
-            if (!atWork) markLeft(date)
-            return atWork
+            val fix = location.currentFix(maxCacheMillis = RECEIVER_CACHE_MILLIS, timeoutMillis = RECEIVER_TIMEOUT_MILLIS)
+            // 位置が取れない / 古い位置しか無い → 判断できないので出す
+            if (fix == null || fix.isStale) return true
+            if (isAtWorkplace(fix, appSettings)) return true
+            markLeft(date)
+            return false
         }
 
         /**
@@ -94,14 +102,15 @@ class TrainReminderScheduler
          * 鳴る瞬間を待たずに止められるので、帰宅途中に鳴ることが減る。
          */
         suspend fun onLocationObserved(
-            here: GeoPoint?,
+            fix: LocationFix?,
             now: LocalDateTime,
         ) {
-            if (here == null) return
+            // 古い位置で「離れた」と誤判定するとその日の通知が全部消えるので、新しい位置のときだけ見る
+            if (fix == null || fix.isStale) return
             val appSettings = settings.current()
             if (!appSettings.trainReminder.enabled || appSettings.isTrainReminderOff(now.toLocalDate())) return
             if (now.toLocalTime().isBefore(appSettings.trainReminder.windowStart)) return
-            if (!isAtWorkplace(here, appSettings)) markLeft(now.toLocalDate())
+            if (!isAtWorkplace(fix, appSettings)) markLeft(now.toLocalDate())
         }
 
         /** その日のリマインダーを止める（勤務先を離れた）。今日分の予約も取り消す。 */
@@ -116,10 +125,17 @@ class TrainReminderScheduler
             replan()
         }
 
+        /**
+         * 勤務先にいるとみなせるか。測位の誤差半径を差し引いてから判定するので、
+         * 基地局測位のような粗い位置で「離れた」と誤判定しにくい。
+         */
         fun isAtWorkplace(
-            here: GeoPoint,
+            fix: LocationFix,
             appSettings: AppSettings,
-        ): Boolean = here.distanceMetersTo(workplaceOf(appSettings)) <= WORKPLACE_RADIUS_METERS
+        ): Boolean {
+            val distance = fix.point.distanceMetersTo(workplaceOf(appSettings))
+            return distance - fix.accuracyMeters <= WORKPLACE_RADIUS_METERS
+        }
 
         private fun content(
             r: TrainReminder,
@@ -152,8 +168,12 @@ class TrainReminderScheduler
             (0 until DAYS).flatMap { d -> TrainReminderPlanner.ALL_REQUEST_CODES.map { it + d * DAY_BLOCK } }
 
         companion object {
-            /** この距離以内なら「勤務先にいる」。基地局測位の誤差を見込む。 */
-            const val WORKPLACE_RADIUS_METERS = 600.0
+            /**
+             * この距離以内なら「勤務先にいる」。測位の誤差半径は別途差し引くので、
+             * ここは勤務先の敷地と最寄りの行動範囲をゆるく覆う値でよい。
+             * 自宅（南吉成）も鳥取駅も 15 km 以上離れているので、広めに取っても取り違えない。
+             */
+            const val WORKPLACE_RADIUS_METERS = 1_500.0
             private const val DAYS = 2
             private const val DAY_BLOCK = 1_000
             private const val RECEIVER_CACHE_MILLIS = 2 * 60_000L

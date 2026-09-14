@@ -20,6 +20,28 @@ import javax.inject.Singleton
 import kotlin.coroutines.resume
 
 /**
+ * 1 回の測位結果。「勤務先にいるか」の判定は、いつ・どれくらいの精度で取れた位置かで
+ * 信頼度が変わるので、座標だけでなく古さと誤差半径も返す。
+ */
+data class LocationFix(
+    val point: GeoPoint,
+    /** 測位からの経過時間（ミリ秒）。端末が返さない場合は 0。 */
+    val ageMillis: Long,
+    /** 誤差半径（メートル）。端末が返さない場合は [UNKNOWN_ACCURACY]。 */
+    val accuracyMeters: Float,
+) {
+    /** 古すぎて「いまどこにいるか」の判断には使えない位置。 */
+    val isStale: Boolean get() = ageMillis > STALE_MILLIS
+
+    companion object {
+        const val UNKNOWN_ACCURACY = 1_000f
+
+        /** これより古い位置は「現在地」として扱わない。 */
+        const val STALE_MILLIS = 15 * 60_000L
+    }
+}
+
+/**
  * 現在地を 1 回だけ取る。往路/復路の判定にしか使わないので粗い精度で十分。
  * 常時取得はしない（CLAUDE.md 3-4）: ホーム画面が表示されている間だけ呼ばれ、結果は数分キャッシュする。
  */
@@ -30,7 +52,7 @@ class LocationProvider
         @ApplicationContext private val context: Context,
     ) {
         private data class Cached(
-            val point: GeoPoint,
+            val fix: LocationFix,
             val atElapsedMillis: Long,
         )
 
@@ -62,14 +84,28 @@ class LocationProvider
         suspend fun current(
             maxCacheMillis: Long = CACHE_MILLIS,
             timeoutMillis: Long = REQUEST_TIMEOUT_MILLIS,
-        ): GeoPoint? {
+        ): GeoPoint? = currentFix(maxCacheMillis, timeoutMillis)?.point
+
+        /** [current] と同じだが、古さと誤差半径も返す。勤務先判定はこちらを使う。 */
+        suspend fun currentFix(
+            maxCacheMillis: Long = CACHE_MILLIS,
+            timeoutMillis: Long = REQUEST_TIMEOUT_MILLIS,
+        ): LocationFix? {
             if (!hasPermission) return null
-            cached?.let { if (SystemClock.elapsedRealtime() - it.atElapsedMillis < maxCacheMillis) return it.point }
+            cached?.let { hit ->
+                val sinceCached = SystemClock.elapsedRealtime() - hit.atElapsedMillis
+                if (sinceCached < maxCacheMillis) return hit.fix.copy(ageMillis = hit.fix.ageMillis + sinceCached)
+            }
             val manager = context.getSystemService(LocationManager::class.java) ?: return null
             val location = fetch(manager, timeoutMillis) ?: return null
-            return GeoPoint(location.latitude, location.longitude).also {
-                cached = Cached(it, SystemClock.elapsedRealtime())
-            }
+            val fix =
+                LocationFix(
+                    point = GeoPoint(location.latitude, location.longitude),
+                    ageMillis = (System.currentTimeMillis() - location.time).coerceAtLeast(0L),
+                    accuracyMeters = if (location.hasAccuracy()) location.accuracy else LocationFix.UNKNOWN_ACCURACY,
+                )
+            cached = Cached(fix, SystemClock.elapsedRealtime())
+            return fix
         }
 
         @SuppressLint("MissingPermission")

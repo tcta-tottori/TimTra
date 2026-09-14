@@ -69,7 +69,7 @@ class NotificationScheduler
                 }
             alarms.schedule(scheduled)
             // 勤務先の「次の電車まで」リマインダーも同じタイミングで予約し直す
-            trainReminders.replan(now)
+            val reminders = trainReminders.replan(now)
 
             settings.savePlanSummary(
                 NotificationPlanSummary(
@@ -81,6 +81,7 @@ class NotificationScheduler
                     tomorrowCount = plans[1].notifications.size,
                     tomorrowReason = plans[1].suppressReason?.name,
                     exactAlarms = alarms.canScheduleExact,
+                    reminderCount = reminders.size,
                 ),
             )
             // 設定変更・起動・夜間ジョブのたびに時計へも設定を配り、ウィジェットも描き直す

@@ -10,14 +10,23 @@ import java.time.LocalTime
 
 /**
  * 勤務先にいるときの「次の電車まであと N 分」リマインダーの段階。
- * 30 分前は歩き、20 分前は早歩き、15 分前は走る、の目安。アイコンはこの順に切り替える。
+ * 30 分前は歩き、20 分前は早歩き、10 分前は走る、の目安。アイコンはこの順に切り替える。
+ *
+ * 段階の間隔は 10 分以上あける。Android の setExactAndAllowWhileIdle はドーズ中、
+ * 1 アプリあたり 9 分に 1 回までしか鳴らせず、これより詰めると後の段階が遅れて届く。
  */
 enum class ReminderStage(
     val before: Duration,
 ) {
     WALK(Duration.ofMinutes(30)),
     FAST_WALK(Duration.ofMinutes(20)),
-    DASH(Duration.ofMinutes(15)),
+    DASH(Duration.ofMinutes(10)),
+    ;
+
+    companion object {
+        /** ドーズ中の setExactAndAllowWhileIdle の最小間隔。段階の間隔はこれ以上にする。 */
+        val MIN_SPACING: Duration = Duration.ofMinutes(9)
+    }
 }
 
 /** 勤務先リマインダーの設定。 */

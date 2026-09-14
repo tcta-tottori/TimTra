@@ -311,6 +311,10 @@ private fun PlanStatus(summary: NotificationPlanSummary) {
             style = MaterialTheme.typography.bodyMedium,
         )
         Text(
+            text = stringResource(R.string.settings_plan_reminders, planLine(summary.reminderCount, null)),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
             text = stringResource(R.string.settings_plan_computed_at, computedAt.hhmm()),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

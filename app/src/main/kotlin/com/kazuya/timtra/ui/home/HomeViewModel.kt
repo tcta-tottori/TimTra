@@ -112,7 +112,8 @@ class HomeViewModel
             val now = clock.now()
             val timetable = busTimetable.timetable()
             // 現在位置に近い側の出発時刻を出す。手動切替が最優先、位置が取れなければ時刻帯で決める。
-            val here = location.current()
+            val fix = location.currentFix()
+            val here = fix?.point
             val decision =
                 manual?.let { BoundDecision(it, BoundBasis.MANUAL) }
                     ?: BoundResolver.resolve(
@@ -123,7 +124,7 @@ class HomeViewModel
                     )
             val bound = decision.bound
             // 勤務先を離れていれば、その日の「次の電車」リマインダーを止める
-            trainReminders.onLocationObserved(here, now)
+            trainReminders.onLocationObserved(fix, now)
 
             suspend fun plan(delays: Map<String, Duration>) =
                 journeys.candidates(PlanRequest(now = now, bound = bound, delays = delays), CANDIDATE_COUNT)

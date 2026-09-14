@@ -32,6 +32,8 @@ data class TimetableEntry(
     val line: String,
     val destination: String,
     val platform: String?,
+    /** 「特定日のみ運転」など、時刻表の備考。空なら出さない。 */
+    val note: String = "",
 ) {
     val time: LocalTime get() = LocalTime.ofSecondOfDay((seconds % SECONDS_PER_DAY).toLong())
 
@@ -140,15 +142,30 @@ class TimetableViewModel
                             }
                         val leg = jrTimetable.leg(JrLegIds.TOTTORI_TO_HOUGI)
                         val trains =
-                            jrTimetable.servicesOn(today, leg.id).map {
-                                TimetableEntry(it.departure.toSecondOfDay(), EntryKind.JR, it.trainId, leg.to, it.platform.ifBlank { null })
+                            jrTimetable.servicesOn(today, leg.id, includeIrregular = true).map {
+                                TimetableEntry(
+                                    it.departure.toSecondOfDay(),
+                                    EntryKind.JR,
+                                    it.trainId,
+                                    leg.to,
+                                    it.platform.ifBlank { null },
+                                    it.note,
+                                )
                             }
                         (buses + trains).filter { filter.accepts(it.kind) }
                     }
                     TimetableTab.HOUGI -> {
                         val leg = jrTimetable.leg(JrLegIds.HOUGI_TO_TOTTORI)
-                        jrTimetable.servicesOn(today, leg.id).map {
-                            TimetableEntry(it.departure.toSecondOfDay(), EntryKind.JR, it.trainId, leg.to, it.platform.ifBlank { null })
+                        // 時刻表は終電まで見せたいので ◆特定日のみ運転の便も含める（備考に運転日を出す）
+                        jrTimetable.servicesOn(today, leg.id, includeIrregular = true).map {
+                            TimetableEntry(
+                                it.departure.toSecondOfDay(),
+                                EntryKind.JR,
+                                it.trainId,
+                                leg.to,
+                                it.platform.ifBlank { null },
+                                it.note,
+                            )
                         }
                     }
                 }.sortedWith(compareBy({ it.seconds }, { it.kind }, { it.line }))
