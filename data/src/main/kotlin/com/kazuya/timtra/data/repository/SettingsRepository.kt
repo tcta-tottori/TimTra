@@ -154,6 +154,19 @@ class SettingsRepository
         /** スマホから最後に設定を受け取った時刻（epoch ミリ秒）。Wear の UI 用。 */
         val lastSyncedAtEpochMillis: Flow<Long?> = store.data.map { it[Keys.LAST_SYNCED_AT] }
 
+        /**
+         * 時計の発車標で手動選択した地点（`BoardPlace` の名前）。null は「現在地から自動」。
+         * 端末ごとの表示設定なのでスマホからの同期（[replaceAll]）では触らない。
+         */
+        val boardPlaceName: Flow<String?> = store.data.map { it[Keys.BOARD_PLACE] }
+
+        /** 発車標の地点を選ぶ。null で「現在地から自動」に戻す。 */
+        suspend fun setBoardPlaceName(name: String?) {
+            store.edit { prefs ->
+                if (name == null) prefs.remove(Keys.BOARD_PLACE) else prefs[Keys.BOARD_PLACE] = name
+            }
+        }
+
         suspend fun updateNotificationTiming(transform: (NotificationTiming) -> NotificationTiming) {
             store.edit { prefs ->
                 val next = transform(prefs.toSettings().notificationTiming)
@@ -289,6 +302,7 @@ class SettingsRepository
             val PLAN_EXACT = booleanPreferencesKey("plan_exact_alarms")
             val PLAN_REMINDER_COUNT = intPreferencesKey("plan_reminder_count")
             val LAST_SYNCED_AT = longPreferencesKey("last_synced_at")
+            val BOARD_PLACE = stringPreferencesKey("board_place")
             val TRAIN_REMINDER_ENABLED = booleanPreferencesKey("train_reminder_enabled")
             val TRAIN_REMINDER_WINDOW_START = intPreferencesKey("train_reminder_window_start_sec")
             val WORKPLACE_LAT = doublePreferencesKey("workplace_lat")

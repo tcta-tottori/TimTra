@@ -202,7 +202,14 @@ class CommuteTileService : TileService() {
                             .Builder()
                             .setPackageName(component.packageName)
                             .setClassName(component.className)
-                            .build(),
+                            // 時計アプリの既定は発車標なので、このタイルからは出発時刻の画面を開く
+                            .addKeyToExtraMapping(
+                                MainActivity.EXTRA_SCREEN,
+                                ActionBuilders.AndroidStringExtra
+                                    .Builder()
+                                    .setValue(MainActivity.SCREEN_JOURNEY)
+                                    .build(),
+                            ).build(),
                     ).build(),
             ).build()
     }

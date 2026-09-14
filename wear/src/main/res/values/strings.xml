@@ -35,4 +35,47 @@
     <string name="complication_title">出発</string>
     <string name="complication_none">--</string>
     <string name="complication_description">出発までの残り時間</string>
+
+    <!-- 発車標（時刻表タイル / 時計アプリ） -->
+    <string name="timetable_tile_label">TimTra 時刻表</string>
+    <string name="nav_timetable">時刻表を見る</string>
+    <string name="nav_journey">出発時刻を見る</string>
+    <string name="nav_back">戻る</string>
+    <string name="place_home_stop">南吉成 バス停</string>
+    <string name="place_home_stop_dir">鳥取駅方面（日ノ丸バス）</string>
+    <string name="place_station_bus">鳥取駅 バスのりば</string>
+    <string name="place_station_bus_dir">用瀬・智頭方面（日ノ丸バス）</string>
+    <string name="place_tottori_jr">JR 鳥取駅</string>
+    <string name="place_tottori_jr_dir">宝木方面（JR山陰本線 下り）</string>
+    <string name="place_hougi_jr">JR 宝木駅</string>
+    <string name="place_hougi_jr_dir">鳥取方面（JR山陰本線 上り）</string>
+    <string name="basis_near_here">現在地から自動選択</string>
+    <string name="basis_manual">手動で選択中</string>
+    <string name="basis_time_of_day">位置が取れないため時刻帯から判定</string>
+    <string name="board_next_in">次の発車まで</string>
+    <string name="board_depart_at">%1$s 発</string>
+    <string name="board_headsign">%1$s行</string>
+    <string name="board_headsign_line">%1$s行　%2$s</string>
+    <string name="board_next_short">つぎ</string>
+    <string name="board_next_next_short">そのつぎ</string>
+    <string name="board_later_label">この後の発車</string>
+    <string name="board_empty">この先の運行がありません</string>
+    <string name="board_no_more_today">この後の便はありません</string>
+    <string name="board_use_location">現在地から自動</string>
+    <string name="board_location_prompt">位置情報を許可すると、いる場所の時刻表を自動で出します</string>
+    <string name="board_allow_location">許可する</string>
+    <string name="unit_minutes">分</string>
+    <string name="unit_hours_minutes">時間 %1$d 分</string>
+    <string name="compact_minutes">%1$d分</string>
+    <string name="compact_hours_minutes">%1$d時間%2$d分</string>
+    <string name="locating_title">現在地を取得中…</string>
+    <string name="locating_sub">位置情報を取得しています</string>
+    <string name="action_cancel">キャンセル</string>
+    <string name="nearest_title">現在地から近い駅・バス停</string>
+    <string name="action_use_this">この地点で表示</string>
+    <string name="action_pick_place">駅・バス停を選択</string>
+    <string name="picker_title">行き先を選択</string>
+    <string name="picker_nearby">近くの駅・バス停</string>
+    <string name="distance_meters">約%1$d m</string>
+    <string name="distance_kilometers">約%1$.1f km</string>
 </resources>

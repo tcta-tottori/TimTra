@@ -38,14 +38,23 @@ import java.time.ZoneId
 
 /** タイルをタップしたときの詳細画面: 出発時刻、バス/JR の発着、余裕、到着予測。 */
 @Composable
-fun WearHomeScreen(viewModel: WearHomeViewModel = hiltViewModel()) {
+fun WearHomeScreen(
+    onOpenBoard: () -> Unit,
+    viewModel: WearHomeViewModel = hiltViewModel(),
+) {
     val snapshot by viewModel.snapshot.collectAsStateWithLifecycle()
     Scaffold(timeText = { TimeText() }) {
         val s = snapshot
         if (s == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         } else {
-            Content(s, viewModel.isManualBound, onToggleBound = { viewModel.toggleBound(s.bound) }, onResetBound = viewModel::resetBound)
+            Content(
+                s = s,
+                isManualBound = viewModel.isManualBound,
+                onToggleBound = { viewModel.toggleBound(s.bound) },
+                onResetBound = viewModel::resetBound,
+                onOpenBoard = onOpenBoard,
+            )
         }
     }
 }
@@ -56,6 +65,7 @@ private fun Content(
     isManualBound: Boolean,
     onToggleBound: () -> Unit,
     onResetBound: () -> Unit,
+    onOpenBoard: () -> Unit,
 ) {
     val listState = rememberScalingLazyListState()
     val context = LocalContext.current
@@ -106,6 +116,14 @@ private fun Content(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
+        }
+        item {
+            Chip(
+                onClick = onOpenBoard,
+                label = { Text(stringResource(R.string.nav_timetable), maxLines = 1) },
+                colors = ChipDefaults.secondaryChipColors(),
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
         item { Line(syncLabel(s), color = Color.Gray) }
         if (s.sampleData) item { Line(stringResource(R.string.sample_data), color = MaterialTheme.colors.primary) }
