@@ -15,7 +15,8 @@ class BoundResolverTest {
     fun `distance between home stop and Tottori station is about 1_7 km`() {
         val d = minamiYoshinari.distanceMetersTo(tottoriStation)
         assertTrue(d in 1_500.0..2_000.0, "$d")
-        assertTrue(minamiYoshinari.distanceMetersTo(Places.HOUGI_STATION) > 15_000.0)
+        val toHougi = minamiYoshinari.distanceMetersTo(Places.HOUGI_STATION)
+        assertTrue(toHougi in 12_000.0..16_000.0, "$toHougi")
     }
 
     @Test

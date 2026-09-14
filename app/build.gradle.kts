@@ -80,6 +80,9 @@ dependencies {
     implementation(libs.glance.appwidget)
     implementation(libs.glance.material3)
 
+    // ホームの地図タイル（OpenStreetMap）の取得
+    implementation(libs.okhttp)
+
     // Wear への設定同期（Wearable Data Layer）
     implementation(libs.play.services.wearable)
     implementation(libs.kotlinx.coroutines.play.services)

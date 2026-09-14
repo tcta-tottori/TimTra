@@ -62,6 +62,11 @@ fun AboutScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 8.dp),
             )
+            Text(
+                text = stringResource(R.string.about_source_map),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 8.dp),
+            )
 
             SectionTitle(stringResource(R.string.about_data_title))
             Text(

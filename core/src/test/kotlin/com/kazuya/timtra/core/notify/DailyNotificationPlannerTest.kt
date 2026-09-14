@@ -21,10 +21,12 @@ class DailyNotificationPlannerTest {
         val plan = daily.plan(Fixtures.monday)
         assertNull(plan.suppressReason)
         assertEquals(setOf(Bound.OUTBOUND, Bound.INBOUND), plan.journeys.keys)
-        assertEquals(8, plan.notifications.size)
+        // 往路 4 件 + 復路 1 件（宝木発のみ）
+        assertEquals(5, plan.notifications.size)
         assertEquals(plan.notifications.sortedBy { it.fireAt }, plan.notifications, "時刻順")
         assertEquals(Fixtures.monday.atTime(LocalTime.of(6, 45)), plan.notifications.first().fireAt)
-        assertEquals(Fixtures.monday.atTime(LocalTime.of(18, 40)), plan.notifications.last().fireAt)
+        // 最後は「まもなく宝木発」（18:20 発の 3 分前）
+        assertEquals(Fixtures.monday.atTime(LocalTime.of(18, 17)), plan.notifications.last().fireAt)
     }
 
     @Test
@@ -71,7 +73,8 @@ class DailyNotificationPlannerTest {
     fun `re-planning during the day keeps only future notifications`() {
         val plan = daily.plan(Fixtures.monday, now = Fixtures.monday.atTime(LocalTime.of(7, 0)))
         assertNull(plan.suppressReason)
-        assertEquals(6, plan.notifications.size)
+        // 07:00 以降: 往路の「まもなく発車」「次は鳥取駅」+ 復路の「まもなく宝木発」
+        assertEquals(3, plan.notifications.size)
         assertTrue(plan.notifications.all { it.fireAt.isAfter(Fixtures.monday.atTime(LocalTime.of(7, 0))) })
     }
 }

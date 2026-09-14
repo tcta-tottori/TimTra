@@ -43,6 +43,9 @@ enum class TimeField {
     INBOUND_WINDOW_START,
     EARLIEST_LEAVE_HOME,
     WORK_ENDS_AT,
+    LEAVE_HOME_DISPLAY_START,
+    LEAVE_HOME_DISPLAY_END,
+    LEAVE_WORK_DISPLAY_START,
 }
 
 /** 通知タイミング（分）。 */
@@ -109,6 +112,23 @@ class SettingsViewModel
             update { repository.setWorkplace(null) }
         }
 
+        /** 現在地を 1 回取り、自宅として保存する（地図の自宅と徒歩経路に使う）。 */
+        fun registerHomeHere() {
+            viewModelScope.launch {
+                val here = location.current(maxCacheMillis = 0)
+                if (here == null) {
+                    message.value = R.string.settings_workplace_failed
+                } else {
+                    repository.setHome(here)
+                    message.value = R.string.settings_home_registered_toast
+                }
+            }
+        }
+
+        fun clearHome() {
+            viewModelScope.launch { repository.setHome(null) }
+        }
+
         fun consumeMessage() {
             message.value = null
         }
@@ -153,6 +173,9 @@ class SettingsViewModel
                         TimeField.INBOUND_WINDOW_START -> s.copy(inboundWindowStart = step(s.inboundWindowStart))
                         TimeField.EARLIEST_LEAVE_HOME -> s.copy(earliestLeaveHome = step(s.earliestLeaveHome))
                         TimeField.WORK_ENDS_AT -> s.copy(workEndsAt = step(s.workEndsAt))
+                        TimeField.LEAVE_HOME_DISPLAY_START -> s.copy(leaveHomeDisplayStart = step(s.leaveHomeDisplayStart))
+                        TimeField.LEAVE_HOME_DISPLAY_END -> s.copy(leaveHomeDisplayEnd = step(s.leaveHomeDisplayEnd))
+                        TimeField.LEAVE_WORK_DISPLAY_START -> s.copy(leaveWorkDisplayStart = step(s.leaveWorkDisplayStart))
                     }
                 }
             }

@@ -40,6 +40,8 @@ data class AppSettings(
     val trainReminder: TrainReminderSettings = TrainReminderSettings(),
     /** 「現在地を勤務先に登録」で保存した位置。未登録なら null（core の Places.WORKPLACE_DEFAULT で代用）。 */
     val workplace: GeoPoint? = null,
+    /** 「現在地を自宅に登録」で保存した位置。未登録なら null（core の Places.HOME_DEFAULT で代用）。 */
+    val home: GeoPoint? = null,
     /** 勤務先を離れたのでリマインダーを止めた日。翌日になれば自動的に無効。 */
     val trainReminderOffDate: LocalDate? = null,
 ) {
@@ -89,6 +91,9 @@ class SettingsRepository
                 prefs[Keys.INBOUND_WINDOW_START] = next.inboundWindowStart.toSecondOfDay()
                 prefs[Keys.EARLIEST_LEAVE_HOME] = next.earliestLeaveHome.toSecondOfDay()
                 prefs[Keys.WORK_ENDS_AT] = next.workEndsAt.toSecondOfDay()
+                prefs[Keys.LEAVE_HOME_DISPLAY_START] = next.leaveHomeDisplayStart.toSecondOfDay()
+                prefs[Keys.LEAVE_HOME_DISPLAY_END] = next.leaveHomeDisplayEnd.toSecondOfDay()
+                prefs[Keys.LEAVE_WORK_DISPLAY_START] = next.leaveWorkDisplayStart.toSecondOfDay()
             }
         }
 
@@ -113,6 +118,19 @@ class SettingsRepository
                 } else {
                     prefs[Keys.WORKPLACE_LAT] = point.lat
                     prefs[Keys.WORKPLACE_LON] = point.lon
+                }
+            }
+        }
+
+        /** 自宅の位置。null で登録解除。 */
+        suspend fun setHome(point: GeoPoint?) {
+            store.edit { prefs ->
+                if (point == null) {
+                    prefs.remove(Keys.HOME_LAT)
+                    prefs.remove(Keys.HOME_LON)
+                } else {
+                    prefs[Keys.HOME_LAT] = point.lat
+                    prefs[Keys.HOME_LON] = point.lon
                 }
             }
         }
@@ -211,11 +229,16 @@ class SettingsRepository
                     inboundWindowStart = time(Keys.INBOUND_WINDOW_START, d.inboundWindowStart),
                     earliestLeaveHome = time(Keys.EARLIEST_LEAVE_HOME, d.earliestLeaveHome),
                     workEndsAt = time(Keys.WORK_ENDS_AT, d.workEndsAt),
+                    leaveHomeDisplayStart = time(Keys.LEAVE_HOME_DISPLAY_START, d.leaveHomeDisplayStart),
+                    leaveHomeDisplayEnd = time(Keys.LEAVE_HOME_DISPLAY_END, d.leaveHomeDisplayEnd),
+                    leaveWorkDisplayStart = time(Keys.LEAVE_WORK_DISPLAY_START, d.leaveWorkDisplayStart),
                 )
             val t = NotificationTiming()
             val r = TrainReminderSettings()
             val workplaceLat = this[Keys.WORKPLACE_LAT]
             val workplaceLon = this[Keys.WORKPLACE_LON]
+            val homeLat = this[Keys.HOME_LAT]
+            val homeLon = this[Keys.HOME_LON]
             return AppSettings(
                 commute = commute,
                 notificationsEnabled = this[Keys.NOTIFICATIONS_ENABLED] ?: true,
@@ -232,6 +255,7 @@ class SettingsRepository
                         windowStart = time(Keys.TRAIN_REMINDER_WINDOW_START, r.windowStart),
                     ),
                 workplace = if (workplaceLat != null && workplaceLon != null) GeoPoint(workplaceLat, workplaceLon) else null,
+                home = if (homeLat != null && homeLon != null) GeoPoint(homeLat, homeLon) else null,
                 trainReminderOffDate = this[Keys.TRAIN_REMINDER_OFF_DATE]?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
             )
         }
@@ -247,6 +271,9 @@ class SettingsRepository
             val INBOUND_WINDOW_START = intPreferencesKey("inbound_window_start_sec")
             val EARLIEST_LEAVE_HOME = intPreferencesKey("earliest_leave_home_sec")
             val WORK_ENDS_AT = intPreferencesKey("work_ends_at_sec")
+            val LEAVE_HOME_DISPLAY_START = intPreferencesKey("leave_home_display_start_sec")
+            val LEAVE_HOME_DISPLAY_END = intPreferencesKey("leave_home_display_end_sec")
+            val LEAVE_WORK_DISPLAY_START = intPreferencesKey("leave_work_display_start_sec")
             val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
             val DAY_OFF = stringPreferencesKey("day_off_date")
             val NOTIFY_BEFORE_LEAVE = intPreferencesKey("notify_before_leave_min")
@@ -266,6 +293,8 @@ class SettingsRepository
             val TRAIN_REMINDER_WINDOW_START = intPreferencesKey("train_reminder_window_start_sec")
             val WORKPLACE_LAT = doublePreferencesKey("workplace_lat")
             val WORKPLACE_LON = doublePreferencesKey("workplace_lon")
+            val HOME_LAT = doublePreferencesKey("home_lat")
+            val HOME_LON = doublePreferencesKey("home_lon")
             val TRAIN_REMINDER_OFF_DATE = stringPreferencesKey("train_reminder_off_date")
         }
     }

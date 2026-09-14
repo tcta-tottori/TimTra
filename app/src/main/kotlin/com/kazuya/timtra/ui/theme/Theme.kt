@@ -54,6 +54,23 @@ object TimTraColors {
     val headerGradient: Brush = Brush.linearGradient(listOf(gradientStart, gradientEnd))
 }
 
+/** 交通手段ごとの色。バスは日ノ丸バスを思わせる橙、JR は JR 西日本の青。地図・時刻表・ホームで共通。 */
+object TransitColors {
+    val bus = Color(0xFFE8590C)
+    val jr = Color(0xFF0B72B9)
+    val walk = Color(0xFF6B7A99)
+
+    /** 勤務先などの一般の地点。 */
+    val place = Color(0xFF6B5B95)
+
+    /** 現在地の青い点。 */
+    val here = Color(0xFF1A73E8)
+
+    /** 地図の下地と罫線。 */
+    val mapGround = Color(0xFFF2F6FD)
+    val mapGrid = Color(0xFFDCE5F5)
+}
+
 /** ステータスの色分け（CLAUDE.md 6: 緑 / オレンジ / 赤）。白地で読める濃さ。 */
 object StatusColors {
     val ok = Color(0xFF1E9E5A)

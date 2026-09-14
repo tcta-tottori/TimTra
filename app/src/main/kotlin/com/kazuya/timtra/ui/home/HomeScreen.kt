@@ -9,7 +9,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -39,6 +41,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -50,15 +53,30 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kazuya.timtra.R
+import com.kazuya.timtra.core.geo.LandmarkKind
+import com.kazuya.timtra.core.geo.RouteLandmarks
 import com.kazuya.timtra.core.journey.BoundBasis
 import com.kazuya.timtra.core.journey.CommuteSettings
+import com.kazuya.timtra.core.journey.InboundPhase
 import com.kazuya.timtra.core.journey.Journey
 import com.kazuya.timtra.core.journey.JourneyStatus
+import com.kazuya.timtra.core.journey.Pace
+import com.kazuya.timtra.core.journey.PaceAdvisor
+import com.kazuya.timtra.core.journey.ScheduledBus
 import com.kazuya.timtra.core.model.Bound
+import com.kazuya.timtra.core.model.GeoPoint
 import com.kazuya.timtra.data.realtime.RealtimeState
 import com.kazuya.timtra.location.LocationProvider
-import com.kazuya.timtra.ui.common.countdownText
+import com.kazuya.timtra.ui.common.CircleIcon
+import com.kazuya.timtra.ui.common.InfoPill
+import com.kazuya.timtra.ui.common.ModeBadge
+import com.kazuya.timtra.ui.common.ModeChip
+import com.kazuya.timtra.ui.common.TransitMode
+import com.kazuya.timtra.ui.common.destinationIconRes
+import com.kazuya.timtra.ui.common.distanceText
 import com.kazuya.timtra.ui.common.hhmm
+import com.kazuya.timtra.ui.common.labelRes
+import com.kazuya.timtra.ui.common.originIconRes
 import com.kazuya.timtra.ui.common.statusLabel
 import com.kazuya.timtra.ui.theme.GradientCard
 import com.kazuya.timtra.ui.theme.StatusColors
@@ -66,8 +84,11 @@ import com.kazuya.timtra.ui.theme.TimTraCard
 import com.kazuya.timtra.ui.theme.TimTraColors
 import com.kazuya.timtra.ui.theme.TimTraTopBar
 import com.kazuya.timtra.ui.theme.TopBarTitle
+import com.kazuya.timtra.ui.theme.TransitColors
+import java.time.Duration
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,8 +97,12 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // 1 秒刻みの現在時刻（秒単位のカウントダウン用）と、開いている時刻表ポップアップ
+    val nowSecond by viewModel.now.collectAsStateWithLifecycle()
+    val peek by viewModel.peek.collectAsStateWithLifecycle()
     // 権限画面から戻ったときに状態を取り直す
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
+    peek?.let { TimetablePeekSheet(peek = it, now = nowSecond.toLocalTime(), onDismiss = viewModel::closePeek) }
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
@@ -118,9 +143,11 @@ fun HomeScreen(
             is HomeUiState.Ready ->
                 HomeContent(
                     state = s,
+                    nowSecond = nowSecond,
                     onBoundChange = viewModel::setBound,
                     onPermissionsChanged = viewModel::refresh,
                     onResumeReminders = viewModel::resumeTrainReminders,
+                    onOpenPeek = viewModel::openPeek,
                     modifier = Modifier.padding(padding),
                 )
         }
@@ -130,9 +157,11 @@ fun HomeScreen(
 @Composable
 private fun HomeContent(
     state: HomeUiState.Ready,
+    nowSecond: LocalDateTime,
     onBoundChange: (Bound?) -> Unit,
     onPermissionsChanged: () -> Unit,
     onResumeReminders: () -> Unit,
+    onOpenPeek: (PeekKind) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -151,29 +180,92 @@ private fun HomeContent(
         if (state.reminderOffToday) ReminderOffBanner(onResume = onResumeReminders)
 
         val journey = state.journey
-        if (journey == null) {
+        val stationBus = state.stationBuses.firstOrNull()
+        if (state.resting) {
+            // 今日の通勤は終わり。残り時間は出さず、翌朝の予定だけ静かに示す
+            RestCard(state.nextMorning, state.settings, state.now)
+            RouteMapCard(
+                landmarks = state.landmarks,
+                here = state.location,
+                bound = state.bound,
+                locationPermitted = state.locationPermitted,
+                walkToWorkMinutes = state.settings.walkStationToWork.toMinutes(),
+                walkHomeMinutes = state.settings.walkHomeToStop.toMinutes(),
+            )
+        } else if (state.inboundPhase == InboundPhase.TO_BUS && stationBus != null) {
+            // 復路で宝木駅エリアを離れた（乗車中・鳥取駅到着後）: 電車の時刻はやめて、鳥取駅発のバスを主役にする
+            val delay = state.realtime.delays[stationBus.trip.tripId] ?: Duration.ZERO
+            NextStationBusCard(nowSecond, stationBus, delay, state.settings, state.location, state.landmarks)
+            RouteMapCard(
+                landmarks = state.landmarks,
+                here = state.location,
+                bound = state.bound,
+                locationPermitted = state.locationPermitted,
+                buses =
+                    MapVehicles(
+                        vehicles = state.realtime.vehicles,
+                        targetTripId = stationBus.trip.tripId,
+                        targetDelayMinutes = delay.toMinutes(),
+                        fetchedAt = state.realtime.fetchedAt?.takeIf { state.realtime.vehicles.isNotEmpty() },
+                    ),
+                walkToWorkMinutes = state.settings.walkStationToWork.toMinutes(),
+                walkHomeMinutes = state.settings.walkHomeToStop.toMinutes(),
+            )
+            StationBusCard(stationBus, delay, state.realtime) { onOpenPeek(PeekKind.BUS_STATION) }
+            HomeArrivalCard(stationBus.arrivalAt.plus(delay).plus(state.settings.walkHomeToStop))
+            state.stationBuses.getOrNull(1)?.let { NextStationBusCandidate(it) }
+        } else if (journey == null) {
             Text(stringResource(R.string.home_empty), style = MaterialTheme.typography.bodyLarge)
+            RouteMapCard(
+                landmarks = state.landmarks,
+                here = state.location,
+                bound = state.bound,
+                locationPermitted = state.locationPermitted,
+                walkToWorkMinutes = state.settings.walkStationToWork.toMinutes(),
+                walkHomeMinutes = state.settings.walkHomeToStop.toMinutes(),
+            )
         } else {
-            // 1. 家を出る時刻と残り時間
-            LeaveCard(state.now, journey)
+            // 1. 家 / 職場を出る時刻と残り時間。決まった時間帯の外では最初の便の発車を主役にする
+            if (state.showLeaveTime) {
+                LeaveCard(nowSecond, journey, state.location, state.landmarks)
+            } else {
+                NextDepartureCard(nowSecond, journey, state.settings, state.location, state.landmarks)
+            }
+            // 地図: 現在地と、駅・バス停までの距離。GTFS-RT が取れていればバスの位置も
+            RouteMapCard(
+                landmarks = state.landmarks,
+                here = state.location,
+                bound = state.bound,
+                locationPermitted = state.locationPermitted,
+                buses =
+                    MapVehicles(
+                        vehicles = state.realtime.vehicles,
+                        targetTripId = journey.bus.trip.tripId,
+                        targetDelayMinutes = journey.busDelay.toMinutes(),
+                        fetchedAt = state.realtime.fetchedAt?.takeIf { state.realtime.vehicles.isNotEmpty() },
+                    ),
+                walkToWorkMinutes = state.settings.walkStationToWork.toMinutes(),
+                walkHomeMinutes = state.settings.walkHomeToStop.toMinutes(),
+            )
+            // 各カードをタップすると、現在時刻から一番近い便以降の時刻表をポップアップで出す
             when (journey.bound) {
                 Bound.OUTBOUND -> {
                     // 2. バス 3. 乗り継ぎ 4. JR
-                    BusCard(journey, state.realtime)
+                    BusCard(journey, state.realtime) { onOpenPeek(PeekKind.BUS_HOME) }
                     TransferCard(journey, state.settings)
-                    JrCard(journey)
+                    JrCard(journey) { onOpenPeek(PeekKind.JR_OUTBOUND) }
                 }
                 Bound.INBOUND -> {
-                    JrCard(journey)
+                    JrCard(journey) { onOpenPeek(PeekKind.JR_INBOUND) }
                     TransferCard(journey, state.settings)
-                    BusCard(journey, state.realtime)
+                    BusCard(journey, state.realtime) { onOpenPeek(PeekKind.BUS_STATION) }
                 }
             }
             // 5. 到着予測
-            ArrivalRow(journey)
-            journey.fallback?.let { FallbackCard(journey, it) }
+            ArrivalCard(journey)
+            journey.fallback?.let { FallbackCard(journey, it, state.showLeaveTime) }
             // 6. 次の候補
-            state.next?.let { NextCandidateCard(it) }
+            state.next?.let { NextCandidateCard(it, state.showLeaveTime) }
         }
         BasisFooter(state, onBoundChange)
         Spacer(Modifier.height(8.dp))
@@ -255,24 +347,80 @@ private fun Banner(
     }
 }
 
+/** 夜の帰宅後〜翌朝の表示開始まで。残り時間は出さず、翌朝の往路（バスと家を出る時刻）だけ。 */
 @Composable
-private fun LeaveCard(
+private fun RestCard(
+    nextMorning: Journey?,
+    settings: CommuteSettings,
     now: LocalDateTime,
-    journey: Journey,
 ) {
     GradientCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            CircleIcon(iconRes = R.drawable.ic_home, color = TimTraColors.pillFill, size = 40.dp)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.home_rest_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+            )
+            Text(
+                text = stringResource(R.string.home_rest_note, settings.leaveHomeDisplayStart.hhmm()),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.8f),
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(10.dp))
             Text(
                 text =
-                    stringResource(
-                        if (journey.bound == Bound.OUTBOUND) R.string.home_leave_home else R.string.home_leave_work,
-                    ),
-                style = MaterialTheme.typography.titleMedium,
-                color = Color.White.copy(alpha = 0.85f),
+                    if (nextMorning != null) {
+                        val dayLabel =
+                            stringResource(
+                                if (nextMorning.bus.departureAt.toLocalDate() ==
+                                    now.toLocalDate()
+                                ) {
+                                    R.string.home_rest_today
+                                } else {
+                                    R.string.home_rest_tomorrow
+                                },
+                            )
+                        stringResource(R.string.home_rest_next, dayLabel, nextMorning.bus.departureAt.hhmm(), nextMorning.leaveAt.hhmm())
+                    } else {
+                        stringResource(R.string.home_rest_next_unknown)
+                    },
+                style = MaterialTheme.typography.bodyMedium,
+                color = TimTraColors.accentLight,
+                textAlign = TextAlign.Center,
             )
+        }
+    }
+}
+
+/** 主役: 家 / 職場を出る時刻。決まった時間帯（LeaveDisplayPolicy）のときだけ出る。 */
+@Composable
+private fun LeaveCard(
+    now: LocalDateTime,
+    journey: Journey,
+    here: GeoPoint?,
+    landmarks: RouteLandmarks,
+) {
+    GradientCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CircleIcon(iconRes = journey.bound.originIconRes(), color = TimTraColors.pillFill, size = 28.dp)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = stringResource(if (journey.bound == Bound.OUTBOUND) R.string.home_leave_home else R.string.home_leave_work),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White.copy(alpha = 0.9f),
+                )
+            }
             Text(
                 text = journey.leaveAt.hhmm(),
                 style = MaterialTheme.typography.displayLarge,
@@ -280,29 +428,509 @@ private fun LeaveCard(
                 color = Color.White,
             )
             Text(
-                text = countdownText(now, journey.leaveAt),
-                style = MaterialTheme.typography.titleLarge,
+                text = remainingText(now, journey.leaveAt),
+                style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"),
+                fontWeight = FontWeight.Bold,
                 color = TimTraColors.accentLight,
+            )
+            Spacer(Modifier.height(12.dp))
+            HeroLegStrip(journey)
+            PaceRow(now, journey, here, landmarks)
+        }
+    }
+}
+
+/** 残り時間。1 時間以上は H:MM:SS、それ未満は MM:SS。過ぎていれば「発車しました」。 */
+@Composable
+private fun remainingText(
+    now: LocalDateTime,
+    target: LocalDateTime,
+): String {
+    val remaining = Duration.between(now, target)
+    if (remaining.isNegative) return stringResource(R.string.home_countdown_departed)
+    val total = remaining.seconds
+    val h = total / 3600
+    val m = total % 3600 / 60
+    val sec = total % 60
+    return if (h > 0) String.format(Locale.JAPAN, "%d:%02d:%02d", h, m, sec) else String.format(Locale.JAPAN, "%02d:%02d", m, sec)
+}
+
+/**
+ * 現在地から出発地点（往路: 南吉成、復路: 宝木駅）までの距離と発車までの残り時間から、
+ * 歩き / 早歩き / 走る / 間に合わない を人型アイコンで示す（core の PaceAdvisor）。位置が無ければ出さない。
+ */
+@Composable
+private fun PaceRow(
+    now: LocalDateTime,
+    journey: Journey,
+    here: GeoPoint?,
+    landmarks: RouteLandmarks,
+) {
+    val (placeKind, departAt) =
+        when (journey.bound) {
+            Bound.OUTBOUND -> LandmarkKind.HOME_STOP to journey.busDepartureEstimatedAt
+            Bound.INBOUND -> LandmarkKind.HOUGI_STATION to journey.train.departureAt
+        }
+    PaceRow(now, placeKind, departAt, here, landmarks)
+}
+
+@Composable
+private fun PaceRow(
+    now: LocalDateTime,
+    placeKind: LandmarkKind,
+    departAt: LocalDateTime,
+    here: GeoPoint?,
+    landmarks: RouteLandmarks,
+) {
+    if (here == null) return
+    val place = landmarks.find(placeKind) ?: return
+    val advice = PaceAdvisor.advise(here.distanceMetersTo(place.location), Duration.between(now, departAt))
+    val placeName = stringResource(placeKind.labelRes)
+    val distance = distanceText(advice.routeMeters)
+    val (iconRes, color) =
+        when (advice.pace) {
+            Pace.WALK -> R.drawable.ic_walk to StatusColors.ok
+            Pace.FAST_WALK -> R.drawable.ic_walk_fast to StatusColors.tight
+            Pace.RUN -> R.drawable.ic_run to StatusColors.risk
+            Pace.TOO_LATE -> R.drawable.ic_warning to StatusColors.missed
+        }
+    val text =
+        when {
+            advice.atPlace -> stringResource(R.string.home_pace_at_place, placeName)
+            advice.pace == Pace.WALK -> stringResource(R.string.home_pace_walk, placeName, distance, advice.walkMinutes)
+            advice.pace == Pace.FAST_WALK -> stringResource(R.string.home_pace_fast_walk, placeName, distance, advice.fastWalkMinutes)
+            advice.pace == Pace.RUN -> stringResource(R.string.home_pace_run, placeName, distance)
+            else -> stringResource(R.string.home_pace_too_late, placeName, distance)
+        }
+    Spacer(Modifier.height(10.dp))
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(Color.White.copy(alpha = 0.14f), RoundedCornerShape(14.dp))
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CircleIcon(iconRes = iconRes, color = color, size = 36.dp)
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+        )
+    }
+}
+
+/**
+ * 出発時刻を出さない時間帯の主役: 最初の便（往路はバス、復路は JR）の発車時刻と残り時間。
+ * 「家を出る」「職場を出る」の文字はここでは出さない。
+ */
+@Composable
+private fun NextDepartureCard(
+    now: LocalDateTime,
+    journey: Journey,
+    settings: CommuteSettings,
+    here: GeoPoint?,
+    landmarks: RouteLandmarks,
+) {
+    val outbound = journey.bound == Bound.OUTBOUND
+    val mode = if (outbound) TransitMode.BUS else TransitMode.JR
+    val departAt = if (outbound) journey.busDepartureEstimatedAt else journey.train.departureAt
+    val from = if (outbound) journey.bus.trip.boardStop.name else HOUGI
+    GradientCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ModeBadge(mode = mode, size = 28.dp, color = TimTraColors.pillFill)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text =
+                        stringResource(if (outbound) R.string.home_next_departure_bus else R.string.home_next_departure_jr) +
+                            "  " + stringResource(R.string.home_departs_from, from) + " " + departAt.hhmm(),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White.copy(alpha = 0.9f),
+                )
+            }
+            // 残り時間を主役に。秒まで出して 1 秒ごとに進む
+            Text(
+                text = stringResource(R.string.home_countdown_label),
+                style = MaterialTheme.typography.labelLarge,
+                color = TimTraColors.accentLight,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+            Text(
+                text = remainingText(now, departAt),
+                style = MaterialTheme.typography.displayLarge.copy(fontFeatureSettings = "tnum"),
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+            )
+            if (outbound && journey.hasDelay) {
+                Text(
+                    text = stringResource(R.string.home_delay_estimated, journey.busDelay.toMinutes()),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.9f),
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            HeroLegStrip(journey)
+            PaceRow(now, journey, here, landmarks)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text =
+                    if (outbound) {
+                        stringResource(
+                            R.string.home_leave_hidden_home,
+                            settings.leaveHomeDisplayStart.hhmm(),
+                            settings.leaveHomeDisplayEnd.hhmm(),
+                        )
+                    } else {
+                        stringResource(R.string.home_leave_hidden_work, settings.leaveWorkDisplayStart.hhmm())
+                    },
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White.copy(alpha = 0.65f),
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+/**
+ * 復路で宝木駅エリアを離れたあとの主役: 鳥取駅を出る次のバスの発車までの残り時間。
+ * 電車の時刻は出さない（もう乗っている、または降りたあと）。
+ */
+@Composable
+private fun NextStationBusCard(
+    now: LocalDateTime,
+    bus: ScheduledBus,
+    delay: Duration,
+    settings: CommuteSettings,
+    here: GeoPoint?,
+    landmarks: RouteLandmarks,
+) {
+    val departAt = bus.departureAt.plus(delay)
+    GradientCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ModeBadge(mode = TransitMode.BUS, size = 28.dp, color = TimTraColors.pillFill)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text =
+                        stringResource(R.string.home_next_departure_bus) + "  " +
+                            stringResource(R.string.home_departs_from, bus.trip.boardStop.name) + " " + departAt.hhmm(),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White.copy(alpha = 0.9f),
+                )
+            }
+            Text(
+                text = stringResource(R.string.home_countdown_label),
+                style = MaterialTheme.typography.labelLarge,
+                color = TimTraColors.accentLight,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+            Text(
+                text = remainingText(now, departAt),
+                style = MaterialTheme.typography.displayLarge.copy(fontFeatureSettings = "tnum"),
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+            )
+            if (!delay.isZero) {
+                Text(
+                    text = stringResource(R.string.home_delay_estimated, delay.toMinutes()),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.9f),
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier =
+                    Modifier
+                        .background(TimTraColors.pillFill, RoundedCornerShape(50))
+                        .border(1.dp, TimTraColors.pillBorder, RoundedCornerShape(50))
+                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    painterResource(TransitMode.BUS.iconRes),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(departAt.hhmm(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                Icon(
+                    painter = painterResource(R.drawable.ic_arrow_forward),
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(horizontal = 10.dp).size(16.dp),
+                )
+                Icon(
+                    painter = painterResource(R.drawable.ic_home),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text =
+                        bus.arrivalAt
+                            .plus(delay)
+                            .plus(settings.walkHomeToStop)
+                            .hhmm(),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                )
+            }
+            PaceRow(now, LandmarkKind.STATION, departAt, here, landmarks)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.home_phase_to_bus_hint),
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White.copy(alpha = 0.65f),
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+/** 鳥取駅発のバスの区間カード（復路・宝木駅エリアを離れたあと）。 */
+@Composable
+private fun StationBusCard(
+    bus: ScheduledBus,
+    delay: Duration,
+    realtime: RealtimeState,
+    onClick: () -> Unit,
+) {
+    val trip = bus.trip
+    LegCard(
+        mode = TransitMode.BUS,
+        title = stringResource(R.string.mode_bus_full),
+        from = trip.boardStop.name,
+        departure = bus.departureAt.hhmm(),
+        to = trip.alightStop.name,
+        arrival = bus.arrivalAt.hhmm(),
+        onClick = onClick,
+        chips = {
+            InfoPill(
+                text =
+                    if (trip.hasRouteNumber) {
+                        stringResource(R.string.home_route_line, trip.routeShortName, trip.headsign)
+                    } else {
+                        stringResource(R.string.home_route_line_named, trip.routeDisplayName, trip.headsign)
+                    },
+            )
+            trip.boardStop.platformCode?.takeIf { it.isNotBlank() }?.let {
+                InfoPill(
+                    text = stringResource(R.string.home_platform, it),
+                    color = TransitColors.bus,
+                    container = TransitColors.bus.copy(alpha = 0.12f),
+                )
+            }
+        },
+    ) {
+        if (!delay.isZero) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text =
+                    stringResource(R.string.home_delay_estimated, delay.toMinutes()) + " ・ " +
+                        stringResource(R.string.home_delay_arrival_estimated, bus.arrivalAt.plus(delay).hhmm()),
+                color = StatusColors.tight,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        val fetched = realtime.fetchedAt?.let { LocalDateTime.ofInstant(it, ZoneId.systemDefault()).hhmm() }
+        if (fetched != null && delay.isZero) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text =
+                    if (realtime.estimates.any { it.tripId == trip.tripId }) {
+                        stringResource(R.string.home_rt_on_time, fetched)
+                    } else {
+                        stringResource(R.string.home_rt_no_vehicle, fetched)
+                    },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
 }
 
 @Composable
-private fun SectionCard(
-    title: String,
-    trailing: @Composable (() -> Unit)? = null,
-    content: @Composable () -> Unit,
-) {
-    TimTraCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.weight(1f))
-                trailing?.invoke()
-            }
-            content()
+private fun HomeArrivalCard(arriveAt: LocalDateTime) {
+    TimTraCard(modifier = Modifier.fillMaxWidth(), containerColor = Color.White) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CircleIcon(iconRes = R.drawable.ic_home, color = TransitColors.place, size = 30.dp)
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = stringResource(R.string.home_arrival_label_home),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            Text(arriveAt.hhmm(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         }
+    }
+}
+
+@Composable
+private fun NextStationBusCandidate(bus: ScheduledBus) {
+    TimTraCard(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            ModeChip(TransitMode.BUS)
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(stringResource(R.string.home_next_candidate), style = MaterialTheme.typography.labelLarge)
+                Text(
+                    text =
+                        stringResource(
+                            R.string.home_next_bus_candidate,
+                            bus.departureAt.hhmm(),
+                            bus.trip.alightStop.name,
+                            bus.arrivalAt.hhmm(),
+                        ),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+    }
+}
+
+/** 主役カードの下段: バスと JR の発車時刻をアイコン付きで 1 行に。 */
+@Composable
+private fun HeroLegStrip(journey: Journey) {
+    val legs =
+        when (journey.bound) {
+            Bound.OUTBOUND -> listOf(TransitMode.BUS to journey.busDepartureEstimatedAt, TransitMode.JR to journey.train.departureAt)
+            Bound.INBOUND -> listOf(TransitMode.JR to journey.train.departureAt, TransitMode.BUS to journey.busDepartureEstimatedAt)
+        }
+    Row(
+        modifier =
+            Modifier
+                .background(TimTraColors.pillFill, RoundedCornerShape(50))
+                .border(1.dp, TimTraColors.pillBorder, RoundedCornerShape(50))
+                .padding(horizontal = 14.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        legs.forEachIndexed { index, (mode, at) ->
+            if (index > 0) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_arrow_forward),
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(horizontal = 10.dp).size(16.dp),
+                )
+            }
+            Icon(
+                painter = painterResource(mode.iconRes),
+                contentDescription = stringResource(mode.labelRes),
+                tint = Color.White,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = at.hhmm(),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+            )
+        }
+        Spacer(Modifier.width(10.dp))
+        StatusDot(journey.status)
+    }
+}
+
+@Composable
+private fun StatusDot(status: JourneyStatus) {
+    Box(
+        modifier =
+            Modifier
+                .size(12.dp)
+                .background(Color.White, CircleShape)
+                .padding(2.dp)
+                .background(StatusColors.of(status), CircleShape),
+    )
+}
+
+/**
+ * 区間カードの共通レイアウト。左にアイコンの丸、右上に系統などのピル、
+ * 中央に「発 → 着」の大きな時刻。
+ */
+@Composable
+private fun LegCard(
+    mode: TransitMode,
+    title: String,
+    from: String,
+    departure: String,
+    to: String,
+    arrival: String,
+    onClick: () -> Unit,
+    chips: @Composable RowScope.() -> Unit = {},
+    extra: @Composable ColumnScope.() -> Unit = {},
+) {
+    TimTraCard(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).clickable(onClick = onClick)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                ModeBadge(mode = mode, size = 34.dp)
+                Spacer(Modifier.width(10.dp))
+                Text(title, style = MaterialTheme.typography.titleSmall, color = mode.color, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.weight(1f))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically, content = chips)
+                Spacer(Modifier.width(6.dp))
+                Icon(
+                    painter = painterResource(R.drawable.ic_schedule),
+                    contentDescription = stringResource(R.string.home_tap_for_timetable),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                TimeColumn(time = departure, place = from, label = stringResource(R.string.home_dep_label), modifier = Modifier.weight(1f))
+                Icon(
+                    painter = painterResource(R.drawable.ic_arrow_forward),
+                    contentDescription = null,
+                    tint = mode.color.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(horizontal = 6.dp).size(20.dp),
+                )
+                TimeColumn(
+                    time = arrival,
+                    place = to,
+                    label = stringResource(R.string.home_arr_label),
+                    modifier = Modifier.weight(1f),
+                    alignEnd = true,
+                )
+            }
+            extra()
+        }
+    }
+}
+
+@Composable
+private fun TimeColumn(
+    time: String,
+    place: String,
+    label: String,
+    modifier: Modifier = Modifier,
+    alignEnd: Boolean = false,
+) {
+    Column(modifier = modifier, horizontalAlignment = if (alignEnd) Alignment.End else Alignment.Start) {
+        Text(time, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text(
+            text = "$place $label",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
     }
 }
 
@@ -310,48 +938,55 @@ private fun SectionCard(
 private fun BusCard(
     journey: Journey,
     realtime: RealtimeState,
+    onClick: () -> Unit,
 ) {
     val trip = journey.bus.trip
-    SectionCard(
-        title = stringResource(R.string.home_section_bus),
-        trailing = {
-            Text(
+    val platform = if (journey.bound == Bound.INBOUND) trip.boardStop.platformCode else trip.alightStop.platformCode
+    LegCard(
+        mode = TransitMode.BUS,
+        title = stringResource(R.string.mode_bus_full),
+        from = trip.boardStop.name,
+        departure = journey.bus.departureAt.hhmm(),
+        to = trip.alightStop.name,
+        arrival = journey.bus.arrivalAt.hhmm(),
+        onClick = onClick,
+        chips = {
+            InfoPill(
                 text =
                     if (trip.hasRouteNumber) {
                         stringResource(R.string.home_route_line, trip.routeShortName, trip.headsign)
                     } else {
                         stringResource(R.string.home_route_line_named, trip.routeDisplayName, trip.headsign)
                     },
-                style = MaterialTheme.typography.labelMedium,
             )
+            if (!platform.isNullOrBlank()) {
+                InfoPill(
+                    text = stringResource(R.string.home_platform, platform),
+                    color = TransitColors.bus,
+                    container = TransitColors.bus.copy(alpha = 0.12f),
+                )
+            }
         },
     ) {
-        Text(
-            text =
-                stringResource(
-                    R.string.home_leg_times,
-                    trip.boardStop.name,
-                    journey.bus.departureAt.hhmm(),
-                    trip.alightStop.name,
-                    journey.bus.arrivalAt.hhmm(),
-                ),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        val platform = if (journey.bound == Bound.INBOUND) trip.boardStop.platformCode else trip.alightStop.platformCode
-        if (!platform.isNullOrBlank()) {
-            Text(stringResource(R.string.home_platform, platform), style = MaterialTheme.typography.bodyMedium)
-        }
         if (journey.hasDelay) {
-            Text(
-                text = stringResource(R.string.home_delay_estimated, journey.busDelay.toMinutes()),
-                color = StatusColors.tight,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                text = stringResource(R.string.home_delay_arrival_estimated, journey.busArrivalEstimatedAt.hhmm()),
-                color = StatusColors.tight,
-                style = MaterialTheme.typography.bodyMedium,
-            )
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_warning),
+                    contentDescription = null,
+                    tint = StatusColors.tight,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text =
+                        stringResource(R.string.home_delay_estimated, journey.busDelay.toMinutes()) + " ・ " +
+                            stringResource(R.string.home_delay_arrival_estimated, journey.busArrivalEstimatedAt.hhmm()),
+                    color = StatusColors.tight,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         }
         RealtimeStatusLine(journey, realtime)
     }
@@ -380,6 +1015,7 @@ private fun RealtimeStatusLine(
                 if (fetched == null) stringResource(R.string.home_rt_error) else stringResource(R.string.home_rt_error_with_time, fetched)
         }
     if (text != null) {
+        Spacer(Modifier.height(6.dp))
         Text(
             text = text,
             style = MaterialTheme.typography.bodySmall,
@@ -396,80 +1032,110 @@ private fun TransferCard(
     val minutes = journey.transferMargin.toMinutes()
     val color = StatusColors.of(journey.status)
     TimTraCard(modifier = Modifier.fillMaxWidth(), borderColor = color.copy(alpha = 0.45f)) {
-        Column(modifier = Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-                stringResource(R.string.home_section_transfer),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text =
-                            if (minutes >= 0) {
-                                stringResource(R.string.home_transfer_margin, minutes)
-                            } else {
-                                stringResource(R.string.home_transfer_margin_negative, -minutes)
-                            },
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = color,
-                    )
-                    Text(
-                        text = stringResource(R.string.home_transfer_note, settings.transferBusToJr.toMinutes()),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Spacer(Modifier.width(12.dp))
-                StatusBadge(journey.status, large = true)
+        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            CircleIcon(iconRes = R.drawable.ic_transfer, color = TransitColors.walk, size = 34.dp)
+            Spacer(Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.home_transfer_at),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = TransitColors.walk,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text =
+                        if (minutes >= 0) {
+                            stringResource(R.string.home_transfer_margin_short, minutes)
+                        } else {
+                            stringResource(R.string.home_transfer_margin_short_negative, -minutes)
+                        },
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = color,
+                )
+                Text(
+                    text = stringResource(R.string.home_transfer_note, settings.transferBusToJr.toMinutes()),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
+            Spacer(Modifier.width(12.dp))
+            StatusBadge(journey.status, large = true)
         }
     }
 }
 
 @Composable
-private fun JrCard(journey: Journey) {
+private fun JrCard(
+    journey: Journey,
+    onClick: () -> Unit,
+) {
     val service = journey.train.service
     val (from, to) =
         when (journey.bound) {
-            Bound.OUTBOUND -> "鳥取" to "宝木"
-            Bound.INBOUND -> "宝木" to "鳥取"
+            Bound.OUTBOUND -> TOTTORI to HOUGI
+            Bound.INBOUND -> HOUGI to TOTTORI
         }
-    SectionCard(
-        title = stringResource(R.string.home_section_jr),
-        trailing = { Text(service.trainId, style = MaterialTheme.typography.labelMedium) },
+    LegCard(
+        mode = TransitMode.JR,
+        title = stringResource(R.string.mode_jr_full),
+        from = from,
+        departure = journey.train.departureAt.hhmm(),
+        to = to,
+        arrival = journey.train.arrivalAt.hhmm(),
+        onClick = onClick,
+        chips = {
+            InfoPill(text = service.trainId)
+            if (service.platform.isNotBlank()) {
+                InfoPill(
+                    text = stringResource(R.string.home_jr_platform, service.platform),
+                    color = TransitColors.jr,
+                    container = TransitColors.jr.copy(alpha = 0.12f),
+                )
+            }
+        },
     ) {
-        Text(
-            text = stringResource(R.string.home_leg_times, from, journey.train.departureAt.hhmm(), to, journey.train.arrivalAt.hhmm()),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        if (service.platform.isNotBlank()) {
-            Text(stringResource(R.string.home_jr_platform, service.platform), style = MaterialTheme.typography.bodyMedium)
-        }
         if (service.note.isNotBlank()) {
+            Spacer(Modifier.height(6.dp))
             Text(service.note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
 @Composable
-private fun ArrivalRow(journey: Journey) {
-    Text(
-        text =
-            stringResource(
-                if (journey.bound == Bound.OUTBOUND) R.string.home_arrival_work else R.string.home_arrival_home,
-                journey.arriveAt.hhmm(),
-            ),
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(horizontal = 4.dp),
-    )
+private fun ArrivalCard(journey: Journey) {
+    TimTraCard(modifier = Modifier.fillMaxWidth(), containerColor = Color.White) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CircleIcon(iconRes = journey.bound.destinationIconRes(), color = TransitColors.place, size = 30.dp)
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text =
+                    stringResource(
+                        if (journey.bound ==
+                            Bound.OUTBOUND
+                        ) {
+                            R.string.home_arrival_label_work
+                        } else {
+                            R.string.home_arrival_label_home
+                        },
+                    ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            Text(journey.arriveAt.hhmm(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        }
+    }
 }
 
 @Composable
 private fun FallbackCard(
     journey: Journey,
     fallback: Journey,
+    showLeaveTime: Boolean,
 ) {
     val title =
         when {
@@ -478,32 +1144,50 @@ private fun FallbackCard(
             else -> R.string.home_fallback_inbound
         }
     TimTraCard(modifier = Modifier.fillMaxWidth(), containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-        Column(modifier = Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(stringResource(title), style = MaterialTheme.typography.labelLarge, color = TimTraColors.primary)
-            JourneySummary(fallback)
+            JourneySummary(fallback, showLeaveTime)
         }
     }
 }
 
 @Composable
-private fun NextCandidateCard(next: Journey) {
+private fun NextCandidateCard(
+    next: Journey,
+    showLeaveTime: Boolean,
+) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     TimTraCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
-                modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(18.dp),
+                modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.home_next_candidate), style = MaterialTheme.typography.labelLarge)
                     Text(
                         text =
-                            stringResource(
-                                R.string.home_next_candidate_summary,
-                                next.leaveAt.hhmm(),
-                                next.bus.departureAt.hhmm(),
-                                next.train.departureAt.hhmm(),
-                            ),
+                            when {
+                                showLeaveTime ->
+                                    stringResource(
+                                        R.string.home_next_candidate_summary,
+                                        next.leaveAt.hhmm(),
+                                        next.bus.departureAt.hhmm(),
+                                        next.train.departureAt.hhmm(),
+                                    )
+                                next.bound == Bound.OUTBOUND ->
+                                    stringResource(
+                                        R.string.home_next_candidate_summary_no_leave,
+                                        next.bus.departureAt.hhmm(),
+                                        next.train.departureAt.hhmm(),
+                                    )
+                                else ->
+                                    stringResource(
+                                        R.string.home_next_candidate_summary_no_leave_inbound,
+                                        next.train.departureAt.hhmm(),
+                                        next.bus.departureAt.hhmm(),
+                                    )
+                            },
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
@@ -515,63 +1199,97 @@ private fun NextCandidateCard(next: Journey) {
             AnimatedVisibility(visible = expanded) {
                 Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
                     HorizontalDivider(modifier = Modifier.padding(bottom = 8.dp))
-                    JourneySummary(next)
+                    JourneySummary(next, showLeaveTime)
                 }
             }
         }
     }
 }
 
-/** 代替案・次の候補で使う短い要約。 */
+/** 代替案・次の候補で使う短い要約。出発時刻は表示時間帯のときだけ。 */
 @Composable
-private fun JourneySummary(journey: Journey) {
+private fun JourneySummary(
+    journey: Journey,
+    showLeaveTime: Boolean,
+) {
     val trip = journey.bus.trip
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    val minutes = journey.transferMargin.toMinutes()
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text =
-                    stringResource(
-                        if (journey.bound == Bound.OUTBOUND) R.string.home_leave_home else R.string.home_leave_work,
-                    ) + " " + journey.leaveAt.hhmm(),
-                style = MaterialTheme.typography.titleSmall,
-            )
+            if (showLeaveTime) {
+                Icon(
+                    painter = painterResource(journey.bound.originIconRes()),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text =
+                        stringResource(if (journey.bound == Bound.OUTBOUND) R.string.home_leave_home else R.string.home_leave_work) +
+                            " " + journey.leaveAt.hhmm(),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+            } else {
+                Text(
+                    text =
+                        if (minutes >= 0) {
+                            stringResource(R.string.home_transfer_margin, minutes)
+                        } else {
+                            stringResource(R.string.home_transfer_margin_negative, -minutes)
+                        },
+                    style = MaterialTheme.typography.titleSmall,
+                    color = StatusColors.of(journey.status),
+                )
+            }
             Spacer(Modifier.weight(1f))
             StatusBadge(journey.status)
         }
-        Text(
+        SummaryLeg(
+            mode = TransitMode.BUS,
             text =
-                stringResource(R.string.home_section_bus) + " " +
-                    stringResource(
-                        R.string.home_leg_times,
-                        trip.boardStop.name,
-                        journey.bus.departureAt.hhmm(),
-                        trip.alightStop.name,
-                        journey.bus.arrivalAt.hhmm(),
-                    ),
-            style = MaterialTheme.typography.bodyMedium,
+                stringResource(
+                    R.string.home_leg_times,
+                    trip.boardStop.name,
+                    journey.bus.departureAt.hhmm(),
+                    trip.alightStop.name,
+                    journey.bus.arrivalAt.hhmm(),
+                ),
         )
-        Text(
-            text =
-                stringResource(R.string.home_section_jr) + " " +
-                    journey.train.departureAt.hhmm() + " → " + journey.train.arrivalAt.hhmm() +
-                    "（" + journey.train.service.trainId + "）",
-            style = MaterialTheme.typography.bodyMedium,
+        SummaryLeg(
+            mode = TransitMode.JR,
+            text = journey.train.departureAt.hhmm() + " → " + journey.train.arrivalAt.hhmm() + "（" + journey.train.service.trainId + "）",
         )
-        val minutes = journey.transferMargin.toMinutes()
-        Text(
-            text =
-                if (minutes >= 0) {
-                    stringResource(R.string.home_transfer_margin, minutes)
-                } else {
-                    stringResource(R.string.home_transfer_margin_negative, -minutes)
-                },
-            style = MaterialTheme.typography.bodyMedium,
-            color = StatusColors.of(journey.status),
-        )
+        if (showLeaveTime) {
+            Text(
+                text =
+                    if (minutes >= 0) {
+                        stringResource(R.string.home_transfer_margin, minutes)
+                    } else {
+                        stringResource(R.string.home_transfer_margin_negative, -minutes)
+                    },
+                style = MaterialTheme.typography.bodyMedium,
+                color = StatusColors.of(journey.status),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SummaryLeg(
+    mode: TransitMode,
+    text: String,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        ModeChip(mode)
+        Spacer(Modifier.width(8.dp))
+        Text(text, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
 private val WARNING_CONTAINER = Color(0xFFFFF4E0)
+private const val TOTTORI = "鳥取"
+private const val HOUGI = "宝木"
 
 @Composable
 fun StatusBadge(

@@ -59,7 +59,12 @@ data class PlannedNotification(
     }
 }
 
-/** 1 つの Journey から、出すべき通知とその時刻を求める。純粋関数。 */
+/**
+ * 1 つの Journey から、出すべき通知とその時刻を求める。純粋関数。
+ *
+ * 往路は CLAUDE.md 8 の 4 件。復路は宝木駅の発車 N 分前の 1 件だけ
+ * （職場を出る時刻は勤務先リマインダーが担い、鳥取駅でのバス発車の通知は不要）。
+ */
 object NotificationPlanner {
     /**
      * @param notBefore この時刻以前に鳴るはずだった通知は捨てる（当日の再計算用）。null なら全件。
@@ -80,12 +85,17 @@ object NotificationPlanner {
                 Bound.INBOUND -> journey.train.arrivalAt
             }
         val times =
-            listOf(
-                NotificationKind.LEAVE_SOON to journey.leaveAt.minus(timing.beforeLeave),
-                NotificationKind.LEAVE_NOW to journey.leaveAt,
-                NotificationKind.FIRST_LEG_DEPARTING to firstLegDeparture.minus(timing.beforeFirstLegDeparture),
-                NotificationKind.APPROACHING_TRANSFER to transferArrival.minus(timing.beforeTransferArrival),
-            )
+            when (journey.bound) {
+                Bound.OUTBOUND ->
+                    listOf(
+                        NotificationKind.LEAVE_SOON to journey.leaveAt.minus(timing.beforeLeave),
+                        NotificationKind.LEAVE_NOW to journey.leaveAt,
+                        NotificationKind.FIRST_LEG_DEPARTING to firstLegDeparture.minus(timing.beforeFirstLegDeparture),
+                        NotificationKind.APPROACHING_TRANSFER to transferArrival.minus(timing.beforeTransferArrival),
+                    )
+                // 復路は「まもなく宝木発」だけ。バス（鳥取駅発）の通知は出さない
+                Bound.INBOUND -> listOf(NotificationKind.FIRST_LEG_DEPARTING to firstLegDeparture.minus(timing.beforeFirstLegDeparture))
+            }
         return times
             .filter { (_, at) -> notBefore == null || at.isAfter(notBefore) }
             .map { (kind, at) -> PlannedNotification(PlannedNotification.idOf(journey.bound, kind), kind, at, journey) }
