@@ -120,4 +120,3 @@ fun BoardPlace.stationFilter(): StationFilter =
         BoardPlace.TOTTORI_JR -> StationFilter.JR
         BoardPlace.HOME_STOP, BoardPlace.HOUGI_JR -> StationFilter.ALL
     }
-
