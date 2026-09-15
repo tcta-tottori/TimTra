@@ -1,10 +1,11 @@
 package com.kazuya.timtra.wear.ui
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,11 +20,20 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -34,12 +44,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
+import androidx.wear.compose.foundation.lazy.ScalingLazyListState
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
-import androidx.wear.compose.material.Chip
-import androidx.wear.compose.material.ChipDefaults
 import androidx.wear.compose.material.CircularProgressIndicator
 import androidx.wear.compose.material.Icon
 import androidx.wear.compose.material.MaterialTheme
+import androidx.wear.compose.material.PositionIndicator
 import androidx.wear.compose.material.Scaffold
 import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.TimeText
@@ -47,237 +57,197 @@ import com.kazuya.timtra.core.board.BoardPlace
 import com.kazuya.timtra.core.board.Departure
 import com.kazuya.timtra.wear.R
 import com.kazuya.timtra.wear.board.BoardSnapshot
+import com.kazuya.timtra.wear.board.DayBoard
+import com.kazuya.timtra.wear.board.DaySelection
 import com.kazuya.timtra.wear.board.PlaceDistance
-import com.kazuya.timtra.wear.location.WearLocationProvider
-import java.time.LocalDateTime
+import kotlinx.coroutines.launch
+import java.time.format.DateTimeFormatter
+
+private val dateLabelFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("M/d(E)")
 
 /**
- * 発車標（CLAUDE.md 7-4 の拡張）。添付デザインの流れをそのまま実装している。
+ * 時計の画面。ホームは 1 画面に収め、そこから時刻表とメニューへ広げる（CLAUDE.md 7-4 の拡張）。
  *
- * 現在地取得中 → 最寄りの確認 → 発車標。位置が取れなければ 駅・バス停の選択に落ちる。
- * 発車標は「次の発車まで N 分」を主役にし、その下に同じ地点の以降の便を並べる。
+ * - ホーム: 現在時刻のすぐ下に地点バッジ → 行き先 → 大きなアイコンと「次の発車まで」→ 下部に発時刻。
+ * - 発時刻をタップ、またはリューズ時計回り → 時刻表（その日の始発〜終電。右にスクロールバー）。
+ * - 上から下へスワイプ、またはリューズ反時計回り → メニュー（駅・バス停の一覧）。
+ * - 時刻表・メニューからは、画面を右へスワイプ（= 戻る）でホームに帰る。
  */
 @Composable
-fun WearBoardScreen(
-    onOpenJourney: () -> Unit,
-    viewModel: WearBoardViewModel = hiltViewModel(),
-) {
+fun WearBoardScreen(viewModel: WearBoardViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    when (state.step) {
+        BoardStep.LOADING -> LoadingScreen()
+        BoardStep.HOME ->
+            HomeScreen(
+                state = state,
+                onOpenTimetable = { viewModel.openTimetable() },
+                onOpenMenu = viewModel::openMenu,
+            )
+        BoardStep.TIMETABLE -> {
+            BackHandler(onBack = viewModel::backHome)
+            TimetableScreen(board = state.dayBoard, pinned = state.pinned, onSelectDay = viewModel::selectDay) {
+                viewModel.togglePinned(it)
+            }
+        }
+        BoardStep.MENU -> {
+            BackHandler(onBack = viewModel::backHome)
+            MenuScreen(places = state.places, pinned = state.pinned) { viewModel.openTimetable(it) }
+        }
+    }
+}
+
+@Composable
+private fun LoadingScreen() {
     Scaffold(timeText = { TimeText() }) {
-        Box(modifier = Modifier.fillMaxSize().background(WearColors.background)) {
-            when (state.step) {
-                BoardStep.LOCATING -> LocatingScreen(onCancel = viewModel::openPicker)
-                BoardStep.CONFIRM ->
-                    ConfirmScreen(state = state, onConfirm = viewModel::confirm, onPick = viewModel::openPicker)
-                BoardStep.PICKER ->
-                    PickerScreen(
-                        state = state,
-                        onPick = viewModel::pick,
-                        onUseLocation = viewModel::useLocation,
-                        onBack = viewModel::closePicker,
-                    )
-                BoardStep.BOARD ->
-                    BoardScreen(
-                        state = state,
-                        onPick = viewModel::openPicker,
-                        onOpenJourney = onOpenJourney,
-                        onLocationGranted = viewModel::start,
-                    )
+        Box(
+            modifier = Modifier.fillMaxSize().background(WearColors.background),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(indicatorColor = WearColors.gradientStart, trackColor = WearColors.outline)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.locating_title),
+                    style = MaterialTheme.typography.caption2,
+                    color = WearColors.onSurfaceVariant,
+                )
             }
         }
     }
 }
 
-// ---------------------------------------------------------------- 現在地を取得中
+// ---------------------------------------------------------------- ホーム（1 画面）
 
+/**
+ * スクロールせずに 1 画面へ収める。上から
+ * 地点バッジ → 行き先・路線 → 大きなアイコンと残り時間 → 発時刻（タップで時刻表）。
+ */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun LocatingScreen(onCancel: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(72.dp)) {
-            CircularProgressIndicator(
-                modifier = Modifier.fillMaxSize(),
-                indicatorColor = WearColors.gradientStart,
-                trackColor = WearColors.outline,
-                strokeWidth = 3.dp,
+private fun HomeScreen(
+    state: BoardUiState,
+    onOpenTimetable: () -> Unit,
+    onOpenMenu: () -> Unit,
+) {
+    val s = state.snapshot ?: return
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
+    Scaffold(timeText = { TimeText() }) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(WearColors.background)
+                    .padding(horizontal = 14.dp)
+                    // リューズ: 時計回りで時刻表、反時計回りでメニュー
+                    .onRotaryScrollEvent { event ->
+                        if (event.verticalScrollPixels > 0) onOpenTimetable() else onOpenMenu()
+                        true
+                    }.focusRequester(focusRequester)
+                    .focusable()
+                    // 上から下へのスワイプでメニュー（指を離したときに判定する）
+                    .pointerInput(Unit) {
+                        var dragged = 0f
+                        detectVerticalDragGestures(
+                            onDragStart = { dragged = 0f },
+                            onDragEnd = { if (dragged > SWIPE_DOWN_THRESHOLD_PX) onOpenMenu() },
+                        ) { _, dragAmount -> dragged += dragAmount }
+                    },
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            PlaceBadge(s.place)
+            Text(
+                text = stringResource(s.place.directionRes()),
+                style = MaterialTheme.typography.caption2,
+                color = WearColors.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
             )
+            Spacer(Modifier.height(6.dp))
+            val next = s.next
+            if (next == null) {
+                Text(
+                    text = stringResource(R.string.board_empty),
+                    style = MaterialTheme.typography.title3,
+                    textAlign = TextAlign.Center,
+                )
+            } else {
+                CountdownRow(s, next)
+                Spacer(Modifier.height(8.dp))
+                DepartureFooter(next, onClick = onOpenTimetable)
+            }
+        }
+    }
+}
+
+/** 大きなアイコン（バス / 電車）と「次の発車まで NN 分」。 */
+@Composable
+private fun CountdownRow(
+    s: BoardSnapshot,
+    next: Departure,
+) {
+    val context = LocalContext.current
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier =
+                Modifier
+                    .size(54.dp)
+                    .clip(CircleShape)
+                    .background(WearColors.surface)
+                    .border(2.dp, WearColors.gradientStart, CircleShape),
+        ) {
             Icon(
-                painter = painterResource(R.drawable.ic_place),
+                painter = painterResource(next.mode.iconRes()),
                 contentDescription = null,
                 tint = WearColors.accentLight,
                 modifier = Modifier.size(30.dp),
             )
         }
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text = stringResource(R.string.locating_title),
-            style = MaterialTheme.typography.title3,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-        )
-        Text(
-            text = stringResource(R.string.locating_sub),
-            style = MaterialTheme.typography.caption3,
-            color = WearColors.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(12.dp))
-        PillButton(text = stringResource(R.string.action_cancel), iconRes = R.drawable.ic_close, onClick = onCancel)
-    }
-}
-
-// ---------------------------------------------------------------- 最寄りの確認
-
-@Composable
-private fun ConfirmScreen(
-    state: BoardUiState,
-    onConfirm: () -> Unit,
-    onPick: () -> Unit,
-) {
-    val resolution = state.resolution ?: return
-    Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                painter = painterResource(R.drawable.ic_place),
-                contentDescription = null,
-                tint = WearColors.accentLight,
-                modifier = Modifier.size(14.dp),
-            )
-            Spacer(Modifier.width(4.dp))
+        Spacer(Modifier.width(10.dp))
+        Column(horizontalAlignment = Alignment.End) {
             Text(
-                text = stringResource(R.string.nearest_title),
-                style = MaterialTheme.typography.caption2,
-                color = WearColors.onSurfaceVariant,
-            )
-        }
-        Text(
-            text = stringResource(resolution.place.nameRes()),
-            style = MaterialTheme.typography.title2,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-        )
-        resolution.distanceMeters?.let {
-            Text(text = distanceLabel(it), style = MaterialTheme.typography.caption1, color = WearColors.accentLight)
-        }
-        Spacer(Modifier.height(10.dp))
-        GradientButton(text = stringResource(R.string.action_use_this), onClick = onConfirm)
-        Spacer(Modifier.height(6.dp))
-        PillButton(
-            text = stringResource(R.string.action_pick_place),
-            iconRes = R.drawable.ic_my_location,
-            onClick = onPick,
-        )
-    }
-}
-
-// ---------------------------------------------------------------- 発車標
-
-@Composable
-private fun BoardScreen(
-    state: BoardUiState,
-    onPick: () -> Unit,
-    onOpenJourney: () -> Unit,
-    onLocationGranted: () -> Unit,
-) {
-    val s = state.snapshot ?: return
-    val listState = rememberScalingLazyListState()
-    ScalingLazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-        item { PlacePill(s.place) }
-        item {
-            Text(
-                text = stringResource(s.place.directionRes()),
+                text = stringResource(R.string.board_next_in),
                 style = MaterialTheme.typography.caption3,
                 color = WearColors.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
             )
-        }
-        val next = s.next
-        if (next == null) {
-            item { Caption(stringResource(R.string.board_empty)) }
-        } else {
-            item { NextDeparture(s, next) }
-            item { NextPills(s.later) }
-            item { Caption(stringResource(R.string.board_later_label)) }
-            s.departures.forEachIndexed { index, departure ->
-                item { DepartureRow(departure = departure, now = s.now, highlighted = index == 0) }
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = context.countdownValue(s.now, next.at),
+                    fontSize = COUNTDOWN_SP.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WearColors.accentLight,
+                )
+                Text(
+                    text = context.countdownUnit(s.now, next.at),
+                    style = MaterialTheme.typography.caption1,
+                    color = WearColors.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 6.dp, start = 2.dp),
+                )
             }
-        }
-        item { Caption(stringResource(state.resolution?.basis?.labelRes() ?: R.string.basis_manual)) }
-        if (!state.locationPermitted) item { LocationPrompt(onLocationGranted) }
-        item {
-            PillButton(
-                text = stringResource(R.string.action_pick_place),
-                iconRes = R.drawable.ic_my_location,
-                onClick = onPick,
-            )
-        }
-        item {
-            PillButton(
-                text = stringResource(R.string.nav_journey),
-                iconRes = R.drawable.ic_schedule,
-                onClick = onOpenJourney,
-            )
         }
     }
 }
 
-/** デザイン 1 枚目の主役: 丸いアイコン + 「次の発車まで NN 分」 + 発時刻と行き先。 */
+/** 下部の発時刻。ここをタップすると時刻表が開く。 */
 @Composable
-private fun NextDeparture(
-    s: BoardSnapshot,
+private fun DepartureFooter(
     next: Departure,
+    onClick: () -> Unit,
 ) {
-    val context = LocalContext.current
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier =
-                    Modifier
-                        .size(50.dp)
-                        .clip(CircleShape)
-                        .background(WearColors.surface)
-                        .border(2.dp, WearColors.gradientStart, CircleShape),
-            ) {
-                Icon(
-                    painter = painterResource(next.mode.iconRes()),
-                    contentDescription = null,
-                    tint = WearColors.accentLight,
-                    modifier = Modifier.size(26.dp),
-                )
-            }
-            Spacer(Modifier.width(8.dp))
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = stringResource(R.string.board_next_in),
-                    style = MaterialTheme.typography.caption3,
-                    color = WearColors.onSurfaceVariant,
-                )
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = context.countdownValue(s.now, next.at),
-                        fontSize = COUNTDOWN_SP.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = WearColors.accentLight,
-                    )
-                    Text(
-                        text = context.countdownUnit(s.now, next.at),
-                        style = MaterialTheme.typography.caption2,
-                        color = WearColors.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 5.dp, start = 2.dp),
-                    )
-                }
-            }
-        }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(WearColors.surface)
+                .border(1.dp, WearColors.outline, RoundedCornerShape(16.dp))
+                .clickable(onClick = onClick)
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+    ) {
         Text(
             text = stringResource(R.string.board_depart_at, next.at.hhmm()),
             style = MaterialTheme.typography.title3,
@@ -287,133 +257,233 @@ private fun NextDeparture(
             text = stringResource(R.string.board_headsign_line, next.headsign, next.line),
             style = MaterialTheme.typography.caption3,
             color = WearColors.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
+            maxLines = 1,
+        )
+        Text(
+            text = stringResource(R.string.board_open_timetable),
+            style = MaterialTheme.typography.caption3,
+            color = WearColors.accentLight,
+            maxLines = 1,
         )
     }
 }
 
-/** 「つぎ 8:32 / そのつぎ 8:56」の小さなピル 2 つ。 */
+// ---------------------------------------------------------------- 時刻表
+
+/**
+ * その地点の 1 日分。現在時刻より前はグレー、次の便は青、それ以降〜終電は通常。
+ * 右にスクロールバー（[PositionIndicator]）を出し、リューズでも送れる。戻るはスワイプ。
+ */
 @Composable
-private fun NextPills(later: List<Departure>) {
-    if (later.isEmpty()) return
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+private fun TimetableScreen(
+    board: DayBoard?,
+    pinned: BoardPlace?,
+    onSelectDay: (DaySelection) -> Unit,
+    onTogglePinned: (BoardPlace) -> Unit,
+) {
+    if (board == null) return
+    val listState = rememberScalingLazyListState()
+    val context = LocalContext.current
+    // 開いたら「次の便」が真ん中に来るようにする
+    LaunchedEffect(board.place, board.selection, board.departures.size) {
+        val index = board.nextIndex
+        if (index >= 0) runCatching { listState.scrollToItem(index + HEADER_ITEMS) }
+    }
+    Scaffold(
+        timeText = { TimeText() },
+        positionIndicator = { PositionIndicator(scalingLazyListState = listState) },
     ) {
-        SmallPill(stringResource(R.string.board_next_short), later[0].at.hhmm(), Modifier.weight(1f))
-        later.getOrNull(1)?.let {
-            SmallPill(stringResource(R.string.board_next_next_short), it.at.hhmm(), Modifier.weight(1f))
+        ScalingLazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize().background(WearColors.background).rotaryScroll(listState),
+        ) {
+            item { PlaceBadge(board.place) }
+            item { DaySelector(board.selection, board.date.format(dateLabelFormat), onSelectDay) }
+            if (board.departures.isEmpty()) {
+                item {
+                    Text(
+                        text = stringResource(R.string.board_empty),
+                        style = MaterialTheme.typography.body1,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+            board.departures.forEachIndexed { index, departure ->
+                item {
+                    TimetableRow(
+                        departure = departure,
+                        state = board.stateOf(index),
+                        remaining = if (board.isToday) context.compactCountdown(board.now, departure.at) else null,
+                    )
+                }
+            }
+            item {
+                PillButton(
+                    text = stringResource(if (pinned == board.place) R.string.board_unpin else R.string.board_pin),
+                    iconRes = R.drawable.ic_place,
+                    onClick = { onTogglePinned(board.place) },
+                )
+            }
         }
     }
 }
 
-@Composable
-private fun SmallPill(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier =
-            modifier
-                .clip(RoundedCornerShape(12.dp))
-                .background(WearColors.surface)
-                .border(1.dp, WearColors.outline, RoundedCornerShape(12.dp))
-                .padding(vertical = 4.dp),
-    ) {
-        Text(label, style = MaterialTheme.typography.caption3, color = WearColors.onSurfaceVariant, maxLines = 1)
-        Text(value, style = MaterialTheme.typography.caption1, fontWeight = FontWeight.Bold, maxLines = 1)
-    }
+/** 1 行の見え方。 */
+private enum class RowState {
+    /** 現在時刻より前 */
+    PAST,
+
+    /** 次の便 */
+    NEXT,
+
+    /** それ以降（と、今日以外の表示） */
+    UPCOMING,
 }
 
-/** 一覧の 1 行: 時刻 / 行き先 / 残り時間。次の便は青く塗る（デザイン 2 枚目）。 */
+private fun DayBoard.stateOf(index: Int): RowState =
+    when {
+        !isToday -> RowState.UPCOMING
+        nextIndex < 0 -> RowState.PAST
+        index < nextIndex -> RowState.PAST
+        index == nextIndex -> RowState.NEXT
+        else -> RowState.UPCOMING
+    }
+
 @Composable
-private fun DepartureRow(
+private fun TimetableRow(
     departure: Departure,
-    now: LocalDateTime,
-    highlighted: Boolean,
+    state: RowState,
+    remaining: String?,
 ) {
-    val context = LocalContext.current
+    val background = if (state == RowState.NEXT) WearColors.primaryGradient else null
+    val timeColor =
+        when (state) {
+            RowState.PAST -> WearColors.onSurfaceDisabled
+            RowState.NEXT -> Color.White
+            RowState.UPCOMING -> WearColors.onSurface
+        }
+    val subColor = if (state == RowState.PAST) WearColors.onSurfaceDisabled else WearColors.onSurfaceVariant
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier =
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(14.dp))
-                .then(if (highlighted) Modifier.background(WearColors.primaryGradient) else Modifier.background(WearColors.surface))
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .then(if (background != null) Modifier.background(background) else Modifier.background(WearColors.surface))
+                .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
         Text(
             text = departure.at.hhmm(),
-            style = MaterialTheme.typography.caption1,
+            style = MaterialTheme.typography.title3,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.width(42.dp),
+            color = timeColor,
+            modifier = Modifier.width(56.dp),
         )
+        Spacer(Modifier.width(6.dp))
         Text(
             text = stringResource(R.string.board_headsign, departure.headsign),
-            style = MaterialTheme.typography.caption2,
-            color = if (highlighted) Color.White else WearColors.onSurfaceVariant,
+            style = MaterialTheme.typography.body2,
+            color = if (state == RowState.NEXT) Color.White else subColor,
             maxLines = 1,
             modifier = Modifier.weight(1f),
         )
-        Text(
-            text = context.compactCountdown(now, departure.at),
-            style = MaterialTheme.typography.caption2,
-            color = if (highlighted) Color.White else WearColors.accentLight,
-            maxLines = 1,
-        )
-    }
-}
-
-// ---------------------------------------------------------------- 駅・バス停の選択
-
-@Composable
-private fun PickerScreen(
-    state: BoardUiState,
-    onPick: (BoardPlace) -> Unit,
-    onUseLocation: () -> Unit,
-    onBack: () -> Unit,
-) {
-    val listState = rememberScalingLazyListState()
-    ScalingLazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_arrow_back),
-                    contentDescription = stringResource(R.string.nav_back),
-                    tint = WearColors.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp).clip(CircleShape).clickable(onClick = onBack),
-                )
-                Text(
-                    text = stringResource(R.string.picker_title),
-                    style = MaterialTheme.typography.caption1,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(Modifier.width(20.dp))
-            }
-        }
-        item { Caption(stringResource(R.string.picker_nearby)) }
-        state.nearby.forEach { entry ->
-            item { PlaceRow(entry = entry, selected = state.manual == entry.place, onClick = { onPick(entry.place) }) }
-        }
-        item {
-            PillButton(
-                text = stringResource(R.string.board_use_location),
-                iconRes = R.drawable.ic_my_location,
-                onClick = onUseLocation,
+        if (state != RowState.PAST && remaining != null) {
+            Text(
+                text = remaining,
+                style = MaterialTheme.typography.body2,
+                color = if (state == RowState.NEXT) Color.White else WearColors.accentLight,
+                maxLines = 1,
             )
         }
     }
 }
 
+/** 今日 / 平日 / 土日祝 の切り替えバッジ。下に実際に引いた日付を出す。 */
 @Composable
-private fun PlaceRow(
+private fun DaySelector(
+    selected: DaySelection,
+    dateLabel: String,
+    onSelect: (DaySelection) -> Unit,
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            DaySelection.entries.forEach { day ->
+                val active = day == selected
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .then(if (active) Modifier.background(WearColors.primaryGradient) else Modifier.background(WearColors.surface))
+                            .clickable { onSelect(day) }
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                ) {
+                    Text(
+                        text = stringResource(day.labelRes()),
+                        style = MaterialTheme.typography.caption1,
+                        fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+                        color = if (active) Color.White else WearColors.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                }
+            }
+        }
+        Text(
+            text = dateLabel,
+            style = MaterialTheme.typography.caption3,
+            color = WearColors.onSurfaceVariant,
+        )
+    }
+}
+
+// ---------------------------------------------------------------- メニュー
+
+/** 駅・バス停の一覧。タップでその地点の時刻表を開く。 */
+@Composable
+private fun MenuScreen(
+    places: List<PlaceDistance>,
+    pinned: BoardPlace?,
+    onPick: (BoardPlace) -> Unit,
+) {
+    val listState = rememberScalingLazyListState()
+    Scaffold(
+        timeText = { TimeText() },
+        positionIndicator = { PositionIndicator(scalingLazyListState = listState) },
+    ) {
+        ScalingLazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize().background(WearColors.background).rotaryScroll(listState),
+        ) {
+            item {
+                Text(
+                    text = stringResource(R.string.menu_title),
+                    style = MaterialTheme.typography.title3,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            places.forEach { entry ->
+                item { MenuRow(entry = entry, pinned = pinned == entry.place, onClick = { onPick(entry.place) }) }
+            }
+            item {
+                Text(
+                    text = stringResource(R.string.menu_back_hint),
+                    style = MaterialTheme.typography.caption3,
+                    color = WearColors.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MenuRow(
     entry: PlaceDistance,
-    selected: Boolean,
+    pinned: Boolean,
     onClick: () -> Unit,
 ) {
     Row(
@@ -422,28 +492,28 @@ private fun PlaceRow(
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
-                .then(if (selected) Modifier.background(WearColors.primaryGradient) else Modifier.background(WearColors.surface))
+                .background(WearColors.surface)
                 .clickable(onClick = onClick)
-                .padding(horizontal = 10.dp, vertical = 8.dp),
+                .padding(horizontal = 10.dp, vertical = 10.dp),
     ) {
         Icon(
             painter = painterResource(entry.place.iconRes()),
             contentDescription = null,
-            tint = if (selected) Color.White else WearColors.accentLight,
-            modifier = Modifier.size(20.dp),
+            tint = WearColors.accentLight,
+            modifier = Modifier.size(22.dp),
         )
         Spacer(Modifier.width(8.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = stringResource(entry.place.nameRes()),
-                style = MaterialTheme.typography.caption1,
+                style = MaterialTheme.typography.body1,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
             )
             Text(
                 text = stringResource(entry.place.directionRes()),
                 style = MaterialTheme.typography.caption3,
-                color = if (selected) Color.White else WearColors.onSurfaceVariant,
+                color = WearColors.onSurfaceVariant,
                 maxLines = 1,
             )
         }
@@ -451,16 +521,16 @@ private fun PlaceRow(
             Text(
                 text = distanceLabel(it),
                 style = MaterialTheme.typography.caption3,
-                color = if (selected) Color.White else WearColors.onSurfaceVariant,
+                color = WearColors.onSurfaceVariant,
                 maxLines = 1,
             )
         }
-        if (selected) {
+        if (pinned) {
             Spacer(Modifier.width(4.dp))
             Icon(
                 painter = painterResource(R.drawable.ic_check_circle),
                 contentDescription = null,
-                tint = Color.White,
+                tint = WearColors.accentLight,
                 modifier = Modifier.size(16.dp),
             )
         }
@@ -469,9 +539,24 @@ private fun PlaceRow(
 
 // ---------------------------------------------------------------- 共通部品
 
-/** 画面上部の地点ピル（📍 鳥取駅）。 */
+/** リューズで一覧を送る。Wear の回転入力をそのままスクロール量にする。 */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun PlacePill(place: BoardPlace) {
+private fun Modifier.rotaryScroll(listState: ScalingLazyListState): Modifier {
+    val scope = rememberCoroutineScope()
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
+    return this
+        .onRotaryScrollEvent { event ->
+            scope.launch { listState.scrollBy(event.verticalScrollPixels) }
+            true
+        }.focusRequester(focusRequester)
+        .focusable()
+}
+
+/** 画面上部の地点バッジ（📍 鳥取駅）。 */
+@Composable
+private fun PlaceBadge(place: BoardPlace) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier =
@@ -498,80 +583,30 @@ private fun PlacePill(place: BoardPlace) {
 }
 
 @Composable
-private fun GradientButton(
-    text: String,
-    onClick: () -> Unit,
-) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .height(40.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(WearColors.primaryGradient)
-                .clickable(onClick = onClick),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(text, style = MaterialTheme.typography.button, color = Color.White, maxLines = 1)
-            Spacer(Modifier.width(4.dp))
-            Icon(
-                painter = painterResource(R.drawable.ic_arrow_forward),
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(16.dp),
-            )
-        }
-    }
-}
-
-@Composable
 private fun PillButton(
     text: String,
     iconRes: Int,
     onClick: () -> Unit,
 ) {
-    Chip(
-        onClick = onClick,
-        label = { Text(text, style = MaterialTheme.typography.caption1, maxLines = 1) },
-        icon = {
-            Icon(
-                painter = painterResource(iconRes),
-                contentDescription = null,
-                tint = WearColors.accentLight,
-                modifier = Modifier.size(18.dp),
-            )
-        },
-        colors = ChipDefaults.chipColors(backgroundColor = WearColors.surface, contentColor = WearColors.onSurface),
-        modifier = Modifier.fillMaxWidth(),
-    )
-}
-
-@Composable
-private fun LocationPrompt(onGranted: () -> Unit) {
-    val launcher =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
-            if (result.values.any { it }) onGranted()
-        }
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Caption(stringResource(R.string.board_location_prompt))
-        PillButton(
-            text = stringResource(R.string.board_allow_location),
-            iconRes = R.drawable.ic_my_location,
-            onClick = { launcher.launch(WearLocationProvider.PERMISSIONS) },
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(WearColors.surface)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        Icon(
+            painter = painterResource(iconRes),
+            contentDescription = null,
+            tint = WearColors.accentLight,
+            modifier = Modifier.size(18.dp),
         )
+        Spacer(Modifier.width(8.dp))
+        Text(text, style = MaterialTheme.typography.caption1, maxLines = 1)
     }
-}
-
-@Composable
-private fun Caption(text: String) {
-    Text(
-        text = text,
-        color = WearColors.onSurfaceVariant,
-        textAlign = TextAlign.Center,
-        style = MaterialTheme.typography.caption3,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-    )
 }
 
 /** 距離の表示（約 350m / 約 1.2km）。 */
@@ -584,4 +619,10 @@ private fun distanceLabel(meters: Double): String =
     }
 
 private const val METERS_IN_KM = 1_000.0
-private const val COUNTDOWN_SP = 40f
+private const val COUNTDOWN_SP = 44f
+
+/** 時刻表の先頭に置く見出し（地点バッジ・日種別）の数。「次の便」へ送るときの補正に使う。 */
+private const val HEADER_ITEMS = 2
+
+/** 下方向にこれだけ動かして離したらメニューを開く。 */
+private const val SWIPE_DOWN_THRESHOLD_PX = 60f

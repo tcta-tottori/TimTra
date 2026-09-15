@@ -31,6 +31,9 @@ object WearColors {
     val onSurface = Color.White
     val onSurfaceVariant = Color(0xFF9FB4D6)
 
+    /** 時刻表で、現在時刻より前の便に使う灰色。 */
+    val onSurfaceDisabled = Color(0xFF61708C)
+
     /** 画面の地。黒（有機 EL で消灯する）から上だけ濃紺に持ち上げる。 */
     val background: Brush =
         Brush.linearGradient(

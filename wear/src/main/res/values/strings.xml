@@ -1,46 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">TimTra</string>
-    <string name="tile_label">TimTra 出発</string>
-    <string name="complication_label">TimTra 出発まで</string>
+    <string name="tile_label">TimTra 時刻表</string>
+    <string name="complication_label">TimTra 次の発車まで</string>
 
-    <string name="leave_home">家を出る</string>
-    <string name="leave_work">職場を出る</string>
-    <string name="countdown_minutes">あと %1$d 分</string>
-    <string name="countdown_hours_minutes">あと %1$d 時間 %2$d 分</string>
-    <string name="countdown_now">まもなく出発</string>
     <string name="countdown_passed">出発時刻を過ぎています</string>
-    <string name="countdown_dynamic_prefix">あと </string>
-    <string name="countdown_dynamic_suffix"> 分</string>
-    <string name="status_ok">余裕あり</string>
-    <string name="status_tight">やや余裕なし</string>
-    <string name="status_risk">危険</string>
-    <string name="status_missed">間に合わない</string>
-    <string name="bus_line">バス %1$s → %2$s</string>
-    <string name="jr_line">JR %1$s → %2$s</string>
-    <string name="transfer_margin">鳥取駅 余裕 %1$d 分</string>
-    <string name="transfer_margin_negative">鳥取駅 %1$d 分不足</string>
-    <string name="arrival_work">勤務先 %1$s</string>
-    <string name="arrival_home">自宅 %1$s</string>
-    <string name="platform">%1$s番のりば</string>
-    <string name="bound_outbound">往路</string>
-    <string name="bound_inbound">復路</string>
-    <string name="bound_auto">自動に戻す</string>
-    <string name="day_off">今日は休み</string>
-    <string name="no_journey">運行が見つかりません</string>
-    <string name="loading">計算中…</string>
-    <string name="synced_at">スマホと同期: %1$s</string>
-    <string name="not_synced">スマホ未同期（同梱データで計算）</string>
-    <string name="sample_data">サンプル時刻表</string>
-    <string name="complication_title">出発</string>
+    <string name="complication_title">発車</string>
     <string name="complication_none">--</string>
-    <string name="complication_description">出発までの残り時間</string>
+    <string name="complication_description">次の発車までの残り時間</string>
 
-    <!-- 発車標（時刻表タイル / 時計アプリ） -->
-    <string name="timetable_tile_label">TimTra 時刻表</string>
-    <string name="nav_timetable">時刻表を見る</string>
-    <string name="nav_journey">出発時刻を見る</string>
-    <string name="nav_back">戻る</string>
+    <!-- 発車標（ホーム / 時刻表 / メニュー） -->
     <string name="place_home_stop">南吉成 バス停</string>
     <string name="place_home_stop_dir">鳥取駅方面（日ノ丸バス）</string>
     <string name="place_station_bus">鳥取駅 バスのりば</string>
@@ -49,33 +18,24 @@
     <string name="place_tottori_jr_dir">宝木方面（JR山陰本線 下り）</string>
     <string name="place_hougi_jr">JR 宝木駅</string>
     <string name="place_hougi_jr_dir">鳥取方面（JR山陰本線 上り）</string>
-    <string name="basis_near_here">現在地から自動選択</string>
-    <string name="basis_manual">手動で選択中</string>
-    <string name="basis_time_of_day">位置が取れないため時刻帯から判定</string>
     <string name="board_next_in">次の発車まで</string>
     <string name="board_depart_at">%1$s 発</string>
     <string name="board_headsign">%1$s行</string>
     <string name="board_headsign_line">%1$s行　%2$s</string>
-    <string name="board_next_short">つぎ</string>
-    <string name="board_next_next_short">そのつぎ</string>
-    <string name="board_later_label">この後の発車</string>
     <string name="board_empty">この先の運行がありません</string>
-    <string name="board_no_more_today">この後の便はありません</string>
-    <string name="board_use_location">現在地から自動</string>
-    <string name="board_location_prompt">位置情報を許可すると、いる場所の時刻表を自動で出します</string>
-    <string name="board_allow_location">許可する</string>
+    <string name="board_open_timetable">タップ / リューズ→ で時刻表</string>
+    <string name="board_pin">この地点をホームに固定</string>
+    <string name="board_unpin">固定を解除（現在地から自動）</string>
+    <string name="menu_title">駅・バス停</string>
+    <string name="menu_back_hint">右へスワイプでホームに戻る</string>
+    <string name="day_today">今日</string>
+    <string name="day_weekday">平日</string>
+    <string name="day_weekend">土日祝</string>
     <string name="unit_minutes">分</string>
     <string name="unit_hours_minutes">時間 %1$d 分</string>
     <string name="compact_minutes">%1$d分</string>
     <string name="compact_hours_minutes">%1$d時間%2$d分</string>
     <string name="locating_title">現在地を取得中…</string>
-    <string name="locating_sub">位置情報を取得しています</string>
-    <string name="action_cancel">キャンセル</string>
-    <string name="nearest_title">現在地から近い駅・バス停</string>
-    <string name="action_use_this">この地点で表示</string>
-    <string name="action_pick_place">駅・バス停を選択</string>
-    <string name="picker_title">行き先を選択</string>
-    <string name="picker_nearby">近くの駅・バス停</string>
     <string name="distance_meters">約%1$d m</string>
     <string name="distance_kilometers">約%1$.1f km</string>
 </resources>

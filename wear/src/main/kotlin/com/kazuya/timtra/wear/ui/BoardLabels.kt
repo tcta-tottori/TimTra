@@ -3,7 +3,7 @@ package com.kazuya.timtra.wear.ui
 import com.kazuya.timtra.core.board.BoardPlace
 import com.kazuya.timtra.core.board.DepartureMode
 import com.kazuya.timtra.wear.R
-import com.kazuya.timtra.wear.board.PlaceBasis
+import com.kazuya.timtra.wear.board.DaySelection
 
 /** 地点の名前（「南吉成 バス停」など）。core は Android 非依存なので、文言はここで対応づける。 */
 fun BoardPlace.nameRes(): Int =
@@ -23,14 +23,6 @@ fun BoardPlace.directionRes(): Int =
         BoardPlace.HOUGI_JR -> R.string.place_hougi_jr_dir
     }
 
-/** 地点をどう決めたかの脚注。 */
-fun PlaceBasis.labelRes(): Int =
-    when (this) {
-        PlaceBasis.NEAR_HERE -> R.string.basis_near_here
-        PlaceBasis.MANUAL -> R.string.basis_manual
-        PlaceBasis.TIME_OF_DAY -> R.string.basis_time_of_day
-    }
-
 /** 地点のアイコン（バス / 電車）。デザインの丸バッジとリストの先頭に使う。 */
 fun BoardPlace.iconRes(): Int = mode.iconRes()
 
@@ -38,4 +30,12 @@ fun DepartureMode.iconRes(): Int =
     when (this) {
         DepartureMode.BUS -> R.drawable.ic_bus
         DepartureMode.TRAIN -> R.drawable.ic_train
+    }
+
+/** 時刻表の 今日 / 平日 / 土日祝 のバッジ。 */
+fun DaySelection.labelRes(): Int =
+    when (this) {
+        DaySelection.TODAY -> R.string.day_today
+        DaySelection.WEEKDAY -> R.string.day_weekday
+        DaySelection.WEEKEND -> R.string.day_weekend
     }

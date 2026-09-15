@@ -12,7 +12,7 @@ import com.kazuya.timtra.data.repository.SettingsRepository
 import com.kazuya.timtra.data.sync.SyncedSettings
 import com.kazuya.timtra.data.sync.WearSyncPaths
 import com.kazuya.timtra.wear.complication.LeaveCountdownComplicationService
-import com.kazuya.timtra.wear.tile.CommuteTileService
+import com.kazuya.timtra.wear.tile.TimetableTileService
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
@@ -39,7 +39,7 @@ class WearDataListenerService : WearableListenerService() {
     }
 
     private fun requestRefresh() {
-        TileService.getUpdater(this).requestUpdate(CommuteTileService::class.java)
+        TileService.getUpdater(this).requestUpdate(TimetableTileService::class.java)
         ComplicationDataSourceUpdateRequester
             .create(this, ComponentName(this, LeaveCountdownComplicationService::class.java))
             .requestUpdateAll()

@@ -4,11 +4,13 @@ import com.kazuya.timtra.core.board.BoardPlace
 import com.kazuya.timtra.core.board.Departure
 import com.kazuya.timtra.core.board.DepartureBoard
 import com.kazuya.timtra.core.model.Bound
+import com.kazuya.timtra.core.model.DayType
 import com.kazuya.timtra.data.di.AppClock
 import com.kazuya.timtra.data.repository.DepartureBoardRepository
 import com.kazuya.timtra.data.repository.SettingsRepository
 import com.kazuya.timtra.wear.location.WearLocationProvider
 import kotlinx.coroutines.flow.first
+import java.time.LocalDate
 import java.time.LocalDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -51,6 +53,33 @@ data class BoardSnapshot(
 
     /** 次の 1 本より後の便。 */
     val later: List<Departure> get() = departures.drop(1)
+}
+
+/** 時刻表画面の日種別の切り替え。時計は幅が無いので 3 つだけにする。 */
+enum class DaySelection(
+    /** 該当する JR の日種別。空は「今日」（種別で探さずその日を出す）。 */
+    val dayTypes: Set<DayType>,
+) {
+    TODAY(emptySet()),
+    WEEKDAY(setOf(DayType.WEEKDAY)),
+
+    /** 土日祝。JR は土曜も日祝と同じダイヤ、バスは土曜と日祝で別なので、実在する直近の 1 日を引く。 */
+    WEEKEND(setOf(DayType.SATURDAY, DayType.HOLIDAY)),
+}
+
+/** 時刻表画面 1 枚分（ある地点の、ある 1 日の全便）。 */
+data class DayBoard(
+    val place: BoardPlace,
+    val selection: DaySelection,
+    val date: LocalDate,
+    val now: LocalDateTime,
+    /** 始発から終電まで。 */
+    val departures: List<Departure>,
+) {
+    val isToday: Boolean get() = selection == DaySelection.TODAY
+
+    /** 今日の表示での「次の便」。今日でない、または終電を過ぎていれば -1。 */
+    val nextIndex: Int get() = if (isToday) departures.indexOfFirst { !it.at.isBefore(now) } else -1
 }
 
 /**
@@ -110,6 +139,22 @@ class WearBoardProvider
         ): BoardSnapshot {
             val resolution = resolvePlace(locationTimeoutMillis)
             return board(resolution.place, resolution.basis, limit)
+        }
+
+        /** 時刻表画面 1 枚分。 */
+        suspend fun dayBoard(
+            place: BoardPlace,
+            selection: DaySelection,
+        ): DayBoard {
+            val now = clock.now()
+            val date = repository.resolveDate(now.toLocalDate(), selection.dayTypes)
+            return DayBoard(
+                place = place,
+                selection = selection,
+                date = date,
+                now = now,
+                departures = repository.onDate(place, date),
+            )
         }
 
         /** 選択画面に並べる地点。現在地が取れていれば近い順、取れなければ経路の順（enum の順）。 */

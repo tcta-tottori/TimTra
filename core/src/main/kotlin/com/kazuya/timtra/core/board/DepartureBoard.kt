@@ -6,10 +6,15 @@ import com.kazuya.timtra.core.calendar.JapaneseHolidays
 import com.kazuya.timtra.core.data.BusTimetable
 import com.kazuya.timtra.core.model.Bound
 import com.kazuya.timtra.core.model.BusDirection
+import com.kazuya.timtra.core.model.BusTrip
+import com.kazuya.timtra.core.model.DayType
 import com.kazuya.timtra.core.model.GeoPoint
+import com.kazuya.timtra.core.model.JrLeg
 import com.kazuya.timtra.core.model.JrLegIds
+import com.kazuya.timtra.core.model.JrService
 import com.kazuya.timtra.core.model.JrTimetable
 import com.kazuya.timtra.core.model.Places
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 /** 発車標に出す便の種別。 */
@@ -85,6 +90,9 @@ object DepartureBoard {
      */
     const val NEAR_METERS = 10_000.0
 
+    /** 日種別（平日 / 土日祝）の実在する日を探す範囲。連休を挟んでも 2 週間あれば見つかる。 */
+    const val DAY_TYPE_LOOKAHEAD_DAYS = 14L
+
     /** 鳥取駅にある 2 つの地点（バスターミナルと JR 駅舎）。約 150 m しか離れておらず距離では選べない。 */
     private val TOTTORI_PLACES = listOf(BoardPlace.STATION_BUS, BoardPlace.TOTTORI_JR)
 
@@ -108,6 +116,50 @@ object DepartureBoard {
             .filter { !it.at.isBefore(now) }
             .sortedWith(compareBy({ it.at }, { it.code }))
             .take(limit)
+    }
+
+    /**
+     * その日 1 日分（始発から終電まで）。時刻表の一覧に使う。
+     * サービス日基準なので、深夜便（24:15 など）は翌日 0 時台の絶対時刻になる。
+     */
+    fun onDate(
+        place: BoardPlace,
+        date: LocalDate,
+        bus: BusTimetable,
+        jr: JrTimetable,
+        holidays: HolidayCalendar = JapaneseHolidays,
+    ): List<Departure> =
+        when (place.mode) {
+            DepartureMode.BUS ->
+                bus.tripsOn(date, checkNotNull(place.busDirection)).map { trip ->
+                    busDeparture(trip, date)
+                }
+            DepartureMode.TRAIN -> {
+                val legId = checkNotNull(place.jrLegId)
+                val leg = jr.leg(legId)
+                jr.servicesOn(date, legId, holidays, includeIrregular = true).map { service ->
+                    trainDeparture(service, date, leg)
+                }
+            }
+        }.sortedWith(compareBy({ it.at }, { it.code }))
+
+    /**
+     * [dayTypes] のいずれかに当てはまる直近の日（今日を含む）。空なら今日そのまま。
+     * 時刻表の「平日 / 土日祝」切り替えで、その種別の実在する日を引くのに使う。
+     */
+    fun resolveDate(
+        today: LocalDate,
+        dayTypes: Set<DayType>,
+        jr: JrTimetable,
+        lookaheadDays: Long = DAY_TYPE_LOOKAHEAD_DAYS,
+        holidays: HolidayCalendar = JapaneseHolidays,
+    ): LocalDate {
+        if (dayTypes.isEmpty()) return today
+        return (0..lookaheadDays)
+            .asSequence()
+            .map { today.plusDays(it) }
+            .firstOrNull { jr.dayTypeOf(it, holidays) in dayTypes }
+            ?: today
     }
 
     /** 各地点の位置。バス停は GTFS、JR 駅は [Places]。位置が分からない地点は含めない。 */
@@ -152,18 +204,22 @@ object DepartureBoard {
         // 前日のサービス日に属する深夜便（24:15 など）が当日 0 時台に走るので、前日分から見る
         (-1..lookaheadDays).flatMap { offset ->
             val serviceDate = now.toLocalDate().plusDays(offset)
-            bus.tripsOn(serviceDate, direction).map { trip ->
-                Departure(
-                    at = trip.departure.at(serviceDate),
-                    mode = DepartureMode.BUS,
-                    code = trip.routeDisplayName,
-                    headsign = trip.headsign,
-                    line = trip.routeLongName.ifBlank { trip.routeDisplayName },
-                    platform = trip.boardStop.platformCode,
-                    arrivalAt = trip.arrival.at(serviceDate),
-                )
-            }
+            bus.tripsOn(serviceDate, direction).map { trip -> busDeparture(trip, serviceDate) }
         }
+
+    private fun busDeparture(
+        trip: BusTrip,
+        serviceDate: LocalDate,
+    ): Departure =
+        Departure(
+            at = trip.departure.at(serviceDate),
+            mode = DepartureMode.BUS,
+            code = trip.routeDisplayName,
+            headsign = trip.headsign,
+            line = trip.routeLongName.ifBlank { trip.routeDisplayName },
+            platform = trip.boardStop.platformCode,
+            arrivalAt = trip.arrival.at(serviceDate),
+        )
 
     private fun trainDepartures(
         legId: String,
@@ -175,17 +231,24 @@ object DepartureBoard {
         val leg = jr.leg(legId)
         return (0..lookaheadDays).flatMap { offset ->
             val date = now.toLocalDate().plusDays(offset)
-            jr.servicesOn(date, legId, holidays).map { service ->
-                Departure(
-                    at = date.atTime(service.departure),
-                    mode = DepartureMode.TRAIN,
-                    code = service.trainId,
-                    headsign = leg.to,
-                    line = leg.line,
-                    platform = service.platform.ifBlank { null },
-                    arrivalAt = (if (service.arrivesNextDay) date.plusDays(1) else date).atTime(service.arrival),
-                )
+            jr.servicesOn(date, legId, holidays, includeIrregular = true).map { service ->
+                trainDeparture(service, date, leg)
             }
         }
     }
+
+    private fun trainDeparture(
+        service: JrService,
+        date: LocalDate,
+        leg: JrLeg,
+    ): Departure =
+        Departure(
+            at = date.atTime(service.departure),
+            mode = DepartureMode.TRAIN,
+            code = service.trainId,
+            headsign = leg.to,
+            line = leg.line,
+            platform = service.platform.ifBlank { null },
+            arrivalAt = (if (service.arrivesNextDay) date.plusDays(1) else date).atTime(service.arrival),
+        )
 }

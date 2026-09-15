@@ -2,6 +2,7 @@ package com.kazuya.timtra.core.board
 
 import com.kazuya.timtra.core.Fixtures
 import com.kazuya.timtra.core.model.Bound
+import com.kazuya.timtra.core.model.DayType
 import com.kazuya.timtra.core.model.GeoPoint
 import com.kazuya.timtra.core.model.Places
 import java.time.LocalDateTime
@@ -101,6 +102,37 @@ class DepartureBoardTest {
         val locations = DepartureBoard.locations(bus)
         // 大阪あたり。通勤圏外では自動で選ばず、手動選択にフォールバックさせる
         assertNull(DepartureBoard.nearest(GeoPoint(34.7025, 135.4959), locations, Bound.OUTBOUND))
+    }
+
+    @Test
+    fun `onDate lists the whole service day`() {
+        val all = DepartureBoard.onDate(BoardPlace.HOME_STOP, Fixtures.monday, bus, jr)
+        // 月曜（平日）の南吉成発はフィクスチャの WD 4 本
+        assertEquals(
+            listOf(at(Fixtures.monday, "07:05"), at(Fixtures.monday, "07:20"), at(Fixtures.monday, "07:35"), at(Fixtures.monday, "08:00")),
+            all.map { it.at },
+        )
+        // 現在時刻に関係なく、始発から入っている（一覧で過去便をグレーにして出すため）
+        assertTrue(all.first().at.toLocalTime() < LocalTime.of(7, 10))
+    }
+
+    @Test
+    fun `onDate keeps midnight trips on their service day`() {
+        val all = DepartureBoard.onDate(BoardPlace.STATION_BUS, Fixtures.monday, bus, jr)
+        // 24:30 発は月曜のサービス日に属し、絶対時刻では火曜 00:30
+        assertEquals(at(Fixtures.monday.plusDays(1), "00:30"), all.last().at)
+    }
+
+    @Test
+    fun `resolveDate finds the next day of the wanted type`() {
+        // 今日（種別指定なし）はそのまま
+        assertEquals(Fixtures.monday, DepartureBoard.resolveDate(Fixtures.monday, emptySet(), jr))
+        // 平日は月曜そのもの
+        assertEquals(Fixtures.monday, DepartureBoard.resolveDate(Fixtures.monday, setOf(DayType.WEEKDAY), jr))
+        // 土日祝は直近の土曜（2026-09-12 の次は 9-19）
+        val weekend = DepartureBoard.resolveDate(Fixtures.monday, setOf(DayType.SATURDAY, DayType.HOLIDAY), jr)
+        assertTrue(jr.dayTypeOf(weekend) in setOf(DayType.SATURDAY, DayType.HOLIDAY))
+        assertTrue(!weekend.isBefore(Fixtures.monday))
     }
 
     @Test

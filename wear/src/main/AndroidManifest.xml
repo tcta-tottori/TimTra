@@ -34,25 +34,11 @@
             </intent-filter>
         </activity>
 
-        <!-- タイル: 家を出る時刻 + 残り時間 + ステータス色 -->
-        <service
-            android:name=".tile.CommuteTileService"
-            android:exported="true"
-            android:label="@string/tile_label"
-            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
-            <intent-filter>
-                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
-            </intent-filter>
-            <meta-data
-                android:name="androidx.wear.tiles.PREVIEW"
-                android:resource="@drawable/tile_preview" />
-        </service>
-
-        <!-- 時刻表タイル: いまいる場所の次の発車とその後の便 -->
+        <!-- タイル: アプリのホームと同じ表示（地点・次の発車まで・発時刻） -->
         <service
             android:name=".tile.TimetableTileService"
             android:exported="true"
-            android:label="@string/timetable_tile_label"
+            android:label="@string/tile_label"
             android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
             <intent-filter>
                 <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />

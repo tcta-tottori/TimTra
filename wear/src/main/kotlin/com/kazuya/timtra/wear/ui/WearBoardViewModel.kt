@@ -4,7 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kazuya.timtra.core.board.BoardPlace
 import com.kazuya.timtra.wear.board.BoardSnapshot
-import com.kazuya.timtra.wear.board.PlaceBasis
+import com.kazuya.timtra.wear.board.DayBoard
+import com.kazuya.timtra.wear.board.DaySelection
 import com.kazuya.timtra.wear.board.PlaceDistance
 import com.kazuya.timtra.wear.board.PlaceResolution
 import com.kazuya.timtra.wear.board.WearBoardProvider
@@ -16,27 +17,32 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** 発車標の画面遷移。添付デザインの流れに合わせている。 */
+/** 時計の画面。ホームは 1 画面に収め、時刻表とメニューは一覧で開く。 */
 enum class BoardStep {
-    /** 現在地を取得中 */
-    LOCATING,
+    /** 現在地を取って地点を決めている最中 */
+    LOADING,
 
-    /** 最寄りが見つかったので「この地点で表示」を確認 */
-    CONFIRM,
+    /** ホーム（1 画面） */
+    HOME,
 
-    /** 発車標 */
-    BOARD,
+    /** 時刻表（その地点の 1 日分） */
+    TIMETABLE,
 
-    /** 駅・バス停の選択 */
-    PICKER,
+    /** メニュー（駅・バス停の一覧） */
+    MENU,
 }
 
 data class BoardUiState(
-    val step: BoardStep = BoardStep.LOCATING,
+    val step: BoardStep = BoardStep.LOADING,
     val resolution: PlaceResolution? = null,
+    /** ホームの内容。 */
     val snapshot: BoardSnapshot? = null,
-    val nearby: List<PlaceDistance> = emptyList(),
-    val manual: BoardPlace? = null,
+    /** 時刻表の内容。 */
+    val dayBoard: DayBoard? = null,
+    /** メニューに並べる地点。 */
+    val places: List<PlaceDistance> = emptyList(),
+    /** ホームに固定している地点。null は「現在地から自動」。 */
+    val pinned: BoardPlace? = null,
     val locationPermitted: Boolean = false,
 )
 
@@ -51,94 +57,100 @@ class WearBoardViewModel
 
         init {
             start()
-            // 画面を開いている間だけ、残り時間と次の便を定期的に引き直す
+            // 開いている間だけ、残り時間と次の便を定期的に引き直す
             viewModelScope.launch {
                 while (true) {
                     delay(TICK_MILLIS)
-                    val current = _state.value
-                    val place = current.snapshot?.place
-                    if (current.step == BoardStep.BOARD && place != null) {
-                        _state.value = current.copy(snapshot = provider.board(place, current.snapshot.basis, LIMIT))
-                    }
+                    refreshCurrent()
                 }
             }
         }
 
-        /** 最初から: 手動選択があればそれ、無ければ現在地を取りにいく。 */
+        /** 最初から: 固定した地点があればそれ、無ければ現在地から最寄りを決めてホームを出す。 */
         fun start() {
             viewModelScope.launch {
-                _state.value = BoardUiState(step = BoardStep.LOCATING, locationPermitted = provider.locationPermitted)
-                val resolution = provider.resolvePlace()
-                _state.value =
-                    when (resolution.basis) {
-                        // 手動で選んである、または位置が取れなかった → そのまま出す
-                        PlaceBasis.MANUAL -> ready(resolution)
-                        PlaceBasis.TIME_OF_DAY -> ready(resolution)
-                        // 最寄りが見つかった → 「この地点で表示」を挟む（デザインの 2 画面目）
-                        PlaceBasis.NEAR_HERE ->
-                            BoardUiState(
-                                step = BoardStep.CONFIRM,
-                                resolution = resolution,
-                                manual = provider.manualPlace(),
-                                locationPermitted = provider.locationPermitted,
-                            )
-                    }
+                _state.value = BoardUiState(step = BoardStep.LOADING, locationPermitted = provider.locationPermitted)
+                _state.value = home(provider.resolvePlace())
             }
         }
 
-        /** 「この地点で表示」。手動選択としては覚えない（次に開いたらまた現在地から選ぶ）。 */
-        fun confirm() {
-            val resolution = _state.value.resolution ?: return
-            viewModelScope.launch { _state.value = ready(resolution) }
-        }
-
-        /** 駅・バス停の選択を開く。 */
-        fun openPicker() {
+        /** ホームの発時刻をタップ / リューズ時計回り: その地点の時刻表を開く。 */
+        fun openTimetable(
+            place: BoardPlace? = null,
+            selection: DaySelection = DaySelection.TODAY,
+        ) {
+            val target = place ?: _state.value.resolution?.place ?: return
             viewModelScope.launch {
                 _state.value =
                     _state.value.copy(
-                        step = BoardStep.PICKER,
-                        nearby = provider.nearby(),
-                        manual = provider.manualPlace(),
+                        step = BoardStep.TIMETABLE,
+                        dayBoard = provider.dayBoard(target, selection),
                     )
             }
         }
 
-        /** 地点を手で選ぶ。以後はこの地点で固定される（タイルにも効く）。 */
-        fun pick(place: BoardPlace) {
+        /** 時刻表の 今日 / 平日 / 土日祝 の切り替え。 */
+        fun selectDay(selection: DaySelection) {
+            val place = _state.value.dayBoard?.place ?: return
+            openTimetable(place, selection)
+        }
+
+        /** ホームから下方向スワイプ / リューズ反時計回り: メニューを開く。 */
+        fun openMenu() {
             viewModelScope.launch {
-                provider.selectPlace(place)
-                _state.value = ready(PlaceResolution(place, PlaceBasis.MANUAL, null))
+                _state.value =
+                    _state.value.copy(
+                        step = BoardStep.MENU,
+                        places = provider.nearby(),
+                        pinned = provider.manualPlace(),
+                    )
             }
         }
 
-        /** 「現在地から自動」に戻す。 */
-        fun useLocation() {
+        /** 表示中の地点をホームに固定する（タイルにも効く）。同じ地点をもう一度押すと自動に戻す。 */
+        fun togglePinned(place: BoardPlace) {
             viewModelScope.launch {
-                provider.selectPlace(null)
-                start()
+                val next = if (provider.manualPlace() == place) null else place
+                provider.selectPlace(next)
+                _state.value = home(provider.resolvePlace())
             }
         }
 
-        /** 発車標に戻る（選択画面・確認画面の「戻る」）。 */
-        fun closePicker() {
-            val snapshot = _state.value.snapshot
-            if (snapshot == null) start() else _state.value = _state.value.copy(step = BoardStep.BOARD)
+        /** ホームへ戻る（スワイプで戻る / 戻るボタン）。 */
+        fun backHome() {
+            val current = _state.value
+            if (current.snapshot == null) start() else _state.value = current.copy(step = BoardStep.HOME)
         }
 
-        private suspend fun ready(resolution: PlaceResolution): BoardUiState =
+        private suspend fun home(resolution: PlaceResolution): BoardUiState =
             BoardUiState(
-                step = BoardStep.BOARD,
+                step = BoardStep.HOME,
                 resolution = resolution,
-                snapshot = provider.board(resolution.place, resolution.basis, LIMIT),
-                manual = provider.manualPlace(),
+                snapshot = provider.board(resolution.place, resolution.basis, HOME_LIMIT),
+                pinned = provider.manualPlace(),
                 locationPermitted = provider.locationPermitted,
             )
+
+        /** 画面はそのままに、中身だけ最新にする。 */
+        private suspend fun refreshCurrent() {
+            val current = _state.value
+            when (current.step) {
+                BoardStep.HOME -> {
+                    val resolution = current.resolution ?: return
+                    _state.value = current.copy(snapshot = provider.board(resolution.place, resolution.basis, HOME_LIMIT))
+                }
+                BoardStep.TIMETABLE -> {
+                    val board = current.dayBoard ?: return
+                    _state.value = current.copy(dayBoard = provider.dayBoard(board.place, board.selection))
+                }
+                BoardStep.LOADING, BoardStep.MENU -> Unit
+            }
+        }
 
         private companion object {
             const val TICK_MILLIS = 30_000L
 
-            /** 画面はスクロールできるので、タイルより多めに出す。 */
-            const val LIMIT = 8
+            /** ホームは次の 1 本しか使わないが、終電後の判定のために少し多めに引く。 */
+            const val HOME_LIMIT = 2
         }
     }

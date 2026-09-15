@@ -18,7 +18,6 @@ import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
 import com.google.common.util.concurrent.ListenableFuture
-import com.kazuya.timtra.core.board.Departure
 import com.kazuya.timtra.wear.MainActivity
 import com.kazuya.timtra.wear.R
 import com.kazuya.timtra.wear.board.BoardSnapshot
@@ -34,10 +33,12 @@ import kotlinx.coroutines.Dispatchers
 import javax.inject.Inject
 
 /**
- * 時刻表タイル: いまいる場所（または手動で選んだ場所）の次の発車と、その後の便。
+ * タイル: 時計アプリのホームと同じ表示。
+ * 地点バッジ → 行き先 → 「次の発車まで NN 分」→ 発時刻。タップでアプリのホームを開く。
  *
- * 現在地が取れればその最寄りの停留所・駅を自動で選ぶ。取れなければ時計アプリで選んだ地点、
- * それも無ければ時刻帯から決めた出発地を出す。タップで時計アプリの発車標を開き、地点を選び直せる。
+ * 地点の決め方もホームと同じ（固定した地点 → 現在地の最寄り → 時刻帯）。
+ * タイルはバックグラウンドで描かれて位置が取れないことがあるので、
+ * よく使う地点はアプリのメニューで固定しておくと安定する。
  */
 @AndroidEntryPoint
 class TimetableTileService : TileService() {
@@ -82,19 +83,19 @@ class TimetableTileService : TileService() {
                         .build(),
                 )
         column
-            .addContent(text(getString(snapshot.place.nameRes()), SMALL_SP, WHITE, bold = true))
+            .addContent(text(getString(snapshot.place.nameRes()), MEDIUM_SP, WHITE, bold = true))
             .addContent(text(getString(snapshot.place.directionRes()), SMALL_SP, GREY))
         val next = snapshot.next
         if (next == null) {
-            column.addContent(spacer(SPACER_DP)).addContent(text(getString(R.string.board_empty), SMALL_SP, WHITE))
+            column.addContent(spacer(SPACER_DP)).addContent(text(getString(R.string.board_empty), MEDIUM_SP, WHITE))
         } else {
             column
+                .addContent(spacer(SPACER_DP))
                 .addContent(text(getString(R.string.board_next_in), SMALL_SP, GREY))
                 .addContent(text(countdownValue(snapshot.now, next.at) + countdownUnit(snapshot.now, next.at), LARGE_SP, ACCENT, true))
+                .addContent(spacer(SPACER_DP))
                 .addContent(text(getString(R.string.board_depart_at, next.at.hhmm()), MEDIUM_SP, WHITE, bold = true))
                 .addContent(text(getString(R.string.board_headsign_line, next.headsign, next.line), SMALL_SP, GREY))
-                .addContent(spacer(SPACER_DP))
-                .addContent(text(laterLine(snapshot.later), SMALL_SP, GREY))
         }
         return LayoutElementBuilders.Box
             .Builder()
@@ -105,14 +106,6 @@ class TimetableTileService : TileService() {
             .addContent(column.build())
             .build()
     }
-
-    /** その後の便を 1 行にまとめる。入らない分は省く（タイルは 2 行まで）。 */
-    private fun laterLine(later: List<Departure>): String =
-        if (later.isEmpty()) {
-            getString(R.string.board_no_more_today)
-        } else {
-            getString(R.string.board_later_label) + " " + later.joinToString("  ") { it.at.hhmm() }
-        }
 
     private fun openBoardClickable(): ModifiersBuilders.Clickable {
         val component = ComponentName(this, MainActivity::class.java)
@@ -170,8 +163,8 @@ class TimetableTileService : TileService() {
         const val FRESHNESS_MILLIS = 60_000L
         const val CLICK_OPEN_BOARD = "open_board"
 
-        /** 次の 1 本 + その後 3 本。タイルに収まる量。 */
-        const val LIMIT = 4
+        /** ホームと同じく次の 1 本だけ使う。終電後の判定のため少しだけ多めに引く。 */
+        const val LIMIT = 2
         const val PADDING_DP = 12f
         const val SPACER_DP = 4f
         const val LARGE_SP = 34f
