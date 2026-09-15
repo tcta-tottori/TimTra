@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
@@ -30,7 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.focusable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
@@ -60,8 +60,8 @@ import com.kazuya.timtra.wear.board.BoardSnapshot
 import com.kazuya.timtra.wear.board.DayBoard
 import com.kazuya.timtra.wear.board.DaySelection
 import com.kazuya.timtra.wear.board.PlaceDistance
-import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.launch
 
 private val dateLabelFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("M/d(E)")
 
