@@ -25,13 +25,18 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.platform.LocalContext
@@ -62,16 +67,18 @@ import com.kazuya.timtra.wear.board.DaySelection
 import com.kazuya.timtra.wear.board.PlaceDistance
 import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
+import kotlin.math.abs
 
 private val dateLabelFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("M/d(E)")
 
 /**
- * 時計の画面。ホームは 1 画面に収め、そこから時刻表とメニューへ広げる（CLAUDE.md 7-4 の拡張）。
+ * 時計の画面。ホームは 1 画面に収め、そこから一覧へ広げる（CLAUDE.md 7-4 の拡張）。
  *
  * - ホーム: 現在時刻のすぐ下に地点バッジ → 行き先 → 大きなアイコンと「次の発車まで」→ 下部に発時刻。
- * - 発時刻をタップ、またはリューズ時計回り → 時刻表（その日の始発〜終電。右にスクロールバー）。
+ * - 発時刻をタップ、またはリューズ時計回り → この先の発車（現在時刻〜当日終電）。
+ * - その一覧の最下部の「時刻表を表示する」 → 今日 / 平日 / 土日祝 を切り替えられる時刻表。
  * - 上から下へスワイプ、またはリューズ反時計回り → メニュー（駅・バス停の一覧）。
- * - 時刻表・メニューからは、画面を右へスワイプ（= 戻る）でホームに帰る。
+ * - 一覧からホームへは、上端または下端でさらに送る（リューズ / スワイプ）。右へスワイプでも戻る。
  */
 @Composable
 fun WearBoardScreen(viewModel: WearBoardViewModel = hiltViewModel()) {
@@ -81,18 +88,28 @@ fun WearBoardScreen(viewModel: WearBoardViewModel = hiltViewModel()) {
         BoardStep.HOME ->
             HomeScreen(
                 state = state,
-                onOpenTimetable = { viewModel.openTimetable() },
+                onOpenUpcoming = { viewModel.openUpcoming() },
                 onOpenMenu = viewModel::openMenu,
             )
-        BoardStep.TIMETABLE -> {
+        BoardStep.UPCOMING, BoardStep.TIMETABLE -> {
             BackHandler(onBack = viewModel::backHome)
-            TimetableScreen(board = state.dayBoard, pinned = state.pinned, onSelectDay = viewModel::selectDay) {
-                viewModel.togglePinned(it)
-            }
+            BoardListScreen(
+                board = state.dayBoard,
+                pinned = state.pinned,
+                onSelectDay = viewModel::selectDay,
+                onTogglePinned = viewModel::togglePinned,
+                onOpenTimetable = { viewModel.openTimetable(it) },
+                onBack = viewModel::backHome,
+            )
         }
         BoardStep.MENU -> {
             BackHandler(onBack = viewModel::backHome)
-            MenuScreen(places = state.places, pinned = state.pinned) { viewModel.openTimetable(it) }
+            MenuScreen(
+                places = state.places,
+                pinned = state.pinned,
+                onPick = { viewModel.openTimetable(it) },
+                onBack = viewModel::backHome,
+            )
         }
     }
 }
@@ -121,13 +138,13 @@ private fun LoadingScreen() {
 
 /**
  * スクロールせずに 1 画面へ収める。上から
- * 地点バッジ → 行き先・路線 → 大きなアイコンと残り時間 → 発時刻（タップで時刻表）。
+ * 地点バッジ → 行き先・路線 → 大きなアイコンと残り時間 → 発時刻（タップでこの先の発車）。
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun HomeScreen(
     state: BoardUiState,
-    onOpenTimetable: () -> Unit,
+    onOpenUpcoming: () -> Unit,
     onOpenMenu: () -> Unit,
 ) {
     val s = state.snapshot ?: return
@@ -140,9 +157,9 @@ private fun HomeScreen(
                     .fillMaxSize()
                     .background(WearColors.background)
                     .padding(horizontal = 14.dp)
-                    // リューズ: 時計回りで時刻表、反時計回りでメニュー
+                    // リューズ: 時計回りでこの先の発車、反時計回りでメニュー
                     .onRotaryScrollEvent { event ->
-                        if (event.verticalScrollPixels > 0) onOpenTimetable() else onOpenMenu()
+                        if (event.verticalScrollPixels > 0) onOpenUpcoming() else onOpenMenu()
                         true
                     }.focusRequester(focusRequester)
                     .focusable()
@@ -176,7 +193,7 @@ private fun HomeScreen(
             } else {
                 CountdownRow(s, next)
                 Spacer(Modifier.height(8.dp))
-                DepartureFooter(next, onClick = onOpenTimetable)
+                DepartureFooter(next, onClick = onOpenUpcoming)
             }
         }
     }
@@ -231,7 +248,7 @@ private fun CountdownRow(
     }
 }
 
-/** 下部の発時刻。ここをタップすると時刻表が開く。 */
+/** 下部の発時刻。ここをタップするとこの先の発車が開く。 */
 @Composable
 private fun DepartureFooter(
     next: Departure,
@@ -268,24 +285,31 @@ private fun DepartureFooter(
     }
 }
 
-// ---------------------------------------------------------------- 時刻表
+// ---------------------------------------------------------------- 一覧（この先の発車 / 時刻表）
 
 /**
- * その地点の 1 日分。現在時刻より前はグレー、次の便は青、それ以降〜終電は通常。
- * 右にスクロールバー（[PositionIndicator]）を出し、リューズでも送れる。戻るはスワイプ。
+ * 1 枚の一覧。[DayBoard.onlyUpcoming] で 2 つの顔を持つ。
+ *
+ * - この先の発車（ホームから開く）: 現在時刻〜当日終電。最下部に「時刻表を表示する」。
+ * - 時刻表: その日の始発〜終電。上部に 今日 / 平日 / 土日祝 のバッジ。
+ *
+ * どちらも現在時刻より前はグレー、次の便は青、それ以降は通常。
+ * 右にスクロールバー（[PositionIndicator]）を出し、端でさらに送るとホームへ戻る。
  */
 @Composable
-private fun TimetableScreen(
+private fun BoardListScreen(
     board: DayBoard?,
     pinned: BoardPlace?,
     onSelectDay: (DaySelection) -> Unit,
     onTogglePinned: (BoardPlace) -> Unit,
+    onOpenTimetable: (BoardPlace) -> Unit,
+    onBack: () -> Unit,
 ) {
     if (board == null) return
     val listState = rememberScalingLazyListState()
     val context = LocalContext.current
     // 開いたら「次の便」が真ん中に来るようにする
-    LaunchedEffect(board.place, board.selection, board.departures.size) {
+    LaunchedEffect(board.place, board.selection, board.onlyUpcoming, board.departures.size) {
         val index = board.nextIndex
         if (index >= 0) runCatching { listState.scrollToItem(index + HEADER_ITEMS) }
     }
@@ -295,14 +319,26 @@ private fun TimetableScreen(
     ) {
         ScalingLazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize().background(WearColors.background).rotaryScroll(listState),
+            modifier = Modifier.fillMaxSize().background(WearColors.background).listNavigation(listState, onBack),
         ) {
             item { PlaceBadge(board.place) }
-            item { DaySelector(board.selection, board.date.format(dateLabelFormat), onSelectDay) }
+            item {
+                if (board.onlyUpcoming) {
+                    Text(
+                        text = stringResource(R.string.upcoming_title),
+                        style = MaterialTheme.typography.caption1,
+                        color = WearColors.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    DaySelector(board.selection, board.date.format(dateLabelFormat), onSelectDay)
+                }
+            }
             if (board.departures.isEmpty()) {
                 item {
                     Text(
-                        text = stringResource(R.string.board_empty),
+                        text = stringResource(if (board.onlyUpcoming) R.string.upcoming_empty else R.string.board_empty),
                         style = MaterialTheme.typography.body1,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth(),
@@ -319,12 +355,21 @@ private fun TimetableScreen(
                 }
             }
             item {
-                PillButton(
-                    text = stringResource(if (pinned == board.place) R.string.board_unpin else R.string.board_pin),
-                    iconRes = R.drawable.ic_place,
-                    onClick = { onTogglePinned(board.place) },
-                )
+                if (board.onlyUpcoming) {
+                    PillButton(
+                        text = stringResource(R.string.action_open_timetable),
+                        iconRes = R.drawable.ic_list,
+                        onClick = { onOpenTimetable(board.place) },
+                    )
+                } else {
+                    PillButton(
+                        text = stringResource(if (pinned == board.place) R.string.board_unpin else R.string.board_pin),
+                        iconRes = R.drawable.ic_place,
+                        onClick = { onTogglePinned(board.place) },
+                    )
+                }
             }
+            item { BackHint() }
         }
     }
 }
@@ -375,15 +420,15 @@ private fun TimetableRow(
     ) {
         Text(
             text = departure.at.hhmm(),
-            style = MaterialTheme.typography.title3,
+            style = MaterialTheme.typography.title2,
             fontWeight = FontWeight.Bold,
             color = timeColor,
-            modifier = Modifier.width(56.dp),
+            modifier = Modifier.width(62.dp),
         )
         Spacer(Modifier.width(6.dp))
         Text(
             text = stringResource(R.string.board_headsign, departure.headsign),
-            style = MaterialTheme.typography.body2,
+            style = MaterialTheme.typography.body1,
             color = if (state == RowState.NEXT) Color.White else subColor,
             maxLines = 1,
             modifier = Modifier.weight(1f),
@@ -445,6 +490,7 @@ private fun MenuScreen(
     places: List<PlaceDistance>,
     pinned: BoardPlace?,
     onPick: (BoardPlace) -> Unit,
+    onBack: () -> Unit,
 ) {
     val listState = rememberScalingLazyListState()
     Scaffold(
@@ -453,7 +499,7 @@ private fun MenuScreen(
     ) {
         ScalingLazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize().background(WearColors.background).rotaryScroll(listState),
+            modifier = Modifier.fillMaxSize().background(WearColors.background).listNavigation(listState, onBack),
         ) {
             item {
                 Text(
@@ -467,15 +513,7 @@ private fun MenuScreen(
             places.forEach { entry ->
                 item { MenuRow(entry = entry, pinned = pinned == entry.place, onClick = { onPick(entry.place) }) }
             }
-            item {
-                Text(
-                    text = stringResource(R.string.menu_back_hint),
-                    style = MaterialTheme.typography.caption3,
-                    color = WearColors.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            item { BackHint() }
         }
     }
 }
@@ -539,19 +577,83 @@ private fun MenuRow(
 
 // ---------------------------------------------------------------- 共通部品
 
-/** リューズで一覧を送る。Wear の回転入力をそのままスクロール量にする。 */
+/**
+ * 端まで送ってから、さらに送ろうとした分をためる。
+ * 一覧が動いた（＝まだ端ではない）ときは [reset] で戻し、
+ * 端で押し込んだ量が [OVERSCROLL_BACK_PX] を超えたらホームへ帰す。
+ */
+private class EdgeTravel {
+    private var travel = 0f
+
+    fun reset() {
+        travel = 0f
+    }
+
+    /** 端で [delta] だけ押し込まれた。閾値を超えたら true。 */
+    fun push(delta: Float): Boolean {
+        travel += delta
+        if (abs(travel) < OVERSCROLL_BACK_PX) return false
+        travel = 0f
+        return true
+    }
+}
+
+/**
+ * 一覧の操作。リューズでスクロールし、上端・下端でさらに送るとホームへ戻る。
+ * 指のスワイプも同じで、端に着いてから先へ引くと戻る（慣性スクロールでは戻らない）。
+ */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun Modifier.rotaryScroll(listState: ScalingLazyListState): Modifier {
+private fun Modifier.listNavigation(
+    listState: ScalingLazyListState,
+    onBack: () -> Unit,
+): Modifier {
     val scope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
+    val edge = remember { EdgeTravel() }
+    val currentBack by rememberUpdatedState(onBack)
+    val nested =
+        remember {
+            object : NestedScrollConnection {
+                override fun onPostScroll(
+                    consumed: Offset,
+                    available: Offset,
+                    source: NestedScrollSource,
+                ): Offset {
+                    if (source != NestedScrollSource.UserInput) return Offset.Zero
+                    if (consumed.y != 0f) {
+                        edge.reset()
+                    } else if (available.y != 0f && edge.push(available.y)) {
+                        currentBack()
+                    }
+                    return Offset.Zero
+                }
+            }
+        }
     LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
     return this
+        .nestedScroll(nested)
         .onRotaryScrollEvent { event ->
-            scope.launch { listState.scrollBy(event.verticalScrollPixels) }
+            scope.launch {
+                val delta = event.verticalScrollPixels
+                val left = delta - listState.scrollBy(delta)
+                if (abs(left) < ROTARY_EPSILON_PX) edge.reset() else if (edge.push(left)) currentBack()
+            }
             true
         }.focusRequester(focusRequester)
         .focusable()
+}
+
+/** 一覧の最下部に置く、ホームへの戻り方の案内。 */
+@Composable
+private fun BackHint() {
+    Text(
+        text = stringResource(R.string.list_back_hint),
+        style = MaterialTheme.typography.caption3,
+        color = WearColors.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 /** 画面上部の地点バッジ（📍 鳥取駅）。 */
@@ -621,8 +723,14 @@ private fun distanceLabel(meters: Double): String =
 private const val METERS_IN_KM = 1_000.0
 private const val COUNTDOWN_SP = 44f
 
-/** 時刻表の先頭に置く見出し（地点バッジ・日種別）の数。「次の便」へ送るときの補正に使う。 */
+/** 一覧の先頭に置く見出し（地点バッジ・日種別）の数。「次の便」へ送るときの補正に使う。 */
 private const val HEADER_ITEMS = 2
 
 /** 下方向にこれだけ動かして離したらメニューを開く。 */
 private const val SWIPE_DOWN_THRESHOLD_PX = 60f
+
+/** 端に着いてから、これだけ先へ送ろうとしたらホームへ戻る。 */
+private const val OVERSCROLL_BACK_PX = 96f
+
+/** リューズの送り残りがこれ未満なら「まだ端ではない」とみなす。 */
+private const val ROTARY_EPSILON_PX = 1f

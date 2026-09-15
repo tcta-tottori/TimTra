@@ -23,11 +23,14 @@
     <string name="board_headsign">%1$s行</string>
     <string name="board_headsign_line">%1$s行　%2$s</string>
     <string name="board_empty">この先の運行がありません</string>
-    <string name="board_open_timetable">タップ / リューズ→ で時刻表</string>
+    <string name="board_open_timetable">タップ / リューズ→ でこの先の発車</string>
+    <string name="upcoming_title">この先の発車</string>
+    <string name="upcoming_empty">本日の運行は終了しました</string>
+    <string name="action_open_timetable">時刻表を表示する</string>
+    <string name="list_back_hint">端でもう一度送るとホームに戻る</string>
     <string name="board_pin">この地点をホームに固定</string>
     <string name="board_unpin">固定を解除（現在地から自動）</string>
     <string name="menu_title">駅・バス停</string>
-    <string name="menu_back_hint">右へスワイプでホームに戻る</string>
     <string name="day_today">今日</string>
     <string name="day_weekday">平日</string>
     <string name="day_weekend">土日祝</string>

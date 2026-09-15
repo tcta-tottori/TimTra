@@ -9,9 +9,9 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 | --- | --- | --- |
 | タイル | `tile/TimetableTileService` | アプリのホームと同じ表示（地点バッジ・行き先・「次の発車まで NN 分」・発時刻）。タップでアプリを開く。更新間隔 60 秒 |
 | コンプリケーション | `complication/LeaveCountdownComplicationService` | SHORT_TEXT の「次の発車まで」。`TimeDifferenceComplicationText` で文字盤側がカウントダウンする。10 分ごとに次の便へ切り替え。クラス名は設定済みのコンプリケーションを壊さないため据え置き |
-| UI | `ui/WearBoardScreen` | ホーム（1 画面）・時刻表・メニューの 3 画面 |
+| UI | `ui/WearBoardScreen` | ホーム（1 画面）・この先の発車・時刻表・メニューの 4 画面 |
 | 同期受信 | `sync/WearDataListenerService` | スマホからの設定（`/timtra/settings`）を受け取り、時計側の DataStore を置き換え、タイルとコンプリケーションの更新を要求 |
-| 発車標 | `board/WearBoardProvider` | 地点を決めて `DepartureBoardRepository` から便を引く。3 画面とタイル・コンプリケーションの共通入口 |
+| 発車標 | `board/WearBoardProvider` | 地点を決めて `DepartureBoardRepository` から便を引く。各画面とタイル・コンプリケーションの共通入口 |
 | 位置 | `location/WearLocationProvider` | 現在地を 1 回だけ取る。発車標の地点決めにしか使わない |
 
 時計は **発車標だけ** を扱う。「家 / 職場を出る時刻」（`Journey`）の画面・タイルは持たない
@@ -33,23 +33,42 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 
 | 操作 | 行き先 |
 | --- | --- |
-| 下部の発時刻をタップ / リューズを時計回り | 時刻表 |
+| 下部の発時刻をタップ / リューズを時計回り | この先の発車 |
 | 上から下へスワイプ / リューズを反時計回り | メニュー |
+
+### この先の発車（ホームから開く）
+
+**現在時刻から当日の終電まで**。時刻表（1 日分）ではなく、この先だけを出す。
+開いたときは「次の便」の位置へ送る。最下部に **「時刻表を表示する」** を置き、
+そこから 今日 / 平日 / 土日祝 を切り替えられる時刻表へ入る。
 
 ### 時刻表
 
-その地点の **1 日分（始発 → 終電）**。開いたときは「次の便」の位置へ送る。
+その地点の **1 日分（始発 → 終電）**。上部に 今日 / 平日 / 土日祝 のバッジを置き、
+タップで切り替える（下に実際に引いた日付を出す）。末尾に「この地点をホームに固定」。
+
+`土日祝` は土曜と日祝のうち **直近の実在する 1 日** を引く。JR は土曜も日祝と同じダイヤだが、
+バスは土曜と日祝で別ダイヤなので「その日の実際の時刻表」を出す（日付を併記しているので取り違えない）。
+
+どちらの一覧も行の見え方は同じ:
 
 - 現在時刻より前: グレー
 - 次の便: 青く塗る
 - それ以降〜終電: 通常
 
-上部に 今日 / 平日 / 土日祝 のバッジを置き、タップで切り替える（下に実際に引いた日付を出す）。
-右に `PositionIndicator`（スクロールバー）、リューズでも送れる。末尾に「この地点をホームに固定」。
-戻るは **右へスワイプ**（Wear の swipe-to-dismiss が戻るとして届き、`BackHandler` で受ける）。
+右に `PositionIndicator`（スクロールバー）を出し、リューズでも送れる。
 
-`土日祝` は土曜と日祝のうち **直近の実在する 1 日** を引く。JR は土曜も日祝と同じダイヤだが、
-バスは土曜と日祝で別ダイヤなので「その日の実際の時刻表」を出す（日付を併記しているので取り違えない）。
+### 一覧からホームへ戻る
+
+`ui/WearBoardScreen` の `Modifier.listNavigation` が受け持つ。
+
+- **端でさらに送る**: 上端または下端に着いたあと、さらに先へ送ろうとした量を
+  `EdgeTravel` にためる。`OVERSCROLL_BACK_PX`（96 px）を超えたらホームへ戻る。
+  一覧が実際に動いた（＝まだ端ではない）ときは 0 に戻すので、途中の勢いでは戻らない。
+  - リューズ: `ScalingLazyListState.scrollBy` の戻り値（実際に送れた量）との差分を使う。
+  - 指: `NestedScrollConnection.onPostScroll` の `available`（子が食べ残した量）を使う。
+    `NestedScrollSource.UserInput` のときだけ数えるので、慣性スクロールで端に当たっても戻らない。
+- **右へスワイプ**（Wear の swipe-to-dismiss が戻るとして届き、`BackHandler` で受ける）でも戻れる。
 
 ### メニュー
 
@@ -95,5 +114,6 @@ JR 時刻表 JSON は CLAUDE.md 4-3 で `app/src/main/assets` と指定されて
 - `WearableListenerService` の manifest（`DATA_CHANGED` + `pathPrefix="/timtra/"`）
 - 時計での位置取得（`LocationManagerCompat.getCurrentLocation`）とタイルからの取得可否
 - リューズ（`Modifier.onRotaryScrollEvent` + `focusable`）と、そこからの `ScalingLazyListState.scrollBy`
+- 端での戻り判定（`NestedScrollConnection.onPostScroll` の `available` と `NestedScrollSource.UserInput`）
 - 右へスワイプが `BackHandler` に届くか（`Theme.DeviceDefault` の swipe-to-dismiss）
 - `Scaffold(positionIndicator = { PositionIndicator(scalingLazyListState = …) })`

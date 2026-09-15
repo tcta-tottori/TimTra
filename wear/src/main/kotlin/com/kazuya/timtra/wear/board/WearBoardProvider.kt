@@ -73,8 +73,10 @@ data class DayBoard(
     val selection: DaySelection,
     val date: LocalDate,
     val now: LocalDateTime,
-    /** 始発から終電まで。 */
+    /** その日の便。[onlyUpcoming] なら現在時刻以降だけ。 */
     val departures: List<Departure>,
+    /** 現在時刻以降だけに絞ってあるか（ホームから開く「この先の発車」）。 */
+    val onlyUpcoming: Boolean = false,
 ) {
     val isToday: Boolean get() = selection == DaySelection.TODAY
 
@@ -141,19 +143,25 @@ class WearBoardProvider
             return board(resolution.place, resolution.basis, limit)
         }
 
-        /** 時刻表画面 1 枚分。 */
+        /**
+         * 時刻表画面 1 枚分。
+         * @param onlyUpcoming true なら現在時刻以降〜当日終電だけに絞る（ホームから開く「この先の発車」）。
+         */
         suspend fun dayBoard(
             place: BoardPlace,
             selection: DaySelection,
+            onlyUpcoming: Boolean = false,
         ): DayBoard {
             val now = clock.now()
             val date = repository.resolveDate(now.toLocalDate(), selection.dayTypes)
+            val all = repository.onDate(place, date)
             return DayBoard(
                 place = place,
                 selection = selection,
                 date = date,
                 now = now,
-                departures = repository.onDate(place, date),
+                departures = if (onlyUpcoming) all.filter { !it.at.isBefore(now) } else all,
+                onlyUpcoming = onlyUpcoming,
             )
         }
 
