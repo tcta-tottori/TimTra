@@ -1,6 +1,7 @@
 package com.kazuya.timtra.wear.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,7 +19,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,7 +33,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -137,8 +140,9 @@ private fun LoadingScreen() {
 // ---------------------------------------------------------------- ホーム（1 画面）
 
 /**
- * スクロールせずに 1 画面へ収める。上から
- * 地点バッジ → 行き先・路線 → 大きなアイコンと残り時間 → 発時刻（タップでこの先の発車）。
+ * デザイン（2026-09-15 提供のモック）をそのまま写す。上から
+ * 📍地点名 → 行き先 → リングに包まれたバス / 電車アイコンと「次の便まで NN 分」→ 発時刻カード。
+ * スクロールはさせず、1 画面に収める。
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -156,7 +160,7 @@ private fun HomeScreen(
                 Modifier
                     .fillMaxSize()
                     .background(WearColors.background)
-                    .padding(horizontal = 14.dp)
+                    .padding(horizontal = 12.dp)
                     // リューズ: 時計回りでこの先の発車、反時計回りでメニュー
                     .onRotaryScrollEvent { event ->
                         if (event.verticalScrollPixels > 0) onOpenUpcoming() else onOpenMenu()
@@ -174,15 +178,8 @@ private fun HomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            PlaceBadge(s.place)
-            Text(
-                text = stringResource(s.place.directionRes()),
-                style = MaterialTheme.typography.caption2,
-                color = WearColors.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-            )
-            Spacer(Modifier.height(6.dp))
+            PlaceHeader(s.place)
+            Spacer(Modifier.height(8.dp))
             val next = s.next
             if (next == null) {
                 Text(
@@ -191,7 +188,7 @@ private fun HomeScreen(
                     textAlign = TextAlign.Center,
                 )
             } else {
-                CountdownRow(s, next)
+                CountdownRing(s, next)
                 Spacer(Modifier.height(8.dp))
                 DepartureFooter(next, onClick = onOpenUpcoming)
             }
@@ -199,56 +196,110 @@ private fun HomeScreen(
     }
 }
 
-/** 大きなアイコン（バス / 電車）と「次の発車まで NN 分」。 */
+/** 📍 + 地点名（大きく）と、その下の行き先。 */
 @Composable
-private fun CountdownRow(
+private fun PlaceHeader(place: BoardPlace) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                painter = painterResource(R.drawable.ic_place),
+                contentDescription = null,
+                tint = WearColors.gradientStart,
+                modifier = Modifier.size(PLACE_ICON_DP.dp),
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(
+                text = stringResource(place.nameRes()),
+                fontSize = PLACE_SP.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                maxLines = 1,
+            )
+        }
+        Text(
+            text = stringResource(place.directionRes()),
+            fontSize = DIRECTION_SP.sp,
+            color = WearColors.onSurfaceSubtle,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+        )
+    }
+}
+
+/**
+ * 中央。リング（[countdownProgress] の進み具合）にバス / 電車アイコンを重ね、
+ * 右に「次の便まで」と大きな残り時間を置く。
+ */
+@Composable
+private fun CountdownRing(
     s: BoardSnapshot,
     next: Departure,
 ) {
     val context = LocalContext.current
+    val progress = countdownProgress(s.now, next.at)
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier =
-                Modifier
-                    .size(54.dp)
-                    .clip(CircleShape)
-                    .background(WearColors.surface)
-                    .border(2.dp, WearColors.gradientStart, CircleShape),
-        ) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(RING_DP.dp)) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val stroke = RING_STROKE_DP.dp.toPx()
+                val topLeft = Offset(stroke / 2f, stroke / 2f)
+                val arcSize = Size(size.width - stroke, size.height - stroke)
+                val style = Stroke(width = stroke, cap = StrokeCap.Round)
+                drawArc(
+                    color = WearColors.track,
+                    startAngle = RING_START_ANGLE,
+                    sweepAngle = FULL_TURN,
+                    useCenter = false,
+                    topLeft = topLeft,
+                    size = arcSize,
+                    style = style,
+                )
+                drawArc(
+                    brush = WearColors.ringGradient,
+                    startAngle = RING_START_ANGLE,
+                    sweepAngle = FULL_TURN * progress,
+                    useCenter = false,
+                    topLeft = topLeft,
+                    size = arcSize,
+                    style = style,
+                )
+            }
             Icon(
                 painter = painterResource(next.mode.iconRes()),
                 contentDescription = null,
-                tint = WearColors.accentLight,
-                modifier = Modifier.size(30.dp),
+                tint = Color.White,
+                modifier = Modifier.size(RING_ICON_DP.dp),
             )
         }
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(8.dp))
         Column(horizontalAlignment = Alignment.End) {
             Text(
                 text = stringResource(R.string.board_next_in),
-                style = MaterialTheme.typography.caption3,
-                color = WearColors.onSurfaceVariant,
+                fontSize = CAPTION_SP.sp,
+                color = WearColors.onSurfaceSubtle,
+                maxLines = 1,
             )
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     text = context.countdownValue(s.now, next.at),
                     fontSize = COUNTDOWN_SP.sp,
                     fontWeight = FontWeight.Bold,
-                    color = WearColors.accentLight,
+                    color = Color.White,
+                    maxLines = 1,
                 )
                 Text(
                     text = context.countdownUnit(s.now, next.at),
-                    style = MaterialTheme.typography.caption1,
-                    color = WearColors.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 6.dp, start = 2.dp),
+                    fontSize = UNIT_SP.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WearColors.accentLight,
+                    maxLines = 1,
+                    modifier = Modifier.padding(bottom = 4.dp, start = 2.dp),
                 )
             }
         }
     }
 }
 
-/** 下部の発時刻。ここをタップするとこの先の発車が開く。 */
+/** 下部の発時刻カード（行き先 + H:MM）。タップするとこの先の発車が開く。 */
 @Composable
 private fun DepartureFooter(
     next: Departure,
@@ -259,27 +310,33 @@ private fun DepartureFooter(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(WearColors.surface)
-                .border(1.dp, WearColors.outline, RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(FOOTER_RADIUS_DP.dp))
+                .background(WearColors.footerGradient)
+                .border(1.dp, WearColors.outline, RoundedCornerShape(FOOTER_RADIUS_DP.dp))
                 .clickable(onClick = onClick)
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .padding(horizontal = 12.dp, vertical = 5.dp),
     ) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                text = next.headsign,
+                fontSize = HEADSIGN_SP.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                maxLines = 1,
+            )
+            Spacer(Modifier.width(3.dp))
+            Text(
+                text = stringResource(R.string.board_bound_for),
+                fontSize = CAPTION_SP.sp,
+                color = WearColors.onSurfaceSubtle,
+                maxLines = 1,
+            )
+        }
         Text(
-            text = stringResource(R.string.board_depart_at, next.at.hhmm()),
-            style = MaterialTheme.typography.title3,
+            text = next.at.hhmm(),
+            fontSize = DEPART_SP.sp,
             fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = stringResource(R.string.board_headsign_line, next.headsign, next.line),
-            style = MaterialTheme.typography.caption3,
-            color = WearColors.onSurfaceVariant,
-            maxLines = 1,
-        )
-        Text(
-            text = stringResource(R.string.board_open_timetable),
-            style = MaterialTheme.typography.caption3,
-            color = WearColors.accentLight,
+            color = Color.White,
             maxLines = 1,
         )
     }
@@ -637,7 +694,10 @@ private fun Modifier.listNavigation(
             scope.launch {
                 val delta = event.verticalScrollPixels
                 val left = delta - listState.scrollBy(delta)
-                if (abs(left) < ROTARY_EPSILON_PX) edge.reset() else if (edge.push(left)) currentBack()
+                when {
+                    abs(left) < ROTARY_EPSILON_PX -> edge.reset()
+                    edge.push(left) -> currentBack()
+                }
             }
             true
         }.focusRequester(focusRequester)
@@ -721,7 +781,22 @@ private fun distanceLabel(meters: Double): String =
     }
 
 private const val METERS_IN_KM = 1_000.0
+
+// ホームの寸法。提供されたモックの比率に合わせてある
+private const val PLACE_ICON_DP = 20f
+private const val PLACE_SP = 20f
+private const val DIRECTION_SP = 11f
+private const val CAPTION_SP = 12f
+private const val RING_DP = 74f
+private const val RING_STROKE_DP = 6f
+private const val RING_ICON_DP = 34f
+private const val RING_START_ANGLE = -90f
+private const val FULL_TURN = 360f
 private const val COUNTDOWN_SP = 44f
+private const val UNIT_SP = 22f
+private const val HEADSIGN_SP = 15f
+private const val DEPART_SP = 26f
+private const val FOOTER_RADIUS_DP = 22f
 
 /** 一覧の先頭に置く見出し（地点バッジ・日種別）の数。「次の便」へ送るときの補正に使う。 */
 private const val HEADER_ITEMS = 2

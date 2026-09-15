@@ -28,8 +28,14 @@ object WearColors {
     val surfaceSelected = Color(0xFF17427F)
 
     val outline = Color(0xFF1E3355)
+
+    /** カウントダウンのリングの地（残りの部分）。 */
+    val track = Color(0xFF39445A)
     val onSurface = Color.White
     val onSurfaceVariant = Color(0xFF9FB4D6)
+
+    /** 地点の下に置く行き先など、白よりわずかに落とした文字。 */
+    val onSurfaceSubtle = Color(0xFFCBDAF2)
 
     /** 時刻表で、現在時刻より前の便に使う灰色。 */
     val onSurfaceDisabled = Color(0xFF61708C)
@@ -44,6 +50,12 @@ object WearColors {
 
     /** 主ボタン・次の便の行に使う青のグラデーション。 */
     val primaryGradient: Brush = Brush.horizontalGradient(listOf(gradientStart, gradientEnd))
+
+    /** カウントダウンのリング（明るい水色 → 青）。 */
+    val ringGradient: Brush = Brush.linearGradient(listOf(accentLight, gradientStart))
+
+    /** ホーム下部の発時刻カードの地。 */
+    val footerGradient: Brush = Brush.verticalGradient(listOf(Color(0xFF16305C), Color(0xFF0C1B36)))
 
     /** 大きな数字のグラデーション（白 → 水色）。 */
     val countdownGradient: Brush = Brush.verticalGradient(listOf(Color.White, accentLight))

@@ -7,8 +7,9 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 
 | 部品 | ファイル | 内容 |
 | --- | --- | --- |
-| タイル | `tile/TimetableTileService` | アプリのホームと同じ表示（地点バッジ・行き先・「次の発車まで NN 分」・発時刻）。タップでアプリを開く。更新間隔 60 秒 |
-| コンプリケーション | `complication/LeaveCountdownComplicationService` | SHORT_TEXT の「次の発車まで」。`TimeDifferenceComplicationText` で文字盤側がカウントダウンする。10 分ごとに次の便へ切り替え。クラス名は設定済みのコンプリケーションを壊さないため据え置き |
+| タイル（ウィジェット） | `tile/TimetableTileService` | アプリのホームと同じ見た目を ProtoLayout で組む。タップでアプリを開く。更新間隔 60 秒 |
+| コンプリケーション | `complication/LeaveCountdownComplicationService` | 次の便までの残り時間。`TimeDifferenceComplicationText` で文字盤側がカウントダウンする。SHORT_TEXT / RANGED_VALUE / LONG_TEXT。10 分ごとに次の便へ切り替え。クラス名は設定済みのコンプリケーションを壊さないため据え置き |
+| コンプリケーション | `complication/NextDepartureComplicationService` | 次の便の**発車時刻**（H:MM）。SHORT_TEXT / LONG_TEXT |
 | UI | `ui/WearBoardScreen` | ホーム（1 画面）・この先の発車・時刻表・メニューの 4 画面 |
 | 同期受信 | `sync/WearDataListenerService` | スマホからの設定（`/timtra/settings`）を受け取り、時計側の DataStore を置き換え、タイルとコンプリケーションの更新を要求 |
 | 発車標 | `board/WearBoardProvider` | 地点を決めて `DepartureBoardRepository` から便を引く。各画面とタイル・コンプリケーションの共通入口 |
@@ -21,13 +22,20 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 
 ### ホーム（1 画面に収める）
 
-スクロールさせず、上から順に:
+2026-09-15 に提供されたモックをそのまま写している。スクロールさせず、上から順に:
 
 1. 現在時刻（`TimeText`）
-2. 地点バッジ（📍 + 地点名）
-3. 行き先・路線
-4. 大きな丸アイコン（バス / 電車）と「次の発車まで NN 分」
-5. 下部に発時刻（`H:MM 発` + 行き先・路線）
+2. 📍（青）+ 地点名（大きく太く）
+3. 行き先・路線（1 行）
+4. リングに包まれたバス / 電車アイコンと、右に「次の便まで」+ 大きな残り時間（単位は水色）
+5. 下部の発時刻カード（`行き先 行き` + `H:MM`）
+
+リングの進み具合は `ui/Formatters.kt` の `countdownProgress`。発車の
+`COUNTDOWN_FULL_MINUTES`（60 分）前を 0、発車時刻を 1 とする固定の物差しで、
+便の間隔（路線・時間帯でばらばら）には依らない。`Canvas` の `drawArc` を 2 本重ねて描く。
+
+同じ見た目をタイルでも `ProtoLayout` で組んでいる（`Arc` + `ArcLine` でリング、
+`Image` + `ColorFilter` でアイコン）。寸法は `TimetableTileService` の companion にまとめてある。
 
 操作:
 
@@ -74,6 +82,19 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 
 駅・バス停の一覧。タップでその地点の時刻表を開く。現在地が取れていれば近い順・距離付き。
 
+## コンプリケーション（ショートカット）
+
+文字盤に置くものは 2 つ。どちらも地点の決め方はホームと同じ。
+
+| データソース | 出すもの | 対応タイプ |
+| --- | --- | --- |
+| `LeaveCountdownComplicationService` | 次の便までの残り時間（見出しに発時刻 H:MM） | SHORT_TEXT / RANGED_VALUE / LONG_TEXT |
+| `NextDepartureComplicationService` | 次の便の発車時刻 H:MM（見出しに行き先） | SHORT_TEXT / LONG_TEXT |
+
+残り時間は `TimeDifferenceComplicationText` なので毎分の書き換えは文字盤側が行う。
+アプリ側の再計算は `UPDATE_PERIOD_SECONDS`（600 秒）で、次の便へ切り替えるためだけに走る。
+RANGED_VALUE の値はホームのリングと同じ `countdownProgress`。
+
 ## 地点の決め方（`PlaceBasis`）
 
 1. **MANUAL**: 時刻表の「この地点をホームに固定」で選んだ地点。DataStore に残るのでタイルにも効く。
@@ -117,3 +138,5 @@ JR 時刻表 JSON は CLAUDE.md 4-3 で `app/src/main/assets` と指定されて
 - 端での戻り判定（`NestedScrollConnection.onPostScroll` の `available` と `NestedScrollSource.UserInput`）
 - 右へスワイプが `BackHandler` に届くか（`Theme.DeviceDefault` の swipe-to-dismiss）
 - `Scaffold(positionIndicator = { PositionIndicator(scalingLazyListState = …) })`
+- タイルの `Arc` / `ArcLine`（リング）と `Image.setColorFilter`、`Background.setCorner`
+- コンプリケーションの RANGED_VALUE / LONG_TEXT（`RangedValueComplicationData.Builder(value, min, max, contentDescription)`）

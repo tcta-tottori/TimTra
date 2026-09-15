@@ -48,7 +48,7 @@
                 android:resource="@drawable/tile_preview" />
         </service>
 
-        <!-- コンプリケーション: 残り時間のみ（SHORT_TEXT） -->
+        <!-- コンプリケーション: 次の便までの残り時間（見出しに発時刻） -->
         <service
             android:name=".complication.LeaveCountdownComplicationService"
             android:exported="true"
@@ -60,8 +60,26 @@
             </intent-filter>
             <meta-data
                 android:name="android.support.wearable.complications.SUPPORTED_TYPES"
-                android:value="SHORT_TEXT" />
+                android:value="SHORT_TEXT,RANGED_VALUE,LONG_TEXT" />
             <!-- 出発時刻の先の便に切り替えるための定期更新（最小 300 秒） -->
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="600" />
+        </service>
+
+        <!-- コンプリケーション: 次の便の発車時刻そのもの -->
+        <service
+            android:name=".complication.NextDepartureComplicationService"
+            android:exported="true"
+            android:icon="@drawable/ic_complication"
+            android:label="@string/complication_departure_label"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SHORT_TEXT,LONG_TEXT" />
             <meta-data
                 android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
                 android:value="600" />
