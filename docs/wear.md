@@ -28,14 +28,32 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 2. 📍（青）+ 地点名（大きく太く）
 3. 行き先・路線（1 行）
 4. リングに包まれたバス / 電車アイコンと、右に「次の便まで」+ 大きな残り時間（単位は水色）
-5. 下部の発時刻カード（`行き先 行き` + `H:MM`）
+5. 画面下部の発時刻（`行き先 行き` + `H:MM`）
 
-リングの進み具合は `ui/Formatters.kt` の `countdownProgress`。発車の
-`COUNTDOWN_FULL_MINUTES`（60 分）前を 0、発車時刻を 1 とする固定の物差しで、
-便の間隔（路線・時間帯でばらばら）には依らない。`Canvas` の `drawArc` を 2 本重ねて描く。
+発時刻は角丸カードに乗せない。丸い文字盤では隅が切れて見栄えが悪いので、
+画面の横幅いっぱいに敷いた **下からのグロー**（`WearColors.departureGlow`）の上に置く。
+下端がいちばん明るく、中央へ向かって透明に消える縦グラデーション。
 
 同じ見た目をタイルでも `ProtoLayout` で組んでいる（`Arc` + `ArcLine` でリング、
 `Image` + `ColorFilter` でアイコン）。寸法は `TimetableTileService` の companion にまとめてある。
+タイルはグラデーションを敷けないので、下部の地は置かず文字だけにしている。
+
+### リング（サークルバー）
+
+表すのは「発車まであと何割か」ではなく **「そろそろ出ないと間に合わない」** の度合い。
+計算は core の `board/CountdownGauge`（純 Kotlin、テストあり）で、`BoardSnapshot.gauge` に載る。
+
+`travel` はその地点まで行くのにかかる設定値（南吉成なら自宅→バス停の徒歩、宝木駅なら
+勤務先→駅、鳥取駅なら乗換時間）、`prep` は準備時間（バッファ）。
+
+| 残り時間 | リング |
+| --- | --- |
+| `travel × 2 + prep` より多い | 空。動かない |
+| その間 | 0 → 1 へ線形に満ちる（`travel` ぶんかけて満ちる） |
+| `travel + prep` 以下（= 出発目安時刻を過ぎた） | フル |
+
+既定値なら南吉成は 15 分前に動き出し、10 分前（出発目安時刻）でフル。
+宝木駅は 35 分前に動き出し、20 分前でフル。描画は `Canvas` の `drawArc` を 2 本重ねる。
 
 操作:
 
@@ -70,13 +88,16 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 
 `ui/WearBoardScreen` の `Modifier.listNavigation` が受け持つ。
 
-- **端でさらに送る**: 上端または下端に着いたあと、さらに先へ送ろうとした量を
-  `EdgeTravel` にためる。`OVERSCROLL_BACK_PX`（96 px）を超えたらホームへ戻る。
-  一覧が実際に動いた（＝まだ端ではない）ときは 0 に戻すので、途中の勢いでは戻らない。
+- **端で一度止めて、もう一度送る**: 端まで一気に送った勢いでそのままホームへ飛ばないよう、
+  **その操作が端から始まったときだけ** 押し込み量を数える（`EdgeTravel`）。
+  操作の切れ目は入力が `GESTURE_GAP_MILLIS`（350 ms）途切れたことで見る
+  （リューズを止める / 指を離す）。押し込みが `OVERSCROLL_BACK_PX`（96 px）を超えたら戻る。
   - リューズ: `ScalingLazyListState.scrollBy` の戻り値（実際に送れた量）との差分を使う。
   - 指: `NestedScrollConnection.onPostScroll` の `available`（子が食べ残した量）を使う。
     `NestedScrollSource.UserInput` のときだけ数えるので、慣性スクロールで端に当たっても戻らない。
 - **右へスワイプ**（Wear の swipe-to-dismiss が戻るとして届き、`BackHandler` で受ける）でも戻れる。
+
+この操作の説明文言はアプリ内には出さない（画面が狭いので表示を優先する）。
 
 ### メニュー
 
@@ -93,7 +114,7 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 
 残り時間は `TimeDifferenceComplicationText` なので毎分の書き換えは文字盤側が行う。
 アプリ側の再計算は `UPDATE_PERIOD_SECONDS`（600 秒）で、次の便へ切り替えるためだけに走る。
-RANGED_VALUE の値はホームのリングと同じ `countdownProgress`。
+RANGED_VALUE の値はホームのリングと同じ `BoardSnapshot.gauge`（`CountdownGauge`）。
 
 ## 地点の決め方（`PlaceBasis`）
 

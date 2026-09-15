@@ -18,10 +18,8 @@ import com.kazuya.timtra.core.TimTraConstants
 import com.kazuya.timtra.core.board.Departure
 import com.kazuya.timtra.wear.MainActivity
 import com.kazuya.timtra.wear.R
-import com.kazuya.timtra.wear.board.BoardSnapshot
 import com.kazuya.timtra.wear.board.WearBoardProvider
 import com.kazuya.timtra.wear.location.WearLocationProvider
-import com.kazuya.timtra.wear.ui.countdownProgress
 import com.kazuya.timtra.wear.ui.hhmm
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.concurrent.TimeUnit
@@ -82,7 +80,7 @@ class LeaveCountdownComplicationService : SuspendingComplicationDataSourceServic
                     .build()
             ComplicationType.RANGED_VALUE ->
                 RangedValueComplicationData
-                    .Builder(value = progress(snapshot, next), min = 0f, max = 1f, contentDescription = description)
+                    .Builder(value = snapshot.gauge, min = 0f, max = 1f, contentDescription = description)
                     .setText(countdown)
                     .setTitle(departure)
                     .setTapAction(openApp())
@@ -116,11 +114,6 @@ class LeaveCountdownComplicationService : SuspendingComplicationDataSourceServic
         } else {
             plain(getString(R.string.complication_long, next.at.hhmm(), next.headsign))
         }
-
-    private fun progress(
-        snapshot: BoardSnapshot,
-        next: Departure?,
-    ): Float = if (next == null) 0f else countdownProgress(snapshot.now, next.at)
 
     private fun plain(value: String): ComplicationText = PlainComplicationText.Builder(value).build()
 

@@ -30,7 +30,6 @@
     <string name="upcoming_title">この先の発車</string>
     <string name="upcoming_empty">本日の運行は終了しました</string>
     <string name="action_open_timetable">時刻表を表示する</string>
-    <string name="list_back_hint">端でもう一度送るとホームに戻る</string>
     <string name="board_pin">この地点をホームに固定</string>
     <string name="board_unpin">固定を解除（現在地から自動）</string>
     <string name="menu_title">駅・バス停</string>

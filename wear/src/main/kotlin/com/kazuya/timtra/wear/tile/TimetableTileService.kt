@@ -28,7 +28,6 @@ import com.kazuya.timtra.wear.R
 import com.kazuya.timtra.wear.board.BoardSnapshot
 import com.kazuya.timtra.wear.board.WearBoardProvider
 import com.kazuya.timtra.wear.location.WearLocationProvider
-import com.kazuya.timtra.wear.ui.countdownProgress
 import com.kazuya.timtra.wear.ui.countdownUnit
 import com.kazuya.timtra.wear.ui.countdownValue
 import com.kazuya.timtra.wear.ui.directionRes
@@ -150,7 +149,7 @@ class TimetableTileService : TileService() {
                 .setHorizontalAlignment(HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(VERTICAL_ALIGN_CENTER)
                 .addContent(arc(FULL_TURN, TRACK))
-        val sweep = FULL_TURN * countdownProgress(snapshot.now, next.at)
+        val sweep = FULL_TURN * snapshot.gauge
         if (sweep > 0f) ring.addContent(arc(sweep, ACCENT))
         ring.addContent(icon(iconId, RING_ICON_DP, WHITE))
 
@@ -176,7 +175,7 @@ class TimetableTileService : TileService() {
             .build()
     }
 
-    /** 下部の発時刻カード（行き先 + H:MM）。 */
+    /** 下部の発時刻（行き先 + H:MM）。角丸カードは丸い文字盤で隅が切れるので敷かない。 */
     private fun departureCard(next: Departure): LayoutElementBuilders.Box {
         val headsign =
             LayoutElementBuilders.Row
@@ -196,29 +195,7 @@ class TimetableTileService : TileService() {
         return LayoutElementBuilders.Box
             .Builder()
             .setHorizontalAlignment(HORIZONTAL_ALIGN_CENTER)
-            .setModifiers(
-                ModifiersBuilders.Modifiers
-                    .Builder()
-                    .setBackground(
-                        ModifiersBuilders.Background
-                            .Builder()
-                            .setColor(argb(FOOTER))
-                            .setCorner(
-                                ModifiersBuilders.Corner
-                                    .Builder()
-                                    .setRadius(dp(FOOTER_RADIUS_DP))
-                                    .build(),
-                            ).build(),
-                    ).setPadding(
-                        ModifiersBuilders.Padding
-                            .Builder()
-                            .setStart(dp(CARD_PADDING_DP))
-                            .setEnd(dp(CARD_PADDING_DP))
-                            .setTop(dp(SPACER_DP))
-                            .setBottom(dp(SPACER_DP))
-                            .build(),
-                    ).build(),
-            ).addContent(inner)
+            .addContent(inner)
             .build()
     }
 
@@ -333,8 +310,6 @@ class TimetableTileService : TileService() {
         const val RING_DP = 62f
         const val RING_STROKE_DP = 5f
         const val RING_ICON_DP = 28f
-        const val FOOTER_RADIUS_DP = 18f
-        const val CARD_PADDING_DP = 10f
         const val PLACE_SP = 17f
         const val DIRECTION_SP = 10f
         const val CAPTION_SP = 10f
@@ -346,6 +321,5 @@ class TimetableTileService : TileService() {
         const val ACCENT = 0xFF2E8BF5.toInt()
         const val SUBTLE = 0xFFCBDAF2.toInt()
         const val TRACK = 0xFF39445A.toInt()
-        const val FOOTER = 0xFF16305C.toInt()
     }
 }

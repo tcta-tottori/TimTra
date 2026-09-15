@@ -1,5 +1,6 @@
 package com.kazuya.timtra.wear.ui
 
+import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -140,9 +142,12 @@ private fun LoadingScreen() {
 // ---------------------------------------------------------------- ホーム（1 画面）
 
 /**
- * デザイン（2026-09-15 提供のモック）をそのまま写す。上から
- * 📍地点名 → 行き先 → リングに包まれたバス / 電車アイコンと「次の便まで NN 分」→ 発時刻カード。
+ * 提供されたモックの写し。上から
+ * 📍地点名 → 行き先 → リングに包まれたバス / 電車アイコンと「次の便まで NN 分」→ 発時刻。
  * スクロールはさせず、1 画面に収める。
+ *
+ * 発時刻は角丸カードに乗せない。丸い文字盤では隅が切れて見栄えが悪いので、
+ * 画面の横幅いっぱいに敷いた下からのグロー（[WearColors.departureGlow]）の上に置く。
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -155,12 +160,11 @@ private fun HomeScreen(
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
     Scaffold(timeText = { TimeText() }) {
-        Column(
+        Box(
             modifier =
                 Modifier
                     .fillMaxSize()
                     .background(WearColors.background)
-                    .padding(horizontal = 12.dp)
                     // リューズ: 時計回りでこの先の発車、反時計回りでメニュー
                     .onRotaryScrollEvent { event ->
                         if (event.verticalScrollPixels > 0) onOpenUpcoming() else onOpenMenu()
@@ -175,22 +179,31 @@ private fun HomeScreen(
                             onDragEnd = { if (dragged > SWIPE_DOWN_THRESHOLD_PX) onOpenMenu() },
                         ) { _, dragAmount -> dragged += dragAmount }
                     },
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
         ) {
-            PlaceHeader(s.place)
-            Spacer(Modifier.height(8.dp))
             val next = s.next
-            if (next == null) {
-                Text(
-                    text = stringResource(R.string.board_empty),
-                    style = MaterialTheme.typography.title3,
-                    textAlign = TextAlign.Center,
-                )
-            } else {
-                CountdownRing(s, next)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier =
+                    Modifier
+                        .align(Alignment.Center)
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, bottom = CENTER_LIFT_DP.dp),
+            ) {
+                PlaceHeader(s.place)
                 Spacer(Modifier.height(8.dp))
-                DepartureFooter(next, onClick = onOpenUpcoming)
+                if (next == null) {
+                    Text(
+                        text = stringResource(R.string.board_empty),
+                        style = MaterialTheme.typography.title3,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    CountdownRing(s, next)
+                }
+            }
+            if (next != null) {
+                DepartureGlow(next, onClick = onOpenUpcoming, modifier = Modifier.align(Alignment.BottomCenter))
             }
         }
     }
@@ -227,8 +240,9 @@ private fun PlaceHeader(place: BoardPlace) {
 }
 
 /**
- * 中央。リング（[countdownProgress] の進み具合）にバス / 電車アイコンを重ね、
- * 右に「次の便まで」と大きな残り時間を置く。
+ * 中央。リングにバス / 電車アイコンを重ね、右に「次の便まで」と大きな残り時間を置く。
+ * リングは発車までの割合ではなく「そろそろ出ないと間に合わない」度合い
+ * （core の `CountdownGauge`。[BoardSnapshot.gauge]）。
  */
 @Composable
 private fun CountdownRing(
@@ -236,7 +250,6 @@ private fun CountdownRing(
     next: Departure,
 ) {
     val context = LocalContext.current
-    val progress = countdownProgress(s.now, next.at)
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(RING_DP.dp)) {
             Canvas(modifier = Modifier.fillMaxSize()) {
@@ -253,15 +266,17 @@ private fun CountdownRing(
                     size = arcSize,
                     style = style,
                 )
-                drawArc(
-                    brush = WearColors.ringGradient,
-                    startAngle = RING_START_ANGLE,
-                    sweepAngle = FULL_TURN * progress,
-                    useCenter = false,
-                    topLeft = topLeft,
-                    size = arcSize,
-                    style = style,
-                )
+                if (s.gauge > 0f) {
+                    drawArc(
+                        brush = WearColors.ringGradient,
+                        startAngle = RING_START_ANGLE,
+                        sweepAngle = FULL_TURN * s.gauge,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = style,
+                    )
+                }
             }
             Icon(
                 painter = painterResource(next.mode.iconRes()),
@@ -299,22 +314,23 @@ private fun CountdownRing(
     }
 }
 
-/** 下部の発時刻カード（行き先 + H:MM）。タップするとこの先の発車が開く。 */
+/** 画面下部いっぱいのグローに乗せた発時刻（行き先 + H:MM）。タップでこの先の発車が開く。 */
 @Composable
-private fun DepartureFooter(
+private fun DepartureGlow(
     next: Departure,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Bottom,
         modifier =
-            Modifier
+            modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(FOOTER_RADIUS_DP.dp))
-                .background(WearColors.footerGradient)
-                .border(1.dp, WearColors.outline, RoundedCornerShape(FOOTER_RADIUS_DP.dp))
+                .fillMaxHeight(GLOW_HEIGHT_FRACTION)
+                .background(WearColors.departureGlow)
                 .clickable(onClick = onClick)
-                .padding(horizontal = 12.dp, vertical = 5.dp),
+                .padding(horizontal = 24.dp, bottom = GLOW_BOTTOM_DP.dp),
     ) {
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
@@ -426,7 +442,6 @@ private fun BoardListScreen(
                     )
                 }
             }
-            item { BackHint() }
         }
     }
 }
@@ -570,7 +585,6 @@ private fun MenuScreen(
             places.forEach { entry ->
                 item { MenuRow(entry = entry, pinned = pinned == entry.place, onClick = { onPick(entry.place) }) }
             }
-            item { BackHint() }
         }
     }
 }
@@ -635,29 +649,45 @@ private fun MenuRow(
 // ---------------------------------------------------------------- 共通部品
 
 /**
- * 端まで送ってから、さらに送ろうとした分をためる。
- * 一覧が動いた（＝まだ端ではない）ときは [reset] で戻し、
- * 端で押し込んだ量が [OVERSCROLL_BACK_PX] を超えたらホームへ帰す。
+ * 端でさらに送ろうとした分をためる。
+ *
+ * 一気に端まで送った勢いでそのままホームへ飛ばないよう、**その操作が端から始まったときだけ** 数える。
+ * 操作の切れ目は入力が [GESTURE_GAP_MILLIS] 途切れたことで見る（リューズを止める / 指を離す）。
+ * つまり「端まで行って一度手を止め、そこからもう一度送る」とホームへ戻る。
  */
 private class EdgeTravel {
     private var travel = 0f
+    private var lastInputAt = 0L
+    private var startedAtEdge = false
 
-    fun reset() {
-        travel = 0f
-    }
-
-    /** 端で [delta] だけ押し込まれた。閾値を超えたら true。 */
-    fun push(delta: Float): Boolean {
+    /**
+     * @param delta 端で押し込まれた量（送れなかったぶん）。
+     * @param atEdge 一覧がもう動かない（端に着いている）か。
+     * @return ホームへ戻すなら true。
+     */
+    fun push(
+        delta: Float,
+        atEdge: Boolean,
+    ): Boolean {
+        val now = SystemClock.uptimeMillis()
+        if (now - lastInputAt > GESTURE_GAP_MILLIS) {
+            // 新しい操作。端から始まったものだけが「その先へ行こうとした」操作
+            travel = 0f
+            startedAtEdge = atEdge
+        }
+        lastInputAt = now
+        if (!startedAtEdge || !atEdge) return false
         travel += delta
         if (abs(travel) < OVERSCROLL_BACK_PX) return false
         travel = 0f
+        startedAtEdge = false
         return true
     }
 }
 
 /**
- * 一覧の操作。リューズでスクロールし、上端・下端でさらに送るとホームへ戻る。
- * 指のスワイプも同じで、端に着いてから先へ引くと戻る（慣性スクロールでは戻らない）。
+ * 一覧の操作。リューズでスクロールし、端に着いて一度止めてからもう一度送るとホームへ戻る。
+ * 指のスワイプも同じ（端まで引き切った勢いでは戻らない）。判定は [EdgeTravel]。
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -677,12 +707,9 @@ private fun Modifier.listNavigation(
                     available: Offset,
                     source: NestedScrollSource,
                 ): Offset {
+                    // 慣性スクロールで端に当たっただけでは戻さない。指で引いているときだけ数える
                     if (source != NestedScrollSource.UserInput) return Offset.Zero
-                    if (consumed.y != 0f) {
-                        edge.reset()
-                    } else if (available.y != 0f && edge.push(available.y)) {
-                        currentBack()
-                    }
+                    if (edge.push(available.y, atEdge = consumed.y == 0f && available.y != 0f)) currentBack()
                     return Offset.Zero
                 }
             }
@@ -694,26 +721,11 @@ private fun Modifier.listNavigation(
             scope.launch {
                 val delta = event.verticalScrollPixels
                 val left = delta - listState.scrollBy(delta)
-                when {
-                    abs(left) < ROTARY_EPSILON_PX -> edge.reset()
-                    edge.push(left) -> currentBack()
-                }
+                if (edge.push(left, atEdge = abs(left) >= ROTARY_EPSILON_PX)) currentBack()
             }
             true
         }.focusRequester(focusRequester)
         .focusable()
-}
-
-/** 一覧の最下部に置く、ホームへの戻り方の案内。 */
-@Composable
-private fun BackHint() {
-    Text(
-        text = stringResource(R.string.list_back_hint),
-        style = MaterialTheme.typography.caption3,
-        color = WearColors.onSurfaceVariant,
-        textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth(),
-    )
 }
 
 /** 画面上部の地点バッジ（📍 鳥取駅）。 */
@@ -796,7 +808,15 @@ private const val COUNTDOWN_SP = 44f
 private const val UNIT_SP = 22f
 private const val HEADSIGN_SP = 15f
 private const val DEPART_SP = 26f
-private const val FOOTER_RADIUS_DP = 22f
+
+/** 発時刻のグローが覆う高さ（画面の割合）。 */
+private const val GLOW_HEIGHT_FRACTION = 0.42f
+
+/** グローの中の文字を画面の下端からどれだけ上げるか。丸い文字盤で切れないぶん。 */
+private const val GLOW_BOTTOM_DP = 18f
+
+/** 中央の塊をグローに被らないよう少し持ち上げる。 */
+private const val CENTER_LIFT_DP = 26f
 
 /** 一覧の先頭に置く見出し（地点バッジ・日種別）の数。「次の便」へ送るときの補正に使う。 */
 private const val HEADER_ITEMS = 2
@@ -809,3 +829,6 @@ private const val OVERSCROLL_BACK_PX = 96f
 
 /** リューズの送り残りがこれ未満なら「まだ端ではない」とみなす。 */
 private const val ROTARY_EPSILON_PX = 1f
+
+/** 入力がこれだけ途切れたら、次は別の操作とみなす（リューズを止める / 指を離す）。 */
+private const val GESTURE_GAP_MILLIS = 350L

@@ -1,6 +1,7 @@
 package com.kazuya.timtra.wear.board
 
 import com.kazuya.timtra.core.board.BoardPlace
+import com.kazuya.timtra.core.board.CountdownGauge
 import com.kazuya.timtra.core.board.Departure
 import com.kazuya.timtra.core.board.DepartureBoard
 import com.kazuya.timtra.core.model.Bound
@@ -48,6 +49,8 @@ data class BoardSnapshot(
     val basis: PlaceBasis,
     /** [now] 以降の便。先頭が次の 1 本。空なら先読み日数内に運行が無い。 */
     val departures: List<Departure>,
+    /** ホーム中央のリングの進み具合（0〜1）。[com.kazuya.timtra.core.board.CountdownGauge] を参照。 */
+    val gauge: Float = 0f,
 ) {
     val next: Departure? get() = departures.firstOrNull()
 
@@ -126,11 +129,15 @@ class WearBoardProvider
             limit: Int = DepartureBoard.DEFAULT_LIMIT,
         ): BoardSnapshot {
             val now = clock.now()
+            val departures = repository.upcoming(place, now, limit)
+            val commute = settings.current().commute
+            val travel = CountdownGauge.travelTo(place, commute)
             return BoardSnapshot(
                 now = now,
                 place = place,
                 basis = basis,
-                departures = repository.upcoming(place, now, limit),
+                departures = departures,
+                gauge = departures.firstOrNull()?.let { CountdownGauge.progress(now, it.at, travel, commute.prepBuffer) } ?: 0f,
             )
         }
 

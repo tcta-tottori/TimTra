@@ -54,8 +54,17 @@ object WearColors {
     /** カウントダウンのリング（明るい水色 → 青）。 */
     val ringGradient: Brush = Brush.linearGradient(listOf(accentLight, gradientStart))
 
-    /** ホーム下部の発時刻カードの地。 */
-    val footerGradient: Brush = Brush.verticalGradient(listOf(Color(0xFF16305C), Color(0xFF0C1B36)))
+    /**
+     * ホーム下部の発時刻の地。角丸カードだと丸い文字盤の隅で切れて見栄えが悪いので、
+     * 表示域いっぱいに敷き、下端をいちばん明るく、中央へ向かって暗く消えるグローにする。
+     */
+    val departureGlow: Brush =
+        Brush.verticalGradient(
+            0f to Color.Transparent,
+            0.45f to Color(0x2016478F),
+            0.78f to Color(0x7A1B57B4),
+            1f to Color(0xD41E63C8),
+        )
 
     /** 大きな数字のグラデーション（白 → 水色）。 */
     val countdownGradient: Brush = Brush.verticalGradient(listOf(Color.White, accentLight))
