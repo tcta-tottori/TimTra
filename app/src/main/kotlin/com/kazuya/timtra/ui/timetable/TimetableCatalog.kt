@@ -1,5 +1,6 @@
 package com.kazuya.timtra.ui.timetable
 
+import com.kazuya.timtra.core.board.BoardPlace
 import com.kazuya.timtra.core.model.BusDirection
 import com.kazuya.timtra.core.model.JrLegIds
 import com.kazuya.timtra.data.repository.BusTimetableRepository
@@ -103,3 +104,20 @@ class TimetableCatalog
             const val LOOKAHEAD_DAYS = 14L
         }
     }
+
+/** 発車標の地点（core の [BoardPlace]）に対応する時刻表のタブ。 */
+fun BoardPlace.tab(): TimetableTab =
+    when (this) {
+        BoardPlace.HOME_STOP -> TimetableTab.HOME_STOP
+        BoardPlace.STATION_BUS, BoardPlace.TOTTORI_JR -> TimetableTab.STATION
+        BoardPlace.HOUGI_JR -> TimetableTab.HOUGI
+    }
+
+/** 鳥取駅タブはバスと JR が混ざるので、地点に合わせて絞り込む。 */
+fun BoardPlace.stationFilter(): StationFilter =
+    when (this) {
+        BoardPlace.STATION_BUS -> StationFilter.BUS
+        BoardPlace.TOTTORI_JR -> StationFilter.JR
+        BoardPlace.HOME_STOP, BoardPlace.HOUGI_JR -> StationFilter.ALL
+    }
+

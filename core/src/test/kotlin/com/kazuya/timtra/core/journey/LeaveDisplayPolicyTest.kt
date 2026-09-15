@@ -33,6 +33,14 @@ class LeaveDisplayPolicyTest {
     }
 
     @Test
+    fun `the leave time is hidden once it has passed`() {
+        // 出発時刻を過ぎたら、過ぎた時刻を大きく出さずに次の便の発車までを主役にする
+        assertTrue(LeaveDisplayPolicy.stillAhead(at(17, 44), at(17, 45)))
+        assertFalse(LeaveDisplayPolicy.stillAhead(at(17, 45), at(17, 45)), "ちょうどの時刻はもう「出る時刻」ではない")
+        assertFalse(LeaveDisplayPolicy.stillAhead(at(18, 7), at(17, 45)))
+    }
+
+    @Test
     fun `leave home window can wrap past midnight`() {
         val wrapped = settings.copy(leaveHomeDisplayStart = LocalTime.of(23, 0), leaveHomeDisplayEnd = LocalTime.of(1, 0))
         assertTrue(LeaveDisplayPolicy.showLeaveHome(at(23, 30), wrapped))

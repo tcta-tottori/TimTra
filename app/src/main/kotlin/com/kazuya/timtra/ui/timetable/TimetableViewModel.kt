@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kazuya.timtra.core.model.DayType
 import com.kazuya.timtra.data.di.AppClock
+import com.kazuya.timtra.data.repository.DepartureBoardRepository
+import com.kazuya.timtra.data.repository.SettingsRepository
+import com.kazuya.timtra.location.LocationProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -14,6 +17,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
 import javax.inject.Inject
@@ -112,11 +116,37 @@ class TimetableViewModel
     @Inject
     constructor(
         private val catalog: TimetableCatalog,
+        private val board: DepartureBoardRepository,
+        private val location: LocationProvider,
+        private val settings: SettingsRepository,
         private val clock: AppClock,
     ) : ViewModel() {
         private val tab = MutableStateFlow(TimetableTab.HOME_STOP)
         private val day = MutableStateFlow(DaySelection.TODAY)
         private val stationFilter = MutableStateFlow(StationFilter.ALL)
+
+        /** タブを手で選んだら、あとから来る現在地の判定で勝手に動かさない。 */
+        private var tabPicked = false
+
+        init {
+            openNearestTab()
+        }
+
+        /**
+         * 初回表示のタブを現在地の最寄りにする。
+         * 位置が取れない・通勤圏外・すでに手で選んだあと、のいずれかなら何もしない（既定の南吉成のまま）。
+         */
+        private fun openNearestTab() {
+            viewModelScope.launch {
+                val here = location.currentFix()?.point ?: return@launch
+                if (tabPicked) return@launch
+                val bound = settings.current().commute.boundAt(clock.now().toLocalTime())
+                val place = board.nearest(here, bound) ?: return@launch
+                if (tabPicked) return@launch
+                tab.value = place.tab()
+                stationFilter.value = place.stationFilter()
+            }
+        }
 
         /** 「あと n 分」と現在位置のハイライトを最新に保つため、表示中は 30 秒ごとに読み直す。 */
         private val ticker =
@@ -133,6 +163,7 @@ class TimetableViewModel
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), TimetableUiState())
 
         fun selectTab(newTab: TimetableTab) {
+            tabPicked = true
             tab.value = newTab
         }
 

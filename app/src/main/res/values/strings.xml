@@ -60,6 +60,8 @@
     <string name="home_departs_from">%1$s 発</string>
     <string name="home_leave_hidden_home">家を出る時刻は %1$s〜%2$s に表示します</string>
     <string name="home_leave_hidden_work">職場を出る時刻は %1$s 以降、勤務先付近にいる間に表示します</string>
+    <string name="home_leave_passed_home">家を出る時刻（%1$s）は過ぎています</string>
+    <string name="home_leave_passed_work">職場を出る時刻（%1$s）は過ぎています</string>
     <string name="home_arrow">→</string>
     <string name="home_leg_from_to">%1$s → %2$s</string>
     <string name="home_dep_label">発</string>

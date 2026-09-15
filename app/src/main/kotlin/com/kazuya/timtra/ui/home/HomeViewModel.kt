@@ -292,6 +292,8 @@ class HomeViewModel
             // 出発時刻は決まった時間帯にだけ出す（家: 朝の時間帯、職場: 17 時以降〜終電、勤務先付近にいる間）
             val showLeaveTime =
                 primaryJourney != null &&
+                    // 出発時刻を過ぎたら、過ぎた時刻ではなく次の便の発車までを主役にする
+                    LeaveDisplayPolicy.stillAhead(now, primaryJourney.leaveAt) &&
                     when (bound) {
                         Bound.OUTBOUND -> LeaveDisplayPolicy.showLeaveHome(now, settings.commute)
                         Bound.INBOUND ->

@@ -13,6 +13,9 @@ import java.time.LocalTime
  *   それを過ぎれば、もう家にはいないので出さない。
  * - 職場を出る: 既定 17:00 から、その日の終電（アンカーの JR 便が今日のうち）まで出す。
  *   ただし現在地が勤務先を離れて鳥取駅周辺まで来た（または同じだけ離れた）ときは出さない。
+ *
+ * どちらも **出発時刻を過ぎたら出さない**（[stillAhead]）。過ぎた時刻と「発車しました」を大きく出しても
+ * 役に立たないので、そのときは次の便の発車までの残り時間を主役にする。
  */
 object LeaveDisplayPolicy {
     /** 鳥取駅からこの距離以内なら「鳥取駅周辺」。 */
@@ -23,6 +26,15 @@ object LeaveDisplayPolicy {
      * 勤務先と鳥取駅が近い設定（未登録で宝木駅代用など）でも、基地局測位の誤差で誤って隠さないようにする。
      */
     const val MIN_AWAY_METERS = 3_000.0
+
+    /**
+     * 出発時刻がまだ先か。過ぎていれば「家（職場）を出る時刻」は出さず、
+     * 次の便（バス / JR）の発車までの残り時間に切り替える。
+     */
+    fun stillAhead(
+        now: LocalDateTime,
+        leaveAt: LocalDateTime,
+    ): Boolean = now.isBefore(leaveAt)
 
     /** 家を出る時刻を出す時間帯か（[start] 以上 [end] 未満）。 */
     fun showLeaveHome(

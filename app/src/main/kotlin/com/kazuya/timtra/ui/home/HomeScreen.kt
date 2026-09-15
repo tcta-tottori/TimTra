@@ -60,6 +60,7 @@ import com.kazuya.timtra.core.journey.CommuteSettings
 import com.kazuya.timtra.core.journey.InboundPhase
 import com.kazuya.timtra.core.journey.Journey
 import com.kazuya.timtra.core.journey.JourneyStatus
+import com.kazuya.timtra.core.journey.LeaveDisplayPolicy
 import com.kazuya.timtra.core.journey.Pace
 import com.kazuya.timtra.core.journey.PaceAdvisor
 import com.kazuya.timtra.core.journey.ScheduledBus
@@ -578,16 +579,22 @@ private fun NextDepartureCard(
             HeroLegStrip(journey)
             PaceRow(now, journey, here, landmarks)
             Spacer(Modifier.height(8.dp))
+            // 出発時刻を過ぎて切り替わったときは、時間帯の案内ではなく「もう出る時刻は過ぎた」ことを出す
             Text(
                 text =
-                    if (outbound) {
-                        stringResource(
-                            R.string.home_leave_hidden_home,
-                            settings.leaveHomeDisplayStart.hhmm(),
-                            settings.leaveHomeDisplayEnd.hhmm(),
-                        )
-                    } else {
-                        stringResource(R.string.home_leave_hidden_work, settings.leaveWorkDisplayStart.hhmm())
+                    when {
+                        !LeaveDisplayPolicy.stillAhead(now, journey.leaveAt) ->
+                            stringResource(
+                                if (outbound) R.string.home_leave_passed_home else R.string.home_leave_passed_work,
+                                journey.leaveAt.hhmm(),
+                            )
+                        outbound ->
+                            stringResource(
+                                R.string.home_leave_hidden_home,
+                                settings.leaveHomeDisplayStart.hhmm(),
+                                settings.leaveHomeDisplayEnd.hhmm(),
+                            )
+                        else -> stringResource(R.string.home_leave_hidden_work, settings.leaveWorkDisplayStart.hhmm())
                     },
                 style = MaterialTheme.typography.labelSmall,
                 color = Color.White.copy(alpha = 0.65f),
