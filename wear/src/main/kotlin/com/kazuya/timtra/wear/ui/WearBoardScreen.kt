@@ -60,8 +60,8 @@ import com.kazuya.timtra.wear.board.BoardSnapshot
 import com.kazuya.timtra.wear.board.DayBoard
 import com.kazuya.timtra.wear.board.DaySelection
 import com.kazuya.timtra.wear.board.PlaceDistance
-import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
+import java.time.format.DateTimeFormatter
 
 private val dateLabelFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("M/d(E)")
 
