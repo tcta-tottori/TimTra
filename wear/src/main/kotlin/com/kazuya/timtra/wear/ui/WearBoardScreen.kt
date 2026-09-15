@@ -187,7 +187,7 @@ private fun HomeScreen(
                     Modifier
                         .align(Alignment.Center)
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, bottom = CENTER_LIFT_DP.dp),
+                        .padding(start = 12.dp, end = 12.dp, bottom = CENTER_LIFT_DP.dp),
             ) {
                 PlaceHeader(s.place)
                 Spacer(Modifier.height(8.dp))
@@ -330,7 +330,7 @@ private fun DepartureGlow(
                 .fillMaxHeight(GLOW_HEIGHT_FRACTION)
                 .background(WearColors.departureGlow)
                 .clickable(onClick = onClick)
-                .padding(horizontal = 24.dp, bottom = GLOW_BOTTOM_DP.dp),
+                .padding(start = 24.dp, end = 24.dp, bottom = GLOW_BOTTOM_DP.dp),
     ) {
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
