@@ -13,8 +13,7 @@ class CountdownGaugeTest {
     private val prep = Duration.ofMinutes(5)
 
     /** 発車 [minutesBefore] 分前のリングの進み具合。 */
-    private fun at(minutesBefore: Long): Float =
-        CountdownGauge.progress(departure.minusMinutes(minutesBefore), departure, travel, prep)
+    private fun at(minutesBefore: Long): Float = CountdownGauge.progress(departure.minusMinutes(minutesBefore), departure, travel, prep)
 
     @Test
     fun `far from the departure the ring stays empty`() {
