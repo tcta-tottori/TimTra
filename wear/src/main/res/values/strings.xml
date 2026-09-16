@@ -5,6 +5,7 @@
     <string name="complication_label">TimTra 次の便まで</string>
     <string name="complication_departure_label">TimTra 次の便の発車時刻</string>
     <string name="date_complication_label">TimTra 日付</string>
+    <string name="date_text_complication_label">TimTra 日付（文字）</string>
 
     <string name="countdown_passed">出発時刻を過ぎています</string>
     <string name="complication_title">発車</string>

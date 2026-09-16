@@ -10,7 +10,8 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 | タイル（ウィジェット） | `tile/TimetableTileService` | アプリのホームと同じ見た目を ProtoLayout で組む。タップでアプリを開く。更新間隔 60 秒 |
 | コンプリケーション | `complication/LeaveCountdownComplicationService` | 次の便までの残り時間。`TimeDifferenceComplicationText` で文字盤側がカウントダウンする。SHORT_TEXT / RANGED_VALUE / LONG_TEXT。10 分ごとに次の便へ切り替え。クラス名は設定済みのコンプリケーションを壊さないため据え置き |
 | コンプリケーション | `complication/NextDepartureComplicationService` | 次の便の**発車時刻**（H:MM）。SHORT_TEXT / LONG_TEXT |
-| コンプリケーション | `complication/DateComplicationService` | ウォッチフェイスの**日付**。ネオン風の絵（`complication/DateArt`）と文字の両対応 |
+| コンプリケーション | `complication/DateComplicationService` | ウォッチフェイスの**日付**。ネオン風の絵（`complication/DateArt`）|
+| コンプリケーション | `complication/DateTextComplicationService` | 同じ日付を文字で。画像を受け付けない枠のための控え |
 | UI | `ui/WearBoardScreen` | ホーム（1 画面）・この先の発車・時刻表・メニューの 4 画面 |
 | 同期受信 | `sync/WearDataListenerService` | スマホからの設定（`/timtra/settings`）を受け取り、時計側の DataStore を置き換え、タイルとコンプリケーションの更新を要求 |
 | 発車標 | `board/WearBoardProvider` | 地点を決めて `DepartureBoardRepository` から便を引く。各画面とタイル・コンプリケーションの共通入口 |
@@ -112,7 +113,8 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 | --- | --- | --- |
 | `LeaveCountdownComplicationService` | 次の便までの残り時間（見出しに発時刻 H:MM） | SHORT_TEXT / RANGED_VALUE / LONG_TEXT |
 | `NextDepartureComplicationService` | 次の便の発車時刻 H:MM（見出しに行き先） | SHORT_TEXT / LONG_TEXT |
-| `DateComplicationService` | 今日の日付 | SMALL_IMAGE / PHOTO_IMAGE / SHORT_TEXT / LONG_TEXT |
+| `DateComplicationService` | 今日の日付（絵） | SMALL_IMAGE / PHOTO_IMAGE |
+| `DateTextComplicationService` | 今日の日付（文字） | SHORT_TEXT / LONG_TEXT |
 
 残り時間は `TimeDifferenceComplicationText` なので毎分の書き換えは文字盤側が行う。
 アプリ側の再計算は `UPDATE_PERIOD_SECONDS`（600 秒）で、次の便へ切り替えるためだけに走る。
@@ -122,13 +124,19 @@ RANGED_VALUE の値はホームのリングと同じ `BoardSnapshot.gauge`（`Co
 
 文字盤の日付の枠に入れるもの。発車標とは無関係だが、同じ文字盤に並べたいので TimTra から出す。
 
-- **SMALL_IMAGE / PHOTO_IMAGE**: `complication/DateArt` がその場で描くネオン風の絵。
-  左上に「9/」、その下に曜日、右に大きな日にち。地は透明。白に近い文字（`#EAF2FF`）の下に
-  `BlurMaskFilter` でぼかした青（`#5B9BFF`）を敷いて、外へ光らせている。
-  ソフトウェア描画が要るので必ず `Bitmap` の `Canvas` に描く。曜日は端末のロケール
-  （日本語なら「金」、英語なら「FRI」）。
-- **SHORT_TEXT / LONG_TEXT**: 絵を置けない枠用。`TimeFormatComplicationText` なので
-  文字盤側が日付を描き、取り直しが要らない（SHORT_TEXT は見出し `M/E` + 本文 `d`）。
+`complication/DateArt` がその場で描く。左に「9/」と曜日を 2 段、右に大きな日にち。地は透明。
+白に近い文字（`#EAF2FF`）の下に `BlurMaskFilter` でぼかした青（`#5B9BFF`）を敷いて外へ光らせる。
+ソフトウェア描画が要るので必ず `Bitmap` の `Canvas` に描く。曜日は端末のロケール
+（日本語なら「水」、英語なら「WED」）。
+
+枠いっぱいに出すため、文字の実寸を `Paint.getTextBounds` で測り、組み上がり全体を最後に拡大する。
+組み上がりは横長（およそ 2:1）なので、丸い枠に内接するよう横幅を `FILL`（一辺の 80%）に収めている。
+
+**サービスを 2 つに分けている。** 1 つの提供元が SMALL_IMAGE と SHORT_TEXT の両方を宣言すると、
+両方を受け付ける枠では文字盤側が文字を選んでしまい、絵が出ない（小さな「9/水 16」になる）。
+そのため `DateComplicationService` は画像の型だけを宣言し、文字は
+`DateTextComplicationService`（「TimTra 日付（文字）」）に分けた。
+文字のほうは `TimeFormatComplicationText` なので文字盤側が日付を描き、取り直しは要らない。
 
 絵のほうは日が変わったら描き直しが要る。`setValidTimeRange` をその日 1 日に限って失効させ、
 効かない文字盤のために manifest の `UPDATE_PERIOD_SECONDS`（1800 秒）も併せて置いている。

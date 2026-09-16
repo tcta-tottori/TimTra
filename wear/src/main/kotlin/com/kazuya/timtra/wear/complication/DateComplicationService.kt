@@ -6,14 +6,11 @@ import android.graphics.drawable.Icon
 import androidx.wear.watchface.complications.data.ComplicationData
 import androidx.wear.watchface.complications.data.ComplicationText
 import androidx.wear.watchface.complications.data.ComplicationType
-import androidx.wear.watchface.complications.data.LongTextComplicationData
 import androidx.wear.watchface.complications.data.PhotoImageComplicationData
 import androidx.wear.watchface.complications.data.PlainComplicationText
-import androidx.wear.watchface.complications.data.ShortTextComplicationData
 import androidx.wear.watchface.complications.data.SmallImage
 import androidx.wear.watchface.complications.data.SmallImageComplicationData
 import androidx.wear.watchface.complications.data.SmallImageType
-import androidx.wear.watchface.complications.data.TimeFormatComplicationText
 import androidx.wear.watchface.complications.data.TimeRange
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
@@ -23,13 +20,16 @@ import com.kazuya.timtra.wear.R
 import java.time.LocalDate
 
 /**
- * ウォッチフェイスの日付コンプリケーション。
+ * ウォッチフェイスの日付コンプリケーション（絵）。
  *
- * - SMALL_IMAGE / PHOTO_IMAGE: [DateArt] が描く「9/ + 曜日 + 大きな日にち」のネオン風の絵。
- *   絵なので日が変わったら描き直す必要がある。[TimeRange] をその日の 1 日に限ることで、
- *   日付が変わった時点で文字盤側から取り直してもらう（保険として manifest でも定期更新する）。
- * - SHORT_TEXT / LONG_TEXT: 絵を置けない枠用。[TimeFormatComplicationText] なので
- *   文字盤側が日付をそのまま描き、取り直しは要らない。
+ * [DateArt] が描く「9/ + 曜日 + 大きな日にち」のネオン風の絵を、枠いっぱいに出す。
+ *
+ * **画像の型しか宣言していない。** SHORT_TEXT も宣言すると、枠が両方を受け付ける場合に
+ * 文字盤側が文字を選んでしまい、絵が出ない（小さな「9/水 16」になる）ため。
+ * 画像を受け付けない枠には [DateTextComplicationService]（TimTra 日付（文字））を使う。
+ *
+ * 絵なので日が変わったら描き直す必要がある。[TimeRange] をその日の 1 日に限ることで、
+ * 日付が変わった時点で文字盤側から取り直してもらう（保険として manifest でも定期更新する）。
  *
  * 発車標とは無関係だが、同じ文字盤に並べたいので TimTra から提供する。
  */
@@ -46,28 +46,18 @@ class DateComplicationService : SuspendingComplicationDataSourceService() {
         limitToToday: Boolean,
     ): ComplicationData? {
         val description = plain(getString(R.string.date_complication_description))
+        val valid = if (limitToToday) justToday(date) else TimeRange.ALWAYS
         return when (type) {
-            ComplicationType.SHORT_TEXT ->
-                ShortTextComplicationData
-                    .Builder(TimeFormatComplicationText.Builder(DAY_FORMAT).build(), description)
-                    .setTitle(TimeFormatComplicationText.Builder(HEAD_FORMAT).build())
-                    .setTapAction(openApp())
-                    .build()
-            ComplicationType.LONG_TEXT ->
-                LongTextComplicationData
-                    .Builder(TimeFormatComplicationText.Builder(LONG_FORMAT).build(), description)
-                    .setTapAction(openApp())
-                    .build()
             ComplicationType.SMALL_IMAGE ->
                 SmallImageComplicationData
                     .Builder(SmallImage.Builder(art(date), SmallImageType.PHOTO).build(), description)
-                    .setValidTimeRange(if (limitToToday) justToday(date) else TimeRange.ALWAYS)
+                    .setValidTimeRange(valid)
                     .setTapAction(openApp())
                     .build()
             ComplicationType.PHOTO_IMAGE ->
                 PhotoImageComplicationData
                     .Builder(art(date), description)
-                    .setValidTimeRange(if (limitToToday) justToday(date) else TimeRange.ALWAYS)
+                    .setValidTimeRange(valid)
                     .setTapAction(openApp())
                     .build()
             else -> null
@@ -92,11 +82,4 @@ class DateComplicationService : SuspendingComplicationDataSourceService() {
             Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-
-    private companion object {
-        /** SimpleDateFormat のパターン（文字盤側が解釈する）。 */
-        const val DAY_FORMAT = "d"
-        const val HEAD_FORMAT = "M/E"
-        const val LONG_FORMAT = "M/d(E)"
-    }
 }
