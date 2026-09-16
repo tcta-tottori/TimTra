@@ -13,7 +13,7 @@ import kotlin.math.hypot
  * ウォッチフェイスの日付コンプリケーションに出す絵。
  *
  * 字はシステムのフォントではなく、提供された見本画像から切り出したものを並べる
- * （`assets/date/*.png`、寸法表は [DateGlyphs]、切り出しは `tools/date_glyphs.py`）。
+ * （`assets/date` の PNG、寸法表は [DateGlyphs]、切り出しは `tools/date_glyphs.py`）。
  * 画像にはグローまで焼き込んであるので、ここでは並べて拡大するだけでよい。
  *
  * 配置も見本どおり。左に月の数字と「/」、その下に曜日、右に大きな日にち。
