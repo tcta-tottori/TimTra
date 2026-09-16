@@ -85,6 +85,25 @@
                 android:value="600" />
         </service>
 
+        <!-- コンプリケーション: ウォッチフェイスの日付（ネオン風の絵と、文字の枠用） -->
+        <service
+            android:name=".complication.DateComplicationService"
+            android:exported="true"
+            android:icon="@drawable/ic_complication"
+            android:label="@string/date_complication_label"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SMALL_IMAGE,PHOTO_IMAGE,SHORT_TEXT,LONG_TEXT" />
+            <!-- 絵は日が変わったら描き直す。TimeRange での失効が効かない文字盤のための保険 -->
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="1800" />
+        </service>
+
         <!-- スマホからの設定同期を受け取る -->
         <service
             android:name=".sync.WearDataListenerService"

@@ -10,6 +10,7 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 | タイル（ウィジェット） | `tile/TimetableTileService` | アプリのホームと同じ見た目を ProtoLayout で組む。タップでアプリを開く。更新間隔 60 秒 |
 | コンプリケーション | `complication/LeaveCountdownComplicationService` | 次の便までの残り時間。`TimeDifferenceComplicationText` で文字盤側がカウントダウンする。SHORT_TEXT / RANGED_VALUE / LONG_TEXT。10 分ごとに次の便へ切り替え。クラス名は設定済みのコンプリケーションを壊さないため据え置き |
 | コンプリケーション | `complication/NextDepartureComplicationService` | 次の便の**発車時刻**（H:MM）。SHORT_TEXT / LONG_TEXT |
+| コンプリケーション | `complication/DateComplicationService` | ウォッチフェイスの**日付**。ネオン風の絵（`complication/DateArt`）と文字の両対応 |
 | UI | `ui/WearBoardScreen` | ホーム（1 画面）・この先の発車・時刻表・メニューの 4 画面 |
 | 同期受信 | `sync/WearDataListenerService` | スマホからの設定（`/timtra/settings`）を受け取り、時計側の DataStore を置き換え、タイルとコンプリケーションの更新を要求 |
 | 発車標 | `board/WearBoardProvider` | 地点を決めて `DepartureBoardRepository` から便を引く。各画面とタイル・コンプリケーションの共通入口 |
@@ -111,10 +112,26 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 | --- | --- | --- |
 | `LeaveCountdownComplicationService` | 次の便までの残り時間（見出しに発時刻 H:MM） | SHORT_TEXT / RANGED_VALUE / LONG_TEXT |
 | `NextDepartureComplicationService` | 次の便の発車時刻 H:MM（見出しに行き先） | SHORT_TEXT / LONG_TEXT |
+| `DateComplicationService` | 今日の日付 | SMALL_IMAGE / PHOTO_IMAGE / SHORT_TEXT / LONG_TEXT |
 
 残り時間は `TimeDifferenceComplicationText` なので毎分の書き換えは文字盤側が行う。
 アプリ側の再計算は `UPDATE_PERIOD_SECONDS`（600 秒）で、次の便へ切り替えるためだけに走る。
 RANGED_VALUE の値はホームのリングと同じ `BoardSnapshot.gauge`（`CountdownGauge`）。
+
+### 日付（`DateComplicationService`）
+
+文字盤の日付の枠に入れるもの。発車標とは無関係だが、同じ文字盤に並べたいので TimTra から出す。
+
+- **SMALL_IMAGE / PHOTO_IMAGE**: `complication/DateArt` がその場で描くネオン風の絵。
+  左上に「9/」、その下に曜日、右に大きな日にち。地は透明。白に近い文字（`#EAF2FF`）の下に
+  `BlurMaskFilter` でぼかした青（`#5B9BFF`）を敷いて、外へ光らせている。
+  ソフトウェア描画が要るので必ず `Bitmap` の `Canvas` に描く。曜日は端末のロケール
+  （日本語なら「金」、英語なら「FRI」）。
+- **SHORT_TEXT / LONG_TEXT**: 絵を置けない枠用。`TimeFormatComplicationText` なので
+  文字盤側が日付を描き、取り直しが要らない（SHORT_TEXT は見出し `M/E` + 本文 `d`）。
+
+絵のほうは日が変わったら描き直しが要る。`setValidTimeRange` をその日 1 日に限って失効させ、
+効かない文字盤のために manifest の `UPDATE_PERIOD_SECONDS`（1800 秒）も併せて置いている。
 
 ## 地点の決め方（`PlaceBasis`）
 

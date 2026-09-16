@@ -4,12 +4,14 @@
     <string name="tile_label">TimTra 時刻表</string>
     <string name="complication_label">TimTra 次の便まで</string>
     <string name="complication_departure_label">TimTra 次の便の発車時刻</string>
+    <string name="date_complication_label">TimTra 日付</string>
 
     <string name="countdown_passed">出発時刻を過ぎています</string>
     <string name="complication_title">発車</string>
     <string name="complication_none">--</string>
     <string name="complication_description">次の便までの残り時間</string>
     <string name="complication_departure_description">次の便の発車時刻</string>
+    <string name="date_complication_description">今日の日付</string>
     <string name="complication_long">%1$s %2$s行</string>
 
     <!-- 発車標（ホーム / 時刻表 / メニュー） -->
