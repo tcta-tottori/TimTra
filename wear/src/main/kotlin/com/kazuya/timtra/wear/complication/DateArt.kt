@@ -1,114 +1,132 @@
 package com.kazuya.timtra.wear.complication
 
+import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BlurMaskFilter
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
-import android.graphics.Rect
-import android.graphics.Typeface
+import android.graphics.RectF
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-import kotlin.math.max
-import kotlin.math.min
+import kotlin.math.hypot
 
 /**
- * ウォッチフェイスの日付コンプリケーションに出す絵（提供されたデザイン）。
+ * ウォッチフェイスの日付コンプリケーションに出す絵。
  *
- * 左に「9/」と曜日を 2 段、右に大きな日にち。文字は白に近い色で、外へ青いグローを出す。
- * 文字盤に溶けるよう地は透明のままにする。
+ * 字はシステムのフォントではなく、提供された見本画像から切り出したものを並べる
+ * （`assets/date/*.png`、寸法表は [DateGlyphs]、切り出しは `tools/date_glyphs.py`）。
+ * 画像にはグローまで焼き込んであるので、ここでは並べて拡大するだけでよい。
  *
- * 文字の実寸を [Paint.getTextBounds] で測り、組み上がり全体を **枠いっぱい** に拡大してから描く。
- * 組み上がりは横長（およそ 1.8:1）なので、丸い枠に内接するよう横幅を [FILL] に収めている。
- *
- * グローは [BlurMaskFilter]（ソフトウェア描画が要る）なので、必ず Bitmap の [Canvas] に描く。
+ * 配置も見本どおり。左に月の数字と「/」、その下に曜日、右に大きな日にち。
+ * 組み上がりは横長なので、丸い枠に収まるよう **対角の長さ** を枠の [FILL_DIAGONAL] に合わせる。
  */
 object DateArt {
     /** 既定の一辺（px）。コンプリケーションの枠に合わせて文字盤側が縮める。 */
     const val SIZE_PX = 384
 
-    private val monthFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("M/")
+    /** 組み上がりの対角を、枠の一辺に対してどこまで広げるか。丸い枠に内接する値。 */
+    private const val FILL_DIAGONAL = 0.90f
+
+    /** 右下が開いていて、「/」を食い込ませても潰れない数字。 */
+    private const val OPEN_TAIL = "479"
 
     fun render(
+        context: Context,
         date: LocalDate,
-        locale: Locale = Locale.getDefault(),
         size: Int = SIZE_PX,
     ): Bitmap {
+        val placed = layout(date)
+        val box = RectF(placed.first().ink)
+        placed.forEach { box.union(it.ink) }
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        val day = date.dayOfMonth.toString()
-        val month = monthFormat.format(date)
-        val weekday = DateTimeFormatter.ofPattern("E", locale).format(date).uppercase(locale)
-
-        val dayPaint = textPaint(size * DAY_TEXT)
-        val smallPaint = textPaint(size * SMALL_TEXT)
-        val dayBox = bounds(dayPaint, day)
-        val monthBox = bounds(smallPaint, month)
-        val weekBox = bounds(smallPaint, weekday)
-
-        // 日にちはインクの左端を 0、ベースラインを 0 に置く。左の 2 段はその左に並べる
-        val columnLeft = -(size * GAP + max(monthBox.width(), weekBox.width()))
-        // 「9/」は日にちの上端に、曜日は下端にそろえる
-        val monthBaseline = (dayBox.top - monthBox.top).toFloat()
-        val weekBaseline = (dayBox.bottom - weekBox.bottom).toFloat()
-        val right = dayBox.width().toFloat()
-
-        val fill = size * FILL
-        val scale = min(fill / (right - columnLeft), fill / (dayBox.bottom - dayBox.top))
+        val scale = size * FILL_DIAGONAL / hypot(box.width(), box.height())
         canvas.translate(size / 2f, size / 2f)
         canvas.scale(scale, scale)
-        canvas.translate(-(columnLeft + right) / 2f, -(dayBox.top + dayBox.bottom) / 2f)
-
-        drawGlowing(canvas, day, -dayBox.left.toFloat(), 0f, dayPaint)
-        drawGlowing(canvas, month, columnLeft - monthBox.left, monthBaseline, smallPaint)
-        drawGlowing(canvas, weekday, columnLeft - weekBox.left, weekBaseline, smallPaint)
+        canvas.translate(-box.centerX(), -box.centerY())
+        val paint = Paint(Paint.FILTER_BITMAP_FLAG)
+        placed.forEach { draw(context, canvas, it, paint) }
         return bitmap
     }
 
-    /** 先にぼかした青を敷き、その上に白い文字を重ねてネオンのように見せる。 */
-    private fun drawGlowing(
-        canvas: Canvas,
-        text: String,
-        x: Float,
-        y: Float,
-        paint: Paint,
-    ) {
-        val glow =
-            Paint(paint).apply {
-                color = GLOW
-                maskFilter = BlurMaskFilter(paint.textSize * GLOW_RADIUS, BlurMaskFilter.Blur.NORMAL)
-            }
-        canvas.drawText(text, x, y, glow)
-        canvas.drawText(text, x, y, paint)
+    /**
+     * 字の芯の置き場所を決める。長さの単位は日にちの字の高さ、
+     * 原点は日にちの字の左下（[DateGlyphs] と同じ取り方）。
+     */
+    private fun layout(date: LocalDate): List<Placed> {
+        val placed = mutableListOf<Placed>()
+        // 日にち: 原点から右へ
+        val day = date.dayOfMonth.toString()
+        var x = 0f
+        day.forEach { digit ->
+            val glyph = DateGlyphs.digits[digit - '0']
+            val width = glyph.iw / DateGlyphs.CAP_DIGIT
+            val bottom = glyph.drop
+            placed += Placed(glyph, RectF(x, bottom - glyph.ih / DateGlyphs.CAP_DIGIT, x + width, bottom))
+            x += width + DateGlyphs.DAY_TRACK
+        }
+        // 「/」: 高さは見本の実測。見本は 15 で、細い「1」に少しだけ重ねてある。
+        // 3 や 8 のような丸い数字に重ねると潰れるので、先頭が 1 のときだけ重ねる
+        val slash = DateGlyphs.slash
+        val slashWidth = DateGlyphs.SLASH_HEIGHT * slash.iw / slash.ih
+        val slashRight = if (day.first() == '1') DateGlyphs.SLASH_RIGHT else -DateGlyphs.DAY_TRACK / 2f
+        val slashLeft = slashRight - slashWidth
+        placed +=
+            Placed(
+                slash,
+                RectF(slashLeft, DateGlyphs.SLASH_BOTTOM - DateGlyphs.SLASH_HEIGHT, slashRight, DateGlyphs.SLASH_BOTTOM),
+            )
+        // 月: 「/」の左へ右詰め（2 桁なら左へ伸びる）。
+        // 食い込みは見本の「9」に合わせた値。下が開いている数字だけに使い、ほかは付けるだけにする
+        val cap = DateGlyphs.MONTH_CAP
+        val month = date.monthValue.toString()
+        var right = slashLeft - if (month.last() in OPEN_TAIL) DateGlyphs.MONTH_SLASH_GAP else 0f
+        month.reversed().forEach { digit ->
+            val glyph = DateGlyphs.digits[digit - '0']
+            val width = glyph.iw / DateGlyphs.CAP_DIGIT * cap
+            val bottom = DateGlyphs.MONTH_BASELINE + glyph.drop * cap
+            placed += Placed(glyph, RectF(right - width, bottom - glyph.ih / DateGlyphs.CAP_DIGIT * cap, right, bottom))
+            right -= width + DateGlyphs.DAY_TRACK * cap
+        }
+        // 曜日: 日にちの字に被らないよう右端でそろえる（見本もほぼ右端が合っている）
+        val weekCap = DateGlyphs.WEEK_CAP
+        val weekday = DateGlyphs.weekdays[date.dayOfWeek.value - 1]
+        val weekRight = slashRight + DateGlyphs.WEEK_RIGHT - DateGlyphs.SLASH_RIGHT
+        val bottom = DateGlyphs.WEEK_BASELINE + weekday.drop * weekCap
+        placed +=
+            Placed(
+                weekday,
+                RectF(
+                    weekRight - weekday.iw / DateGlyphs.CAP_WEEK * weekCap,
+                    bottom - weekday.ih / DateGlyphs.CAP_WEEK * weekCap,
+                    weekRight,
+                    bottom,
+                ),
+            )
+        return placed
     }
 
-    private fun bounds(
+    /** 画像の芯が [Placed.ink] に重なるよう、グローの余白ごと拡大して描く。 */
+    private fun draw(
+        context: Context,
+        canvas: Canvas,
+        placed: Placed,
         paint: Paint,
-        text: String,
-    ): Rect = Rect().also { paint.getTextBounds(text, 0, text.length, it) }
+    ) {
+        val glyph = placed.glyph
+        val scale = placed.ink.width() / glyph.iw
+        val left = placed.ink.left - glyph.ix * scale
+        val top = placed.ink.top - glyph.iy * scale
+        val target = RectF(left, top, left + glyph.w * scale, top + glyph.h * scale)
+        canvas.drawBitmap(bitmap(context, glyph.file), null, target, paint)
+    }
 
-    private fun textPaint(textSize: Float): Paint =
-        Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            this.textSize = textSize
-            textAlign = Paint.Align.LEFT
-            color = INK
-            typeface = Typeface.create("sans-serif-black", Typeface.BOLD)
-        }
+    private fun bitmap(
+        context: Context,
+        file: String,
+    ): Bitmap = context.assets.open("date/$file.png").use { BitmapFactory.decodeStream(it) }
 
-    // 組み上がりの比率だけを決める値（最後に枠へ合わせて拡大するので、絶対の大きさは効かない）
-    private const val DAY_TEXT = 0.55f
-    private const val SMALL_TEXT = 0.20f
-    private const val GAP = 0.04f
-
-    /** 枠の一辺に対して、組み上がりの横幅をどこまで広げるか。丸い枠に内接する値。 */
-    private const val FILL = 0.80f
-
-    /** グローの広がり（その文字の大きさに対する割合）。 */
-    private const val GLOW_RADIUS = 0.06f
-
-    /** 文字の色。真っ白より少し青に振ると文字盤で浮かない。 */
-    private const val INK = 0xFFEAF2FF.toInt()
-
-    /** 外へ広がるグローの色。 */
-    private const val GLOW = 0xFF5B9BFF.toInt()
+    private class Placed(
+        val glyph: Glyph,
+        val ink: RectF,
+    )
 }

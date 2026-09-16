@@ -64,7 +64,7 @@ class DateComplicationService : SuspendingComplicationDataSourceService() {
         }
     }
 
-    private fun art(date: LocalDate): Icon = Icon.createWithBitmap(DateArt.render(date, resources.configuration.locales[0]))
+    private fun art(date: LocalDate): Icon = Icon.createWithBitmap(DateArt.render(this, date))
 
     /** その日のあいだだけ有効にする。日付が変わればデータが切れるので取り直しが走る。 */
     private fun justToday(date: LocalDate): TimeRange =
