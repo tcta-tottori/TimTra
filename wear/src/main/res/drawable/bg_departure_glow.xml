@@ -1,0 +1,34 @@
+<!--
+  タイル下部に敷くグロー。時計アプリのホーム（WearColors.departureGlow）と同じ色で、
+  下端をいちばん明るく、上へ向かって透明に消す。丸い文字盤で隅が切れないよう、角丸は付けない。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="192dp"
+    android:height="80dp"
+    android:viewportWidth="192"
+    android:viewportHeight="80">
+    <path android:pathData="M0,0h192v80h-192z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endX="0"
+                android:endY="80"
+                android:startX="0"
+                android:startY="0"
+                android:type="linear">
+                <item
+                    android:color="#0016478F"
+                    android:offset="0" />
+                <item
+                    android:color="#2016478F"
+                    android:offset="0.45" />
+                <item
+                    android:color="#7A1B57B4"
+                    android:offset="0.78" />
+                <item
+                    android:color="#D41E63C8"
+                    android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

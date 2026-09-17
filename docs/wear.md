@@ -36,9 +36,11 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 画面の横幅いっぱいに敷いた **下からのグロー**（`WearColors.departureGlow`）の上に置く。
 下端がいちばん明るく、中央へ向かって透明に消える縦グラデーション。
 
-同じ見た目をタイルでも `ProtoLayout` で組んでいる（`Arc` + `ArcLine` でリング、
+同じ見た目をタイル（ウィジェット）でも `ProtoLayout` で組んでいる（`Arc` + `ArcLine` でリング、
 `Image` + `ColorFilter` でアイコン）。寸法は `TimetableTileService` の companion にまとめてある。
-タイルはグラデーションを敷けないので、下部の地は置かず文字だけにしている。
+下のグローは `Background` に brush を敷けないので、同じ色の縦グラデーションを 1 枚の
+ベクタ（`res/drawable/bg_departure_glow.xml`）にして `Image` を全幅で伸ばしている。
+重ね方もホームと同じで、下のグローを先に敷き、その上に中央の列を重ねる。
 
 ### リング（サークルバー）
 
@@ -93,7 +95,13 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 秒まで出すので、ホームを開いているあいだは 1 秒ごとに引き直す（リングも同じ刻みで動く）。
 便そのものの入れ替えは ViewModel の 10 秒ごとの引き直しで行う。
 
-タイルは文字盤側の更新間隔（60 秒）に縛られて秒を出せないので、`NN 分` のままにしている。
+タイルは 1 分に 1 回しか描き直せないが、残り時間とリングは ProtoLayout の **動的な値**
+（`DynamicInstant.platformTimeWithSecondsPrecision()` → `durationUntil` → `toIntSeconds`）で持たせてあるので、
+描き直しなしで 1 秒ごとに進む。`分:秒` の 4 桁の作り方も core の `Countdown` と同じ
+（過ぎたら `00:00`、99:59 で頭打ち）で、リングも同じ秒数から `15 分 → 0` に減らしている。
+動く値は文字の幅取り（`setLayoutConstraintsForDynamicText`）と弧の幅取り
+（`setLayoutConstraintsForDynamicLength`）が要る。古い描画機では静的な値（描いた時点の残り）に落ちる。
+字は切り出したものではなく、タイル側の既定の書体になる（動く値に画像は使えないため）。
 
 ### 一覧からホームへ戻る
 
@@ -220,4 +228,6 @@ JR 時刻表 JSON は CLAUDE.md 4-3 で `app/src/main/assets` と指定されて
 - 右へスワイプが `BackHandler` に届くか（`Theme.DeviceDefault` の swipe-to-dismiss）
 - `Scaffold(positionIndicator = { PositionIndicator(scalingLazyListState = …) })`
 - タイルの `Arc` / `ArcLine`（リング）と `Image.setColorFilter`、`Background.setCorner`
+- タイルの動的な値（`protolayout-expression` の `DynamicInstant` / `DynamicInt32`）が
+  実機で 1 秒ごとに進むか、古い描画機で静的な値に落ちるか
 - コンプリケーションの RANGED_VALUE / LONG_TEXT（`RangedValueComplicationData.Builder(value, min, max, contentDescription)`）

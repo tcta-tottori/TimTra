@@ -41,8 +41,6 @@
     <string name="day_today">今日</string>
     <string name="day_weekday">平日</string>
     <string name="day_weekend">土日祝</string>
-    <string name="unit_minutes">分</string>
-    <string name="unit_hours_minutes">時間 %1$d 分</string>
     <string name="compact_minutes">%1$d分</string>
     <string name="compact_hours_minutes">%1$d時間%2$d分</string>
     <string name="locating_title">現在地を取得中…</string>
