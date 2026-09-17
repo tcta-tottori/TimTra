@@ -1288,7 +1288,7 @@ private fun SummaryLeg(
 private val WARNING_CONTAINER = Color(0xFF4A3212)
 
 /** 主役の数字の高さ（dp）。 */
-private const val HERO_CAP_DP = 44f
+private const val HERO_CAP_DP = 38f
 
 /** 主役以外の残り時間の高さ（dp）。 */
 private const val COUNTDOWN_CAP_DP = 30f
@@ -1297,7 +1297,7 @@ private const val COUNTDOWN_CAP_DP = 30f
 private const val LEG_CAP_DP = 20f
 
 /** 残り時間の右に置くリングの大きさ（数字の高さに対する倍率）。 */
-private const val RING_RATIO = 2.0f
+private const val RING_RATIO = 1.9f
 
 private const val TOTTORI = "鳥取"
 private const val HOUGI = "宝木"

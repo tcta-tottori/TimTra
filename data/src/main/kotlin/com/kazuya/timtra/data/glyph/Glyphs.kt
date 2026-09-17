@@ -16,6 +16,15 @@ object Glyphs {
     /** 数字 1 行ぶんの高さ（基準の高さに対する割合）。はみ出すぶんを見込む。 */
     const val DIGIT_LINE = 1.02210f
 
+    /**
+     * 数字 1 字ぶんの送り幅（基準の高さに対する割合）。いちばん広い字に合わせてある。
+     * どの数字でも同じ幅で送れば、残り時間が変わっても表示の幅と「:」の位置が動かない。
+     */
+    const val DIGIT_ADVANCE = 0.63536f
+
+    /** 「:」1 字ぶんの送り幅。 */
+    const val COLON_ADVANCE = 0.20994f
+
     /** 0〜9。 */
     val digits: List<Glyph> =
         listOf(

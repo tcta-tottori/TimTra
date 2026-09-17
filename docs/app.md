@@ -78,6 +78,7 @@ AGP 9 系を採用した。AGP 9 では `org.jetbrains.kotlin.android` を適用
   発車 15 分前から減る）を添える。出発時刻を出す時間帯（下記）は出発時刻を大きく、その下に残り時間を出す。
 - **数字の字**: 残り時間・出発時刻・各区間の発着時刻は、システムのフォントではなく見本画像から切り出した字で書く
   （`ui/common/GlyphNumber` → `data` の `glyph/GlyphText`）。時計版の日付・残り時間と同じ字。
+  送りは等幅なので、秒が進んでも表示の幅も「:」の位置も隣のリングも動かない。
 - **現在地の追従**: `LocationProvider.updates()`（`LocationManagerCompat.requestLocationUpdates`、GPS + 基地局、3 秒間隔）を
   ホーム表示中だけ購読する（`WhileSubscribed`）。8 m 未満の揺れでは再計算しない。バックグラウンドでは取らない（CLAUDE.md 3-4）。
 - **急ぎ度**: core の `journey/PaceAdvisor`。現在地から出発地点（往路: 南吉成、復路: 宝木駅）までの直線距離 × 1.25 を道なりの距離とし、
