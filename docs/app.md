@@ -25,6 +25,8 @@ AGP 9 系を採用した。AGP 9 では `org.jetbrains.kotlin.android` を適用
 - `repository/SettingsRepository`: DataStore Preferences。`CommuteSettings` + 通知 ON/OFF + 「今日は休み」（日付で保持、翌日自動解除）。
 - `repository/JourneyRepository`: 上記を束ねて `JourneyPlanner` を組み立てる。UI・通知ジョブ・Wear 同期の共通入口。
 - `data/src/main/assets/timtra_gtfs.db`: 現在は合成サンプルから生成したもの（tools/README.md）。
+- `glyph/Glyphs.kt` `glyph/GlyphText.kt`: 見本画像から切り出した数字（`data/src/main/assets/date`）。
+  app と wear の両方が使う。切り出しは `tools/date_glyphs.py`。詳しくは docs/wear.md。
 - `sync/SyncedSettings`: スマホ → Wear に配る設定の JSON 形。
 - `di/ClockModule`: 現在時刻の供給（AppClock）。
 - `realtime/`: GTFS-RT の取得（OkHttp）と遅延推定の状態（docs/realtime.md）。
@@ -39,9 +41,11 @@ AGP 9 系を採用した。AGP 9 では `org.jetbrains.kotlin.android` を適用
 | このアプリについて | `ui/about/` | 出典表示（CLAUDE.md 14）と同梱データの版 |
 
 - 文言は `res/values/strings.xml` に集約。XML レイアウトは無い（テーマ・アイコンのみ XML）。
-- 見た目: アプリアイコンに合わせた配色（`ui/theme/Theme.kt`）。ヘッダー（`TimTraTopBar`）と左ドロワーは
-  青のグラデーション（#2E8BF5 → #14307F）で文字は白、本文は白地。カードは角丸 20dp + 薄い縁の `TimTraCard`、
-  出発時刻は青グラデーションの `GradientCard`。ドロワーは版・現在時刻・画面一覧（選択中は半透明ピル）・ワードマーク。
+- 見た目: **時計版（docs/wear.md）に合わせた黒地・濃紺**（`ui/theme/Theme.kt`）。地は黒から上だけ濃紺へ持ち上げ、
+  ヘッダー（`TimTraTopBar`）と左ドロワーは青のグラデーション（#2E8BF5 → #14307F）で文字は白。
+  カードは角丸 20dp + 薄い縁の `TimTraCard`（地 #0F1B30、縁 #1E3355）、出発時刻は青グラデーションの `GradientCard`。
+  強調の青・ステータス色・交通手段の色は、黒地で読める明るさに振ってある。
+  ドロワーは版・現在時刻・画面一覧（選択中は半透明ピル）・ワードマーク。
   往路/復路の切替は右下の青い FAB。ステータスバーは白アイコン、ナビゲーションバーは黒アイコン（edge-to-edge）。
   Compose の material-icons は使わず、必要なアイコンは `res/drawable/ic_*.xml` に持つ。
 - 交通手段のアイコンと色は `ui/common/TransitIcons.kt` に集約する（`TransitMode.BUS` = 橙 + `ic_bus`、`TransitMode.JR` = 青 + `ic_train`、
@@ -68,9 +72,12 @@ AGP 9 系を採用した。AGP 9 では `org.jetbrains.kotlin.android` を適用
 
 ## 残り時間・急ぎ度・時刻表ポップアップ（ホーム）
 
-- **残り時間**: 主役カードは次の便（往路: バス、復路: JR）の発車までを `MM:SS`（1 時間以上は `H:MM:SS`）で大きく出し、
-  `HomeViewModel.now`（1 秒刻み、画面表示中だけ進む）で毎秒更新する。出発時刻を出す時間帯（下記）は出発時刻を大きく、
-  その下に同じ形式の残り時間を出す。
+- **残り時間**: 主役カードは次の便（往路: バス、復路: JR）の発車までを、時計と同じ **`分:秒` の 4 桁**
+  （core の `board/Countdown`。99:59 で頭打ち）で大きく出し、`HomeViewModel.now`（1 秒刻み、画面表示中だけ進む）で
+  毎秒更新する。右に砂時計と同じ向きのリング（`ui/common/CountdownRing`、core の `CountdownGauge`。
+  発車 15 分前から減る）を添える。出発時刻を出す時間帯（下記）は出発時刻を大きく、その下に残り時間を出す。
+- **数字の字**: 残り時間・出発時刻・各区間の発着時刻は、システムのフォントではなく見本画像から切り出した字で書く
+  （`ui/common/GlyphNumber` → `data` の `glyph/GlyphText`）。時計版の日付・残り時間と同じ字。
 - **現在地の追従**: `LocationProvider.updates()`（`LocationManagerCompat.requestLocationUpdates`、GPS + 基地局、3 秒間隔）を
   ホーム表示中だけ購読する（`WhileSubscribed`）。8 m 未満の揺れでは再計算しない。バックグラウンドでは取らない（CLAUDE.md 3-4）。
 - **急ぎ度**: core の `journey/PaceAdvisor`。現在地から出発地点（往路: 南吉成、復路: 宝木駅）までの直線距離 × 1.25 を道なりの距離とし、

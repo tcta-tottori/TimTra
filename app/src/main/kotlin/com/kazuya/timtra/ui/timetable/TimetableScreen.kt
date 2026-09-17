@@ -269,7 +269,7 @@ private fun HeaderTabs(
                     text = stringResource(tab.labelRes()),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                    color = if (active) TimTraColors.primary else Color.White,
+                    color = if (active) TimTraColors.gradientEnd else Color.White,
                     maxLines = 1,
                 )
             }
@@ -294,10 +294,10 @@ private fun DaySelector(
                 colors =
                     SegmentedButtonDefaults.colors(
                         activeContainerColor = TimTraColors.primary,
-                        activeContentColor = Color.White,
+                        activeContentColor = MaterialTheme.colorScheme.onPrimary,
                         activeBorderColor = TimTraColors.primary,
-                        inactiveContainerColor = Color.White,
-                        inactiveContentColor = TimTraColors.primary,
+                        inactiveContainerColor = TimTraColors.surface,
+                        inactiveContentColor = TimTraColors.onSurfaceVariant,
                         inactiveBorderColor = TimTraColors.outline,
                     ),
                 icon = {},

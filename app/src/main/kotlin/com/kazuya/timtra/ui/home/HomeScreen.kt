@@ -53,6 +53,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kazuya.timtra.R
+import com.kazuya.timtra.core.board.Countdown
+import com.kazuya.timtra.core.board.CountdownGauge
 import com.kazuya.timtra.core.geo.LandmarkKind
 import com.kazuya.timtra.core.geo.RouteLandmarks
 import com.kazuya.timtra.core.journey.BoundBasis
@@ -69,6 +71,8 @@ import com.kazuya.timtra.core.model.GeoPoint
 import com.kazuya.timtra.data.realtime.RealtimeState
 import com.kazuya.timtra.location.LocationProvider
 import com.kazuya.timtra.ui.common.CircleIcon
+import com.kazuya.timtra.ui.common.CountdownRing
+import com.kazuya.timtra.ui.common.GlyphNumber
 import com.kazuya.timtra.ui.common.InfoPill
 import com.kazuya.timtra.ui.common.ModeBadge
 import com.kazuya.timtra.ui.common.ModeChip
@@ -89,7 +93,6 @@ import com.kazuya.timtra.ui.theme.TransitColors
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.ZoneId
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -127,7 +130,7 @@ fun HomeScreen(
                 FloatingActionButton(
                     onClick = { viewModel.setBound(if (ready.bound == Bound.OUTBOUND) Bound.INBOUND else Bound.OUTBOUND) },
                     containerColor = TimTraColors.primary,
-                    contentColor = Color.White,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                     shape = CircleShape,
                 ) {
                     Icon(painterResource(R.drawable.ic_swap_horiz), contentDescription = stringResource(R.string.home_toggle_bound))
@@ -422,17 +425,11 @@ private fun LeaveCard(
                     color = Color.White.copy(alpha = 0.9f),
                 )
             }
-            Text(
-                text = journey.leaveAt.hhmm(),
-                style = MaterialTheme.typography.displayLarge,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-            )
-            Text(
-                text = remainingText(now, journey.leaveAt),
-                style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"),
-                fontWeight = FontWeight.Bold,
-                color = TimTraColors.accentLight,
+            GlyphNumber(text = journey.leaveAt.hhmm(), capHeight = HERO_CAP_DP.dp)
+            CountdownRow(
+                now = now,
+                target = journey.leaveAt,
+                iconRes = (if (journey.bound == Bound.OUTBOUND) TransitMode.BUS else TransitMode.JR).iconRes,
             )
             Spacer(Modifier.height(12.dp))
             HeroLegStrip(journey)
@@ -441,19 +438,22 @@ private fun LeaveCard(
     }
 }
 
-/** 残り時間。1 時間以上は H:MM:SS、それ未満は MM:SS。過ぎていれば「発車しました」。 */
+/**
+ * 残り時間。時計版と同じ「分:秒」の 4 桁を、切り出した字で書く（core の [Countdown]）。
+ * 左に残り時間、右にリングで囲んだ乗り物アイコン。並びも時計版にそろえてある。
+ */
 @Composable
-private fun remainingText(
+private fun CountdownRow(
     now: LocalDateTime,
     target: LocalDateTime,
-): String {
-    val remaining = Duration.between(now, target)
-    if (remaining.isNegative) return stringResource(R.string.home_countdown_departed)
-    val total = remaining.seconds
-    val h = total / 3600
-    val m = total % 3600 / 60
-    val sec = total % 60
-    return if (h > 0) String.format(Locale.JAPAN, "%d:%02d:%02d", h, m, sec) else String.format(Locale.JAPAN, "%02d:%02d", m, sec)
+    iconRes: Int,
+    capHeight: Float = COUNTDOWN_CAP_DP,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        GlyphNumber(text = Countdown.clock(now, target), capHeight = capHeight.dp)
+        Spacer(Modifier.width(6.dp))
+        CountdownRing(level = CountdownGauge.level(now, target), iconRes = iconRes, size = (capHeight * RING_RATIO).dp)
+    }
 }
 
 /**
@@ -562,12 +562,7 @@ private fun NextDepartureCard(
                 color = TimTraColors.accentLight,
                 modifier = Modifier.padding(top = 6.dp),
             )
-            Text(
-                text = remainingText(now, departAt),
-                style = MaterialTheme.typography.displayLarge.copy(fontFeatureSettings = "tnum"),
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-            )
+            CountdownRow(now = now, target = departAt, iconRes = mode.iconRes, capHeight = HERO_CAP_DP)
             if (outbound && journey.hasDelay) {
                 Text(
                     text = stringResource(R.string.home_delay_estimated, journey.busDelay.toMinutes()),
@@ -640,12 +635,7 @@ private fun NextStationBusCard(
                 color = TimTraColors.accentLight,
                 modifier = Modifier.padding(top = 6.dp),
             )
-            Text(
-                text = remainingText(now, departAt),
-                style = MaterialTheme.typography.displayLarge.copy(fontFeatureSettings = "tnum"),
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-            )
+            CountdownRow(now = now, target = departAt, iconRes = TransitMode.BUS.iconRes, capHeight = HERO_CAP_DP)
             if (!delay.isZero) {
                 Text(
                     text = stringResource(R.string.home_delay_estimated, delay.toMinutes()),
@@ -931,7 +921,7 @@ private fun TimeColumn(
     alignEnd: Boolean = false,
 ) {
     Column(modifier = modifier, horizontalAlignment = if (alignEnd) Alignment.End else Alignment.Start) {
-        Text(time, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        GlyphNumber(text = time, capHeight = LEG_CAP_DP.dp)
         Text(
             text = "$place $label",
             style = MaterialTheme.typography.bodySmall,
@@ -1295,6 +1285,18 @@ private fun SummaryLeg(
 }
 
 private val WARNING_CONTAINER = Color(0xFFFFF4E0)
+/** 主役の数字の高さ（dp）。 */
+private const val HERO_CAP_DP = 44f
+
+/** 主役以外の残り時間の高さ（dp）。 */
+private const val COUNTDOWN_CAP_DP = 30f
+
+/** 各区間の発着時刻の高さ（dp）。 */
+private const val LEG_CAP_DP = 20f
+
+/** 残り時間の右に置くリングの大きさ（数字の高さに対する倍率）。 */
+private const val RING_RATIO = 2.0f
+
 private const val TOTTORI = "鳥取"
 private const val HOUGI = "宝木"
 
