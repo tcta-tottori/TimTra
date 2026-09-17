@@ -964,8 +964,7 @@ private fun scaleLabel(meters: Int): String = if (meters >= 1_000) "${meters / 1
 /** 拡大表示では近くにいるときだけ現在地を画面に収める。経路全体表示ではもう少し広く取る。 */
 private fun includeHereWithin(full: Boolean): Double = if (full) INCLUDE_HERE_FULL_METERS else INCLUDE_HERE_FOCUS_METERS
 
-/** 地図のタイルを黒地へ寄せる。OSM は白地なので、そのままでは画面から浮いてしまう。 */
-/** 道が主役の暗い下地はそのまま持ち上げ、控えの OSM（白地）は反転して暗くする。 */
+/** 地図のタイルを画面の地に馴染ませる。道が主役の暗い下地はそのまま持ち上げ、控えの OSM（白地）は反転する。 */
 private val roadTiles = ColorFilter.colorMatrix(ColorMatrix(TransitColors.darkTileMatrix))
 private val invertedTiles = ColorFilter.colorMatrix(ColorMatrix(TransitColors.osmTileMatrix))
 
