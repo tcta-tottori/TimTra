@@ -10,7 +10,7 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 | タイル（ウィジェット） | `tile/TimetableTileService` | アプリのホームと同じ見た目を ProtoLayout で組む。タップでアプリを開く。更新間隔 60 秒 |
 | コンプリケーション | `complication/LeaveCountdownComplicationService` | 次の便までの残り時間。`TimeDifferenceComplicationText` で文字盤側がカウントダウンする。SHORT_TEXT / RANGED_VALUE / LONG_TEXT。10 分ごとに次の便へ切り替え。クラス名は設定済みのコンプリケーションを壊さないため据え置き |
 | コンプリケーション | `complication/NextDepartureComplicationService` | 次の便の**発車時刻**（H:MM）。SHORT_TEXT / LONG_TEXT |
-| コンプリケーション | `complication/DateComplicationService` | ウォッチフェイスの**日付**。ネオン風の絵（`complication/DateArt`）|
+| コンプリケーション | `complication/Date*ComplicationService` | ウォッチフェイスの**日付**（絵）。曜日あり日本語 / 英語 / 曜日なしの 3 つ |
 | コンプリケーション | `complication/DateTextComplicationService` | 同じ日付を文字で。画像を受け付けない枠のための控え |
 | UI | `ui/WearBoardScreen` | ホーム（1 画面）・この先の発車・時刻表・メニューの 4 画面 |
 | 同期受信 | `sync/WearDataListenerService` | スマホからの設定（`/timtra/settings`）を受け取り、時計側の DataStore を置き換え、タイルとコンプリケーションの更新を要求 |
@@ -29,7 +29,7 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 1. 現在時刻（`TimeText`）
 2. 📍（青）+ 地点名（大きく太く）
 3. 行き先・路線（1 行）
-4. 左に「次の便まで」+ 大きな残り時間（単位は水色）、右にリングで囲んだバス / 電車アイコン
+4. 左に「次の便まで」+ 残り時間（`分:秒` の 4 桁。切り出した字で書く）、右にリングで囲んだバス / 電車アイコン
 5. 画面下部の発時刻（`行き先 行き` + `H:MM`）
 
 発時刻は角丸カードに乗せない。丸い文字盤では隅が切れて見栄えが悪いので、
@@ -82,6 +82,15 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 
 右に `PositionIndicator`（スクロールバー）を出し、リューズでも送れる。
 
+### 残り時間の出し方
+
+ホームの残り時間は時計と同じ **`分:秒` の 4 桁**（core の `board/Countdown`、テストあり）。
+字は日付と同じ切り出したもの（`ui/GlyphNumber` → `data` の `GlyphText`）。
+秒まで出すので、ホームを開いているあいだは 1 秒ごとに引き直す（リングも同じ刻みで動く）。
+便そのものの入れ替えは ViewModel の 10 秒ごとの引き直しで行う。
+
+タイルは文字盤側の更新間隔（60 秒）に縛られて秒を出せないので、`NN 分` のままにしている。
+
 ### 一覧からホームへ戻る
 
 `ui/WearBoardScreen` の `Modifier.listNavigation` が受け持つ。
@@ -109,7 +118,9 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 | --- | --- | --- |
 | `LeaveCountdownComplicationService` | 次の便までの残り時間（見出しに発時刻 H:MM） | SHORT_TEXT / RANGED_VALUE / LONG_TEXT |
 | `NextDepartureComplicationService` | 次の便の発車時刻 H:MM（見出しに行き先） | SHORT_TEXT / LONG_TEXT |
-| `DateComplicationService` | 今日の日付（絵） | SMALL_IMAGE / PHOTO_IMAGE |
+| `DateComplicationService` | 今日の日付（絵・曜日・日本語） | SMALL_IMAGE / PHOTO_IMAGE |
+| `DateEnComplicationService` | 今日の日付（絵・曜日・英語） | SMALL_IMAGE / PHOTO_IMAGE |
+| `DatePlainComplicationService` | 今日の日付（絵・曜日なし） | SMALL_IMAGE / PHOTO_IMAGE |
 | `DateTextComplicationService` | 今日の日付（文字） | SHORT_TEXT / LONG_TEXT |
 
 残り時間は `TimeDifferenceComplicationText` なので毎分の書き換えは文字盤側が行う。
@@ -125,10 +136,11 @@ RANGED_VALUE の値はホームのリングと同じ `BoardSnapshot.gauge`（`Co
 
 | もの | 置き場所 |
 | --- | --- |
-| 見本画像（字見本・組み見本） | `tools/date_font/` |
+| 見本画像（字見本・組み見本 日本語 / 英語） | `tools/date_font/` |
 | 切り出し器 | `tools/date_glyphs.py`（pillow / numpy / scipy） |
-| 切り出した字 18 個 | `wear/src/main/assets/date/*.png` |
-| 寸法表と配置の比率 | `complication/DateGlyphs.kt`（自動生成。手で書き換えない） |
+| 切り出した字 26 個 | `data/src/main/assets/date/`（スマホ版とも共有） |
+| 寸法表と配置の比率 | `data/.../glyph/Glyphs.kt`（自動生成。手で書き換えない） |
+| 数字を書く道具 | `data/.../glyph/GlyphText.kt`（0〜9 と「:」だけ） |
 
 切り出しでは、明るさをそのままアルファにしたうえで、色を芯（`#EAF2FF`）とグロー（`#4682EB`）の
 2 色から作り直している（見本の圧縮ノイズを持ち込まないため）。隣の字が余白に入り込まないよう、
@@ -142,6 +154,10 @@ RANGED_VALUE の値はホームのリングと同じ `BoardSnapshot.gauge`（`Co
 見本は「9/15」なので、細い「1」に「/」を少しだけ重ねてある。3 や 8 のような丸い数字に重ねると
 潰れるため、日にちの先頭が 1 のときだけ重ね、ほかは少し離す。月と「/」の食い込みも同じ考えで、
 右下が開いている 4 / 7 / 9 のときだけ使う。曜日は日にちに被らないよう右端でそろえる。
+
+配置の比率は **日本語版と英語版で別** に測ってある（`Glyphs.jp` / `Glyphs.en`）。
+それぞれの組み見本で月の数字の大きさも「/」の位置も違うため。曜日なしは日本語版の組み方を使う。
+文字盤に設定画面を足さずに選べるよう、3 つは別々の提供元として登録している。
 
 ダイヤ改正のような定期作業ではないので、切り出し器はデザインを変えたときだけ実行する。
 

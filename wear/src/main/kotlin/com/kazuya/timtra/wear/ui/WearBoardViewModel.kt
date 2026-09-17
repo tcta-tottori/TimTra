@@ -166,7 +166,7 @@ class WearBoardViewModel
         }
 
         private companion object {
-            const val TICK_MILLIS = 30_000L
+            const val TICK_MILLIS = 10_000L
 
             /** ホームは次の 1 本しか使わないが、終電後の判定のために少し多めに引く。 */
             const val HOME_LIMIT = 2

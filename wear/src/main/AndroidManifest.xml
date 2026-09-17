@@ -85,7 +85,7 @@
                 android:value="600" />
         </service>
 
-        <!-- コンプリケーション: ウォッチフェイスの日付（ネオン風の絵）。文字の型は宣言しない -->
+        <!-- コンプリケーション: 日付（曜日あり・日本語）。文字の型は宣言しない -->
         <service
             android:name=".complication.DateComplicationService"
             android:exported="true"
@@ -99,6 +99,42 @@
                 android:name="android.support.wearable.complications.SUPPORTED_TYPES"
                 android:value="SMALL_IMAGE,PHOTO_IMAGE" />
             <!-- 絵は日が変わったら描き直す。TimeRange での失効が効かない文字盤のための保険 -->
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="1800" />
+        </service>
+
+        <!-- コンプリケーション: 日付（曜日あり・英語） -->
+        <service
+            android:name=".complication.DateEnComplicationService"
+            android:exported="true"
+            android:icon="@drawable/ic_complication"
+            android:label="@string/date_en_complication_label"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SMALL_IMAGE,PHOTO_IMAGE" />
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="1800" />
+        </service>
+
+        <!-- コンプリケーション: 日付（曜日なし） -->
+        <service
+            android:name=".complication.DatePlainComplicationService"
+            android:exported="true"
+            android:icon="@drawable/ic_complication"
+            android:label="@string/date_plain_complication_label"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SMALL_IMAGE,PHOTO_IMAGE" />
             <meta-data
                 android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
                 android:value="1800" />

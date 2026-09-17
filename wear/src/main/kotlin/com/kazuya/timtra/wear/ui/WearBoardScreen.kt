@@ -25,9 +25,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -63,14 +65,19 @@ import androidx.wear.compose.material.PositionIndicator
 import androidx.wear.compose.material.Scaffold
 import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.TimeText
+import com.kazuya.timtra.core.TimTraConstants
 import com.kazuya.timtra.core.board.BoardPlace
+import com.kazuya.timtra.core.board.Countdown
+import com.kazuya.timtra.core.board.CountdownGauge
 import com.kazuya.timtra.core.board.Departure
 import com.kazuya.timtra.wear.R
 import com.kazuya.timtra.wear.board.BoardSnapshot
 import com.kazuya.timtra.wear.board.DayBoard
 import com.kazuya.timtra.wear.board.DaySelection
 import com.kazuya.timtra.wear.board.PlaceDistance
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
 
@@ -159,6 +166,14 @@ private fun HomeScreen(
     val s = state.snapshot ?: return
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
+    // 残り時間は秒まで出すので、開いているあいだは 1 秒ごとに引き直す
+    var now by remember { mutableStateOf(LocalDateTime.now(TimTraConstants.ZONE)) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            now = LocalDateTime.now(TimTraConstants.ZONE)
+            delay(TICK_MILLIS)
+        }
+    }
     Scaffold(timeText = { TimeText() }) {
         Box(
             modifier =
@@ -199,7 +214,7 @@ private fun HomeScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 } else {
-                    CountdownRing(s, next)
+                    CountdownRing(s, next, now)
                 }
             }
             if (next != null) {
@@ -240,16 +255,18 @@ private fun PlaceHeader(place: BoardPlace) {
 }
 
 /**
- * 中央。左に「次の便まで」と大きな残り時間、右にリングで囲んだバス / 電車アイコンを置く。
- * リングは砂時計と同じで、発車 15 分前から減りはじめ発車時刻で 0 になる
- * （core の `CountdownGauge`。[BoardSnapshot.gauge]）。
+ * 中央。左に「次の便まで」と残り時間（時計と同じ `分:秒` の 4 桁、切り出した字で書く）、
+ * 右にリングで囲んだバス / 電車アイコンを置く。
+ * リングは砂時計と同じで、発車 15 分前から減りはじめ発車時刻で 0 になる（core の `CountdownGauge`）。
  */
 @Composable
 private fun CountdownRing(
     s: BoardSnapshot,
     next: Departure,
+    now: LocalDateTime,
 ) {
-    val context = LocalContext.current
+    // リングも数字と同じ刻みで動かしたいので、手元の時刻から引き直す
+    val gauge = CountdownGauge.level(now, next.at)
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(horizontalAlignment = Alignment.Start) {
             Text(
@@ -258,25 +275,9 @@ private fun CountdownRing(
                 color = WearColors.onSurfaceSubtle,
                 maxLines = 1,
             )
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    text = context.countdownValue(s.now, next.at),
-                    fontSize = COUNTDOWN_SP.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    maxLines = 1,
-                )
-                Text(
-                    text = context.countdownUnit(s.now, next.at),
-                    fontSize = UNIT_SP.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = WearColors.accentLight,
-                    maxLines = 1,
-                    modifier = Modifier.padding(bottom = 4.dp, start = 2.dp),
-                )
-            }
+            GlyphNumber(text = Countdown.clock(now, next.at), capHeight = COUNTDOWN_CAP_DP.dp)
         }
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(4.dp))
         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(RING_DP.dp)) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val stroke = RING_STROKE_DP.dp.toPx()
@@ -292,11 +293,11 @@ private fun CountdownRing(
                     size = arcSize,
                     style = style,
                 )
-                if (s.gauge > 0f) {
+                if (gauge > 0f) {
                     drawArc(
                         brush = WearColors.ringGradient,
                         startAngle = RING_START_ANGLE,
-                        sweepAngle = FULL_TURN * s.gauge,
+                        sweepAngle = FULL_TURN * gauge,
                         useCenter = false,
                         topLeft = topLeft,
                         size = arcSize,
@@ -799,13 +800,12 @@ private const val PLACE_ICON_DP = 20f
 private const val PLACE_SP = 20f
 private const val DIRECTION_SP = 11f
 private const val CAPTION_SP = 12f
-private const val RING_DP = 74f
+private const val RING_DP = 70f
 private const val RING_STROKE_DP = 6f
 private const val RING_ICON_DP = 34f
 private const val RING_START_ANGLE = -90f
 private const val FULL_TURN = 360f
-private const val COUNTDOWN_SP = 44f
-private const val UNIT_SP = 22f
+private const val COUNTDOWN_CAP_DP = 27f
 private const val HEADSIGN_SP = 15f
 private const val DEPART_SP = 26f
 
@@ -820,6 +820,9 @@ private const val CENTER_LIFT_DP = 26f
 
 /** 一覧の先頭に置く見出し（地点バッジ・日種別）の数。「次の便」へ送るときの補正に使う。 */
 private const val HEADER_ITEMS = 2
+
+/** 残り時間を引き直す間隔。 */
+private const val TICK_MILLIS = 1_000L
 
 /** 下方向にこれだけ動かして離したらメニューを開く。 */
 private const val SWIPE_DOWN_THRESHOLD_PX = 60f
