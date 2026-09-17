@@ -70,8 +70,8 @@ import com.kazuya.timtra.data.realtime.RealtimeState
 import com.kazuya.timtra.location.LocationProvider
 import com.kazuya.timtra.ui.common.ActionMenuFab
 import com.kazuya.timtra.ui.common.CircleIcon
-import com.kazuya.timtra.ui.common.FabAction
 import com.kazuya.timtra.ui.common.CountdownRing
+import com.kazuya.timtra.ui.common.FabAction
 import com.kazuya.timtra.ui.common.GlyphNumber
 import com.kazuya.timtra.ui.common.InfoPill
 import com.kazuya.timtra.ui.common.ModeBadge
