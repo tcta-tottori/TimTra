@@ -248,7 +248,12 @@ class TimetableTileService : TileService() {
                 .onCondition(left.lt(WINDOW_SECONDS))
                 .use(left)
                 .elseUse(DynamicInt32.constant(WINDOW_SECONDS))
-        val sweep = within.asFloat().div(WINDOW_SECONDS.toFloat()).times(FULL_TURN)
+        val window = WINDOW_SECONDS.toFloat()
+        val sweep =
+            within
+                .asFloat()
+                .div(window)
+                .times(FULL_TURN)
         val gauge = CountdownGauge.level(snapshot.now, next.at)
         return LayoutElementBuilders.Box
             .Builder()
