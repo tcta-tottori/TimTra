@@ -7,9 +7,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -106,15 +106,15 @@ object TransitColors {
 
     /**
      * 地図のタイル（OSM は白地）を黒地へ寄せる色変換。
-     * いったん明るさだけにしてから反転し、濃紺 → 明るい青灰の幅に写す。
+     * いったん明るさだけにしてから反転し、濃紺（白かった所）→ 青灰（黒かった所）の幅に写す。
      */
-    val mapTileMatrix: FloatArray =
-        floatArrayOf(
-            -0.115f, -0.226f, -0.044f, 0f, 120f,
-            -0.123f, -0.242f, -0.047f, 0f, 140f,
-            -0.137f, -0.269f, -0.052f, 0f, 175f,
-            0f, 0f, 0f, 1f, 0f,
-        )
+    val mapTileMatrix: FloatArray = tileRow(98f, 120f) + tileRow(105f, 140f) + tileRow(117f, 175f) + floatArrayOf(0f, 0f, 0f, 1f, 0f)
+
+    /** 明るさ 0 で [offset]、明るさ 1 で `offset - span` になる 1 行ぶん。 */
+    private fun tileRow(
+        span: Float,
+        offset: Float,
+    ): FloatArray = floatArrayOf(-0.299f * span / 255f, -0.587f * span / 255f, -0.114f * span / 255f, 0f, offset)
 }
 
 /** ステータスの色分け（CLAUDE.md 6: 緑 / オレンジ / 赤）。黒地で読める明るさ。 */
