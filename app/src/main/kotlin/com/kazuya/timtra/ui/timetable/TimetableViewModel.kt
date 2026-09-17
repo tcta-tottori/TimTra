@@ -1,5 +1,6 @@
 package com.kazuya.timtra.ui.timetable
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kazuya.timtra.core.model.DayType
@@ -74,6 +75,35 @@ enum class StationFilter {
         }
 }
 
+/**
+ * ホームから時刻表を開くときの初期表示。ホームの主役表示（バス / JR の発時刻）をタップすると、
+ * その区間の駅・バス停のタブで開く。
+ */
+enum class TimetableFocus(
+    val tab: TimetableTab,
+    val filter: StationFilter,
+) {
+    /** 南吉成（往路のバス）。 */
+    HOME_STOP(TimetableTab.HOME_STOP, StationFilter.ALL),
+
+    /** 鳥取駅のバスのりば（復路のバス）。 */
+    STATION_BUS(TimetableTab.STATION, StationFilter.BUS),
+
+    /** JR 鳥取駅（往路の JR）。 */
+    STATION_JR(TimetableTab.STATION, StationFilter.JR),
+
+    /** JR 宝木駅（復路の JR）。 */
+    HOUGI(TimetableTab.HOUGI, StationFilter.ALL),
+    ;
+
+    companion object {
+        /** 画面の行き来で渡す名前。 */
+        const val ARG = "focus"
+
+        fun of(name: String?): TimetableFocus? = entries.firstOrNull { it.name == name }
+    }
+}
+
 data class TimetableUiState(
     val tab: TimetableTab = TimetableTab.HOME_STOP,
     val day: DaySelection = DaySelection.TODAY,
@@ -115,6 +145,7 @@ data class HourGroup(
 class TimetableViewModel
     @Inject
     constructor(
+        savedStateHandle: SavedStateHandle,
         private val catalog: TimetableCatalog,
         private val board: DepartureBoardRepository,
         private val location: LocationProvider,
@@ -129,6 +160,12 @@ class TimetableViewModel
         private var tabPicked = false
 
         init {
+            // ホームから区間をタップして来たときは、その駅・バス停のタブで開く
+            TimetableFocus.of(savedStateHandle.get<String>(TimetableFocus.ARG))?.let { focus ->
+                tabPicked = true
+                tab.value = focus.tab
+                stationFilter.value = focus.filter
+            }
             openNearestTab()
         }
 

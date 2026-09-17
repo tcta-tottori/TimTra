@@ -87,6 +87,9 @@ object TimTraColors {
     /** 「+」の外側に敷く光。中心はボタンに隠れるので、縁だけがふわりと見える。 */
     val fabHalo: Brush = Brush.radialGradient(0.55f to primary.copy(alpha = 0.45f), 1f to Color.Transparent)
 
+    /** 目立たせない丸ボタン（ホーム右下の設定）の地。青を抜いたグレー。 */
+    val quietFab: Color = Color(0xFF2A3346)
+
     /** 「+」を開いているあいだの色。青を落としてグレーにする。 */
     val fabMutedGradient: Brush = Brush.linearGradient(listOf(Color(0xFF7C8699), Color(0xFF3A4254)))
 

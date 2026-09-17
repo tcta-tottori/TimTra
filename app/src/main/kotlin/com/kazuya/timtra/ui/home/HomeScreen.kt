@@ -39,7 +39,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -69,17 +68,17 @@ import com.kazuya.timtra.core.model.Bound
 import com.kazuya.timtra.core.model.GeoPoint
 import com.kazuya.timtra.data.realtime.RealtimeState
 import com.kazuya.timtra.location.LocationProvider
-import com.kazuya.timtra.ui.common.ActionMenuFab
 import com.kazuya.timtra.ui.common.CircleIcon
 import com.kazuya.timtra.ui.common.CountdownRing
-import com.kazuya.timtra.ui.common.FabAction
 import com.kazuya.timtra.ui.common.GlyphNumber
 import com.kazuya.timtra.ui.common.InfoPill
 import com.kazuya.timtra.ui.common.ModeBadge
 import com.kazuya.timtra.ui.common.ModeChip
+import com.kazuya.timtra.ui.common.QuietFab
 import com.kazuya.timtra.ui.common.TransitMode
 import com.kazuya.timtra.ui.common.destinationIconRes
 import com.kazuya.timtra.ui.common.distanceText
+import com.kazuya.timtra.ui.common.fabInset
 import com.kazuya.timtra.ui.common.fadeBottomEdge
 import com.kazuya.timtra.ui.common.hhmm
 import com.kazuya.timtra.ui.common.labelRes
@@ -92,6 +91,7 @@ import com.kazuya.timtra.ui.theme.TimTraColors
 import com.kazuya.timtra.ui.theme.TimTraTopBar
 import com.kazuya.timtra.ui.theme.TopBarTitle
 import com.kazuya.timtra.ui.theme.TransitColors
+import com.kazuya.timtra.ui.timetable.TimetableFocus
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -99,7 +99,7 @@ import java.time.ZoneId
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onOpenTimetable: () -> Unit,
+    onOpenTimetable: (TimetableFocus) -> Unit,
     onOpenSettings: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
@@ -110,13 +110,10 @@ fun HomeScreen(
     // 権限画面から戻ったときに状態を取り直す
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
     peek?.let { TimetablePeekSheet(peek = it, now = nowSecond.toLocalTime(), onDismiss = viewModel::closePeek) }
-    var menuOpen by rememberSaveable { mutableStateOf(false) }
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             containerColor = Color.Transparent,
             topBar = { TimTraTopBar(title = { TopBarTitle(stringResource(R.string.app_name)) }) },
-            // メニューを開いているあいだは後ろをぼかす（Android 12 未満では暗幕だけが効く）
-            modifier = Modifier.blur(if (menuOpen) MENU_BLUR_DP.dp else 0.dp),
         ) { padding ->
             when (val s = state) {
                 HomeUiState.Loading ->
@@ -128,6 +125,7 @@ fun HomeScreen(
                     HomeContent(
                         state = s,
                         nowSecond = nowSecond,
+                        onOpenTimetable = onOpenTimetable,
                         onBoundChange = viewModel::setBound,
                         onPermissionsChanged = viewModel::refresh,
                         onResumeReminders = viewModel::resumeTrainReminders,
@@ -136,16 +134,12 @@ fun HomeScreen(
                     )
             }
         }
-        // 左メニューはやめ、画面の行き来と更新はこのボタンに集約する（上・左・斜め上の順）
-        ActionMenuFab(
-            expanded = menuOpen,
-            onExpandedChange = { menuOpen = it },
-            actions =
-                listOf(
-                    FabAction(R.string.nav_timetable, R.drawable.ic_schedule, onOpenTimetable),
-                    FabAction(R.string.action_refresh, R.drawable.ic_refresh, viewModel::refresh),
-                    FabAction(R.string.nav_settings, R.drawable.ic_settings, onOpenSettings),
-                ),
+        // 時刻表は主役表示のタップで開くので、右下は設定だけ。目立たせないグレーにする
+        QuietFab(
+            iconRes = R.drawable.ic_settings,
+            contentDescription = stringResource(R.string.nav_settings),
+            onClick = onOpenSettings,
+            modifier = Modifier.align(Alignment.BottomEnd).fabInset(),
         )
     }
 }
@@ -154,6 +148,7 @@ fun HomeScreen(
 private fun HomeContent(
     state: HomeUiState.Ready,
     nowSecond: LocalDateTime,
+    onOpenTimetable: (TimetableFocus) -> Unit,
     onBoundChange: (Bound?) -> Unit,
     onPermissionsChanged: () -> Unit,
     onResumeReminders: () -> Unit,
@@ -180,7 +175,7 @@ private fun HomeContent(
         val stationBus = state.stationBuses.firstOrNull()
         if (state.resting) {
             // 今日の通勤は終わり。残り時間は出さず、翌朝の予定だけ静かに示す
-            RestCard(state.nextMorning, state.settings, state.now)
+            RestCard(state.nextMorning, state.settings, state.now, onOpenTimetable)
             RouteMapCard(
                 landmarks = state.landmarks,
                 here = state.location,
@@ -192,7 +187,7 @@ private fun HomeContent(
         } else if (state.inboundPhase == InboundPhase.TO_BUS && stationBus != null) {
             // 復路で宝木駅エリアを離れた（乗車中・鳥取駅到着後）: 電車の時刻はやめて、鳥取駅発のバスを主役にする
             val delay = state.realtime.delays[stationBus.trip.tripId] ?: Duration.ZERO
-            NextStationBusCard(nowSecond, stationBus, delay, state.settings, state.location, state.landmarks)
+            NextStationBusCard(nowSecond, stationBus, delay, state.settings, state.location, state.landmarks, onOpenTimetable)
             RouteMapCard(
                 landmarks = state.landmarks,
                 here = state.location,
@@ -224,9 +219,9 @@ private fun HomeContent(
         } else {
             // 1. 家 / 職場を出る時刻と残り時間。決まった時間帯の外では最初の便の発車を主役にする
             if (state.showLeaveTime) {
-                LeaveCard(nowSecond, journey, state.location, state.landmarks)
+                LeaveCard(nowSecond, journey, state.location, state.landmarks, onOpenTimetable)
             } else {
-                NextDepartureCard(nowSecond, journey, state.settings, state.location, state.landmarks)
+                NextDepartureCard(nowSecond, journey, state.settings, state.location, state.landmarks, onOpenTimetable)
             }
             // 地図: 現在地と、駅・バス停までの距離。GTFS-RT が取れていればバスの位置も
             RouteMapCard(
@@ -354,10 +349,15 @@ private fun RestCard(
     nextMorning: Journey?,
     settings: CommuteSettings,
     now: LocalDateTime,
+    onOpenTimetable: (TimetableFocus) -> Unit,
 ) {
     HeroSection(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 20.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenTimetable(TimetableFocus.HOME_STOP) }
+                    .padding(vertical = 18.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             CircleIcon(iconRes = R.drawable.ic_home, color = TimTraColors.pillFill, size = 40.dp)
@@ -407,10 +407,15 @@ private fun LeaveCard(
     journey: Journey,
     here: GeoPoint?,
     landmarks: RouteLandmarks,
+    onOpenTimetable: (TimetableFocus) -> Unit,
 ) {
     HeroSection(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 20.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenTimetable(journey.bound.firstLegFocus()) }
+                    .padding(vertical = 18.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -429,11 +434,25 @@ private fun LeaveCard(
                 iconRes = (if (journey.bound == Bound.OUTBOUND) TransitMode.BUS else TransitMode.JR).iconRes,
             )
             Spacer(Modifier.height(12.dp))
-            HeroLegStrip(journey)
+            HeroLegStrip(journey, onOpenTimetable)
             PaceRow(now, journey, here, landmarks)
         }
     }
 }
+
+/** 主役表示の 1 区間。タップするとその駅・バス停の時刻表が開く。 */
+private data class HeroLeg(
+    val mode: TransitMode,
+    val at: LocalDateTime,
+    val focus: TimetableFocus,
+)
+
+/** 主役表示のどこを押しても開けるように、最初の区間の行き先を決めておく。 */
+private fun Bound.firstLegFocus(): TimetableFocus =
+    when (this) {
+        Bound.OUTBOUND -> TimetableFocus.HOME_STOP
+        Bound.INBOUND -> TimetableFocus.HOUGI
+    }
 
 /** 主役カードの先頭に置く目印。丸い塗りのバッジではなく、素のアイコンで静かに示す。 */
 @Composable
@@ -542,6 +561,7 @@ private fun NextDepartureCard(
     settings: CommuteSettings,
     here: GeoPoint?,
     landmarks: RouteLandmarks,
+    onOpenTimetable: (TimetableFocus) -> Unit,
 ) {
     val outbound = journey.bound == Bound.OUTBOUND
     val mode = if (outbound) TransitMode.BUS else TransitMode.JR
@@ -549,7 +569,11 @@ private fun NextDepartureCard(
     val from = if (outbound) journey.bus.trip.boardStop.name else HOUGI
     HeroSection(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 20.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenTimetable(journey.bound.firstLegFocus()) }
+                    .padding(vertical = 18.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -579,7 +603,7 @@ private fun NextDepartureCard(
                 )
             }
             Spacer(Modifier.height(12.dp))
-            HeroLegStrip(journey)
+            HeroLegStrip(journey, onOpenTimetable)
             PaceRow(now, journey, here, landmarks)
             Spacer(Modifier.height(8.dp))
             // 出発時刻を過ぎて切り替わったときは、時間帯の案内ではなく「もう出る時刻は過ぎた」ことを出す
@@ -619,11 +643,16 @@ private fun NextStationBusCard(
     settings: CommuteSettings,
     here: GeoPoint?,
     landmarks: RouteLandmarks,
+    onOpenTimetable: (TimetableFocus) -> Unit,
 ) {
     val departAt = bus.departureAt.plus(delay)
     HeroSection(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 20.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenTimetable(TimetableFocus.STATION_BUS) }
+                    .padding(vertical = 18.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -812,11 +841,22 @@ private fun NextStationBusCandidate(bus: ScheduledBus) {
 
 /** 主役カードの下段: バスと JR の発車時刻をアイコン付きで 1 行に。 */
 @Composable
-private fun HeroLegStrip(journey: Journey) {
+private fun HeroLegStrip(
+    journey: Journey,
+    onOpenTimetable: (TimetableFocus) -> Unit,
+) {
     val legs =
         when (journey.bound) {
-            Bound.OUTBOUND -> listOf(TransitMode.BUS to journey.busDepartureEstimatedAt, TransitMode.JR to journey.train.departureAt)
-            Bound.INBOUND -> listOf(TransitMode.JR to journey.train.departureAt, TransitMode.BUS to journey.busDepartureEstimatedAt)
+            Bound.OUTBOUND ->
+                listOf(
+                    HeroLeg(TransitMode.BUS, journey.busDepartureEstimatedAt, TimetableFocus.HOME_STOP),
+                    HeroLeg(TransitMode.JR, journey.train.departureAt, TimetableFocus.STATION_JR),
+                )
+            Bound.INBOUND ->
+                listOf(
+                    HeroLeg(TransitMode.JR, journey.train.departureAt, TimetableFocus.HOUGI),
+                    HeroLeg(TransitMode.BUS, journey.busDepartureEstimatedAt, TimetableFocus.STATION_BUS),
+                )
         }
     Row(
         modifier =
@@ -826,28 +866,38 @@ private fun HeroLegStrip(journey: Journey) {
                 .padding(horizontal = 14.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        legs.forEachIndexed { index, (mode, at) ->
+        legs.forEachIndexed { index, leg ->
             if (index > 0) {
                 Icon(
                     painter = painterResource(R.drawable.ic_arrow_forward),
                     contentDescription = null,
                     tint = Color.White.copy(alpha = 0.7f),
-                    modifier = Modifier.padding(horizontal = 10.dp).size(16.dp),
+                    modifier = Modifier.padding(horizontal = 6.dp).size(16.dp),
                 )
             }
-            Icon(
-                painter = painterResource(mode.iconRes),
-                contentDescription = stringResource(mode.labelRes),
-                tint = Color.White,
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(Modifier.width(6.dp))
-            Text(
-                text = at.hhmm(),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-            )
+            // 区間ごとにタップできる。押した区間の駅・バス停の時刻表が開く
+            Row(
+                modifier =
+                    Modifier
+                        .clip(RoundedCornerShape(50))
+                        .clickable { onOpenTimetable(leg.focus) }
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    painter = painterResource(leg.mode.iconRes),
+                    contentDescription = stringResource(leg.mode.labelRes),
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = leg.at.hhmm(),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                )
+            }
         }
         Spacer(Modifier.width(10.dp))
         StatusDot(journey.status)
@@ -1294,9 +1344,6 @@ private fun SummaryLeg(
 
 /** 注意のバナーの地。黒地でも読めるよう、橙を暗く落としたもの。 */
 private val WARNING_CONTAINER = Color(0xFF4A3212)
-
-/** メニューを開いているあいだ、後ろにかけるぼかしの強さ。 */
-private const val MENU_BLUR_DP = 14f
 
 /** 主役の数字の高さ（dp）。 */
 private const val HERO_CAP_DP = 38f

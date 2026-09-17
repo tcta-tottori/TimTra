@@ -126,6 +126,46 @@ fun GlowFab(
 }
 
 /**
+ * 目立たせない丸ボタン。光も影も付けず、グレーの地に薄い縁だけ。
+ * 位置と大きさは [GlowFab] と同じにして、他の画面の「戻る」と並びをそろえる。
+ */
+@Composable
+fun QuietFab(
+    iconRes: Int,
+    contentDescription: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier =
+            modifier
+                .size(FAB_OUTER_DP.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick,
+                ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(FAB_SIZE_DP.dp)
+                    .background(TimTraColors.quietFab, CircleShape)
+                    .border(FAB_RING_DP.dp, TimTraColors.outline, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = contentDescription,
+                tint = TimTraColors.onSurfaceVariant,
+                modifier = Modifier.size(FAB_ICON_DP.dp),
+            )
+        }
+    }
+}
+
+/**
  * 画面の右下に置く「戻る」。ホームの「+」とまったく同じ位置・大きさになるよう、
  * Scaffold の floatingActionButton ではなく画面いっぱいの囲みに重ねて置く。
  */
