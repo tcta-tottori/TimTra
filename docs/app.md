@@ -71,7 +71,8 @@ AGP 9 系を採用した。AGP 9 では `org.jetbrains.kotlin.android` を適用
 - **いちばん上（出発時刻・残り時間）はカードにしない**（`HeroSection`）。画面の地の上に文字だけを置く。
   カードにするのは地図や各区間の時刻など、下に続くもの。
 - 時刻表の地点タブも塗りつぶしのピルをやめ、下線と文字の濃さだけで選択を示す。
-- 地図は OSM のタイル（白地）に色変換（`TransitColors.mapTileMatrix`）をかけて黒地に寄せる。
+- 地図の下地は色変換で地に馴染ませる。道が主役の暗いタイルは `TransitColors.darkTileMatrix` で
+  地の黒を濃紺に、明るい所（= 道）を水色へ持ち上げる。控えの OSM（白地）は `osmTileMatrix` で反転する。
   浮かせるラベルの地も白から濃紺（`TransitColors.labelFill`）へ。
   システムバーのアイコンは上下とも白（edge-to-edge）。
   Compose の material-icons は使わず、必要なアイコンは `res/drawable/ic_*.xml` に持つ。
@@ -151,11 +152,15 @@ core の `journey/InboundPhaseResolver`: 復路で現在地が宝木駅から 2 
 
 ## 地図（ホーム中央）
 
-`ui/home/RouteMapCard.kt`。下地は OpenStreetMap の標準ラスタタイル、その上に経路上の地点・現在地・バスの位置を重ねる。
-サーバーは持たない（CLAUDE.md 3-5）: タイルは openstreetmap.org から表示中にだけ取得し、端末内にキャッシュする
-（`ui/map/MapTileLoader`: メモリ 64 枚 + `cacheDir/osm_tiles` 60 MB、14 日で取り直し、同時 2 本、User-Agent 明示。
-OSM タイル利用規約に従う）。通信できないときはキャッシュ済みのタイルだけを使い、1 枚も無ければ方眼の簡易地図になる。
-出典「© OpenStreetMap contributors」を地図の右下と About 画面に出す（ODbL / 利用規約で必須）。
+`ui/home/RouteMapCard.kt`。下地は **建物や店を描かない、道が主役のラスタタイル**
+（CARTO Dark のラベル無し。元データは OpenStreetMap）。その上に経路上の地点・現在地・バスの位置を重ねる。
+通勤で見たいのは道の形だけなので、建物の輪郭・店のアイコン・地名は下地に持たせず、必要な地点はアプリ側で描く。
+サーバーは持たない（CLAUDE.md 3-5）: タイルは表示中にだけ取得し、端末内にキャッシュする
+（`ui/map/MapTileLoader`: メモリ 64 枚 + `cacheDir/map_tiles/<種類>` 60 MB、14 日で取り直し、同時 2 本、User-Agent 明示）。
+通信できないときはキャッシュ済みのタイルだけを使い、1 枚も無ければ方眼の簡易地図になる。
+配信側の都合で取れなくなったとき（返事は来るのに 4xx/5xx）は OSM 標準タイルに切り替える（`MapTileStyle`）。
+圏外では切り替えない。色の作り方も種類で変える（暗い下地はそのまま持ち上げ、白地の OSM は反転して暗くする）。
+出典「© OpenStreetMap contributors © CARTO」を地図の右下と About 画面に出す（ODbL / 各利用規約で必須）。
 
 - 地点は core の `geo/RouteLandmarks`（自宅 = 設定で登録した位置か `Places.HOME_DEFAULT`、南吉成 = GTFS の HOME 停留所、
   鳥取駅 = GTFS の STATION 停留所（バスターミナル）、宝木駅 = `Places.HOUGI_STATION`、勤務先 = 設定で登録した位置か `Places.WORKPLACE_DEFAULT`）。
@@ -163,8 +168,8 @@ OSM タイル利用規約に従う）。通信できないときはキャッシ�
   （自宅が既定位置から 200 m 以内のとき）。
 - 投影は core の `geo/MapProjection`（Web メルカトル = タイルと同じ。`geo/WebMercator` にタイル番号の計算。テストあり）。
   全地点が余白つきで収まる縮尺を選び、左下に縮尺バー（地上距離で 50 m〜50 km のきりのよい値）を出す。
-  タイルのズームは「1 タイルが画面上で 256 × density × 0.8 px」になる値を選ぶ（高密度画面で文字が読める大きさ。
-  OSM 標準タイルに @2x が無いため多少ぼやける）。地図 1 枚あたり 6〜12 タイル。
+  タイルのズームは「1 タイルが画面上で 256 × density × 0.8 px」になる値を選ぶ。
+  既定の下地は @2x（512px）で取るので、高密度画面でも道の線がぼやけない。地図 1 枚あたり 6〜12 タイル。
 - 初期表示は**現在地に近い側**だけを拡大する（`RouteLandmarks.sideFor`）: 最寄りの地点が 4 km 以内なら
   その側（自宅側 = 南吉成・鳥取駅 / 勤務先側 = 宝木駅・勤務先）、4 km 超なら移動中とみなして経路全体、40 km 超（出張先など）や
   位置が無いときは向きで決める（往路 → 自宅側、復路 → 勤務先側）。経路全体（約 14 km）を常に出すと自宅側の 2 点が重なるため。

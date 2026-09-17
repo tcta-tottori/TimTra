@@ -88,6 +88,7 @@ import com.kazuya.timtra.ui.common.hhmm
 import com.kazuya.timtra.ui.common.iconRes
 import com.kazuya.timtra.ui.common.labelRes
 import com.kazuya.timtra.ui.map.MapTileLoader
+import com.kazuya.timtra.ui.map.MapTileStyle
 import com.kazuya.timtra.ui.theme.TimTraCard
 import com.kazuya.timtra.ui.theme.TimTraColors
 import com.kazuya.timtra.ui.theme.TransitColors
@@ -113,7 +114,8 @@ data class MapVehicles(
 }
 
 /**
- * ホーム中央の地図。下地は OpenStreetMap の標準タイル（[MapTileLoader]。表示中だけ取得し端末内にキャッシュ）、
+ * ホーム中央の地図。下地は建物を描かない「道が主役」のタイル
+ * （[MapTileLoader]。表示中だけ取得し端末内にキャッシュ）、
  * その上に経路上の地点と現在地を Web メルカトル（core の MapProjection）で重ねる。
  * タイルが取れない（圏外・初回オフライン）ときは方眼だけの簡易地図になる。
  *
@@ -535,8 +537,10 @@ private fun BoxScope.MapLayer(
             label = "pulse",
         )
 
+    // 下地の種類で色の作り方が変わる（暗い地図はそのまま、白地の控えは反転）
+    val tileStyle = tileLoader.style
     Canvas(modifier = Modifier.fillMaxSize()) {
-        // 下地: OSM タイル。無ければ方眼（地図らしさと縮尺感のため）
+        // 下地: 道が主役のタイル。無ければ方眼（地図らしさと縮尺感のため）
         var drewTile = false
         tiles.forEach { tile ->
             val image = tileBitmaps[tile.key] ?: return@forEach
@@ -549,13 +553,13 @@ private fun BoxScope.MapLayer(
                 dstOffset = IntOffset(floor(tile.left).toInt(), floor(tile.top).toInt()),
                 dstSize = IntSize(side, side),
                 filterQuality = FilterQuality.Medium,
-                colorFilter = darkTiles,
+                colorFilter = if (tileStyle == MapTileStyle.CARTO_DARK) roadTiles else invertedTiles,
             )
             drewTile = true
         }
         if (drewTile) {
-            // 経路線とラベルを読みやすくするため、ほんの少し黒をかける
-            drawRect(Color.Black.copy(alpha = TILE_WASH_ALPHA))
+            // 白地の控えを使うときだけ、経路線とラベルを読みやすくするため、ほんの少し黒をかける
+            if (tileStyle == MapTileStyle.OSM) drawRect(Color.Black.copy(alpha = TILE_WASH_ALPHA))
         } else {
             val grid = GRID_STEP.toPx()
             var x = grid
@@ -961,7 +965,9 @@ private fun scaleLabel(meters: Int): String = if (meters >= 1_000) "${meters / 1
 private fun includeHereWithin(full: Boolean): Double = if (full) INCLUDE_HERE_FULL_METERS else INCLUDE_HERE_FOCUS_METERS
 
 /** 地図のタイルを黒地へ寄せる。OSM は白地なので、そのままでは画面から浮いてしまう。 */
-private val darkTiles = ColorFilter.colorMatrix(ColorMatrix(TransitColors.mapTileMatrix))
+/** 道が主役の暗い下地はそのまま持ち上げ、控えの OSM（白地）は反転して暗くする。 */
+private val roadTiles = ColorFilter.colorMatrix(ColorMatrix(TransitColors.darkTileMatrix))
+private val invertedTiles = ColorFilter.colorMatrix(ColorMatrix(TransitColors.osmTileMatrix))
 
 private val MAP_HEIGHT = 210.dp
 private val MAP_PADDING = 40.dp

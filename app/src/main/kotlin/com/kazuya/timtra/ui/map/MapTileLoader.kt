@@ -17,12 +17,55 @@ import java.io.IOException
 import java.time.Duration
 
 /**
- * ホームの地図の下地に使う OpenStreetMap の標準タイル（ラスタ）を取得する。
+ * 下地に使うタイルの種類。どちらも元データは OpenStreetMap。
+ *
+ * 通勤で見たいのは「道の形」だけなので、建物や店の絵が無い、道が主役の地図を既定にする。
+ */
+enum class MapTileStyle {
+    /**
+     * CARTO Dark（ラベル無し）。建物や店を描かず、道と水だけの黒地の地図。
+     * アプリの地（黒〜濃紺）にそのまま馴染むので、色は少し持ち上げるだけでよい。
+     */
+    CARTO_DARK,
+
+    /**
+     * OpenStreetMap 標準。上が使えないときの控え。白地なので描くときに色を反転する。
+     */
+    OSM,
+    ;
+
+    /** キャッシュを置く場所。種類ごとに分けて、混ざらないようにする。 */
+    val cacheDir: String get() = if (this == CARTO_DARK) "carto_dark" else "osm"
+
+    fun url(tile: TileSpec): String =
+        when (this) {
+            CARTO_DARK -> {
+                val host = CARTO_HOSTS[(tile.x + tile.y) % CARTO_HOSTS.size]
+                "https://$host/dark_nolabels/${tile.zoom}/${tile.x}/${tile.y}@2x.png"
+            }
+            OSM -> "https://tile.openstreetmap.org/${tile.zoom}/${tile.x}/${tile.y}.png"
+        }
+
+    private companion object {
+        val CARTO_HOSTS =
+            listOf(
+                "a.basemaps.cartocdn.com",
+                "b.basemaps.cartocdn.com",
+                "c.basemaps.cartocdn.com",
+                "d.basemaps.cartocdn.com",
+            )
+    }
+}
+
+/**
+ * ホームの地図の下地（ラスタタイル）を取得する。
  *
  * - 取得は地図が画面に出ている間だけ（呼び出し側の責務）。常駐やプリフェッチはしない（CLAUDE.md 3-4）。
  * - 端末内にキャッシュし（メモリ + ファイル）、通信できないときはキャッシュ済みの範囲だけ描く。
- * - OSM のタイル利用規約に従い、アプリを示す User-Agent を付け、同時接続は 2 本まで。
- *   出典表示「© OpenStreetMap contributors」は地図の隅と About 画面に出す。
+ * - 取得先の規約に従い、アプリを示す User-Agent を付け、同時接続は 2 本まで。
+ *   出典表示「© OpenStreetMap contributors © CARTO」は地図の隅と About 画面に出す。
+ * - 既定の下地が配信側の都合で取れなくなったときは OSM 標準に切り替える（[style]）。
+ *   圏外（通信そのものの失敗）では切り替えない。地図の色はこの [style] に合わせて選ぶ。
  */
 class MapTileLoader private constructor(
     context: Context,
@@ -30,6 +73,11 @@ class MapTileLoader private constructor(
     private val dir = File(context.cacheDir, CACHE_DIR).apply { mkdirs() }
     private val memory = LruCache<String, ImageBitmap>(MEMORY_TILES)
     private val permits = Semaphore(MAX_PARALLEL)
+
+    /** 今使っている下地。描くときの色はこれで決める。 */
+    @Volatile
+    var style: MapTileStyle = MapTileStyle.CARTO_DARK
+        private set
 
     /** 直近に失敗したタイル。しばらく再試行しない（圏外で連打しないため）。 */
     private val failedAt = HashMap<String, Long>()
@@ -58,14 +106,8 @@ class MapTileLoader private constructor(
                 if (fresh) {
                     onDisk
                 } else {
-                    download(tile)
-                        ?.also { bytes ->
-                            runCatching {
-                                file.parentFile?.mkdirs()
-                                file.writeBytes(bytes)
-                            }
-                        }?.let(::decode)
-                        ?: onDisk
+                    // 取りに行くあいだに下地が切り替わることがあるので、置き場は取れてから決める
+                    download(tile)?.let { bytes -> store(fileFor(tile), bytes) }?.let(::decode) ?: onDisk
                 }
             bitmap?.also { memory.put(tile.key, it) }
         }
@@ -81,11 +123,15 @@ class MapTileLoader private constructor(
                 val request =
                     Request
                         .Builder()
-                        .url("$TILE_BASE_URL/${tile.zoom}/${tile.x}/${tile.y}.png")
+                        .url(style.url(tile))
                         .header("User-Agent", USER_AGENT)
                         .build()
                 client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) throw IOException("HTTP ${response.code}")
+                    // 返事は来たのに貰えない = 配信が変わった。控えの下地に切り替える
+                    if (!response.isSuccessful) {
+                        fallBack()
+                        throw IOException("HTTP ${response.code}")
+                    }
                     response.body.bytes()
                 }
             }.onFailure {
@@ -94,23 +140,35 @@ class MapTileLoader private constructor(
         }
     }
 
+    /** 既定の下地が使えないと分かったときだけ呼ぶ。以後は OSM 標準で描く。 */
+    private fun fallBack() {
+        if (style == MapTileStyle.CARTO_DARK) {
+            style = MapTileStyle.OSM
+            memory.evictAll()
+            synchronized(failedAt) { failedAt.clear() }
+        }
+    }
+
+    /** 取れたタイルを置き場に書く。書けなくても描画は続ける。 */
     private fun store(
         file: File,
         bytes: ByteArray,
-    ) {
+    ): ByteArray {
         runCatching {
             file.parentFile?.mkdirs()
             file.writeBytes(bytes)
         }
+        return bytes
     }
 
     private fun decode(bytes: ByteArray): ImageBitmap? = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
 
-    private fun fileFor(tile: TileSpec): File = File(dir, "${tile.zoom}/${tile.x}/${tile.y}.png")
+    private fun fileFor(tile: TileSpec): File = File(dir, "${style.cacheDir}/${tile.zoom}/${tile.x}/${tile.y}.png")
 
     /** キャッシュが上限を超えていたら古いものから消す。起動時に 1 回、バックグラウンドで呼ぶ。 */
     suspend fun trim() =
         withContext(Dispatchers.IO) {
+            runCatching { File(dir.parentFile, LEGACY_CACHE_DIR).deleteRecursively() }
             val files = dir.walkTopDown().filter { it.isFile }.toList()
             var total = files.sumOf { it.length() }
             if (total <= MAX_DISK_BYTES) return@withContext
@@ -122,10 +180,16 @@ class MapTileLoader private constructor(
         }
 
     companion object {
-        /** OSM 標準タイル。利用規約: https://operations.osmfoundation.org/policies/tiles/ */
-        private const val TILE_BASE_URL = "https://tile.openstreetmap.org"
+        /**
+         * 出典と規約:
+         * - CARTO Basemaps（非商用は無償・要出典）https://carto.com/basemaps
+         * - OSM 標準タイル https://operations.osmfoundation.org/policies/tiles/
+         */
         private const val USER_AGENT = "TimTra/0.1 (personal commute app; https://github.com/tcta-tottori/TimTra)"
-        private const val CACHE_DIR = "osm_tiles"
+        private const val CACHE_DIR = "map_tiles"
+
+        /** 種類を分ける前に使っていた置き場。見つけたら消す。 */
+        private const val LEGACY_CACHE_DIR = "osm_tiles"
         private const val MEMORY_TILES = 64
         private const val MAX_PARALLEL = 2
         private const val MAX_DISK_BYTES = 60L * 1024 * 1024

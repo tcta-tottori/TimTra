@@ -133,7 +133,7 @@
     <string name="map_landmark_hougi">宝木駅</string>
     <string name="map_landmark_workplace">勤務先</string>
     <string name="map_updated">%1$s 時点の位置</string>
-    <string name="map_attribution">© OpenStreetMap contributors</string>
+    <string name="map_attribution">© OpenStreetMap contributors © CARTO</string>
     <string name="map_fullscreen_open">全画面で表示</string>
     <string name="map_fullscreen_hint">タップで全画面・ピンチで拡大</string>
     <string name="map_close">閉じる</string>
@@ -322,7 +322,7 @@
     <string name="about_sources_title">出典</string>
     <string name="about_source_bus">バス時刻・車両位置情報: 鳥取県オープンデータ（日ノ丸自動車）</string>
     <string name="about_source_jr">JR時刻: JR西日本 駅時刻表より手動転記。最新情報は公式サイトでご確認ください。</string>
-    <string name="about_source_map">地図: © OpenStreetMap contributors（ODbL）。タイルは openstreetmap.org から取得し端末内にキャッシュしています。</string>
+    <string name="about_source_map">地図: © OpenStreetMap contributors（ODbL）／タイル © CARTO（CARTO Basemaps・非商用利用）。道が主役の下地を使い、取得したタイルは端末内にキャッシュしています。</string>
     <string name="about_data_title">同梱データ</string>
     <string name="about_bus_feed">バス時刻表: %1$s（%2$s）</string>
     <string name="about_bus_feed_period">有効期間: %1$s 〜 %2$s</string>

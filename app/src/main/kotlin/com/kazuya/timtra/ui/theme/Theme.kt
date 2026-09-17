@@ -117,16 +117,31 @@ object TransitColors {
     val labelFill = Color(0xE6081120)
 
     /**
-     * 地図のタイル（OSM は白地）を黒地へ寄せる色変換。
+     * 道が主役の暗い下地（CARTO Dark）の色変換。地の黒はアプリの濃紺へ、
+     * 明るい所（= 道）ほど水色へ持ち上げて、道の形だけがはっきり見えるようにする。
+     */
+    val darkTileMatrix: FloatArray = roadRow(450f, 8f) + roadRow(520f, 16f) + roadRow(620f, 30f) + opaqueRow()
+
+    /**
+     * 控えの下地（OSM 標準は白地）を黒地へ寄せる色変換。
      * いったん明るさだけにしてから反転し、濃紺（白かった所）→ 青灰（黒かった所）の幅に写す。
      */
-    val mapTileMatrix: FloatArray = tileRow(98f, 120f) + tileRow(105f, 140f) + tileRow(117f, 175f) + floatArrayOf(0f, 0f, 0f, 1f, 0f)
+    val osmTileMatrix: FloatArray = tileRow(98f, 120f) + tileRow(105f, 140f) + tileRow(117f, 175f) + opaqueRow()
 
     /** 明るさ 0 で [offset]、明るさ 1 で `offset - span` になる 1 行ぶん。 */
     private fun tileRow(
         span: Float,
         offset: Float,
     ): FloatArray = floatArrayOf(-0.299f * span / 255f, -0.587f * span / 255f, -0.114f * span / 255f, 0f, offset)
+
+    /** 明るさ 0 で [offset]、明るくなるほど [gain] の分だけ持ち上がる 1 行ぶん。 */
+    private fun roadRow(
+        gain: Float,
+        offset: Float,
+    ): FloatArray = floatArrayOf(0.299f * gain / 255f, 0.587f * gain / 255f, 0.114f * gain / 255f, 0f, offset)
+
+    /** 透明度はそのまま通す最後の 1 行。 */
+    private fun opaqueRow(): FloatArray = floatArrayOf(0f, 0f, 0f, 1f, 0f)
 }
 
 /** ステータスの色分け（CLAUDE.md 6: 緑 / オレンジ / 赤）。黒地で読める明るさ。 */
