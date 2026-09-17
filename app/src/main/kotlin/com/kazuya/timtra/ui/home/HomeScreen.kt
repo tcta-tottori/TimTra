@@ -1295,10 +1295,10 @@ private fun SummaryLeg(
 /** 注意のバナーの地。黒地でも読めるよう、橙を暗く落としたもの。 */
 private val WARNING_CONTAINER = Color(0xFF4A3212)
 
-/** 主役の数字の高さ（dp）。 */
 /** メニューを開いているあいだ、後ろにかけるぼかしの強さ。 */
 private const val MENU_BLUR_DP = 14f
 
+/** 主役の数字の高さ（dp）。 */
 private const val HERO_CAP_DP = 38f
 
 /** 主役以外の残り時間の高さ（dp）。 */
