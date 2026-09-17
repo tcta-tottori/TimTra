@@ -41,11 +41,18 @@ AGP 9 系を採用した。AGP 9 では `org.jetbrains.kotlin.android` を適用
 | このアプリについて | `ui/about/` | 出典表示（CLAUDE.md 14）と同梱データの版 |
 
 - 文言は `res/values/strings.xml` に集約。XML レイアウトは無い（テーマ・アイコンのみ XML）。
-- 見た目: **時計版（docs/wear.md）に合わせた黒地・濃紺**（`ui/theme/Theme.kt`）。地は黒から上だけ濃紺へ持ち上げ、
-  ヘッダー（`TimTraTopBar`）と左ドロワーは青のグラデーション（#2E8BF5 → #14307F）で文字は白。
-  カードは角丸 20dp + 薄い縁の `TimTraCard`（地 #0F1B30、縁 #1E3355）、出発時刻は青グラデーションの `GradientCard`。
-  強調の青・ステータス色・交通手段の色は、黒地で読める明るさに振ってある。
-  ドロワーは版・現在時刻・画面一覧（選択中は半透明ピル）・ワードマーク。
+- 見た目: **時計版（docs/wear.md）に合わせた黒地・濃紺**（`ui/theme/Theme.kt`）。地は左下の黒から
+  右へ向かって濃紺へ持ち上げる線形グラデーション。ヘッダー（`TimTraTopBar`）は青のグラデーション
+  （#2E8BF5 → #14307F）で文字は白。カードは角丸 20dp + 薄い縁の `TimTraCard`（地 #0F1B30、縁 #1E3355）、
+  出発時刻は青グラデーションの `GradientCard`。強調の青・ステータス色・交通手段の色は、黒地で読める明るさに振ってある。
+- `TimTraTheme` は `LocalContentColor` に白を流す。Surface に包まれていない文字は Compose の既定で黒になり、
+  黒地では読めなくなるため。`surfaceVariant` はカードの地と別の値にしてある（同じにすると
+  `contentColorFor` がカードの文字色を薄い青灰に寄せてしまう）。
+- 左メニュー（`ui/navigation/TimTraDrawer`）は塗りつぶしのピルをやめ、
+  選択中は左端の細いアクセント棒と水色の文字で示す。上にアイコン + ワードマーク + 版、下に出典。
+- 時刻表の地点タブも塗りつぶしのピルをやめ、下線と文字の濃さだけで選択を示す。
+- 地図は OSM のタイル（白地）に色変換（`TransitColors.mapTileMatrix`）をかけて黒地に寄せる。
+  浮かせるラベルの地も白から濃紺（`TransitColors.labelFill`）へ。
   往路/復路の切替は右下の青い FAB。ステータスバーは白アイコン、ナビゲーションバーは黒アイコン（edge-to-edge）。
   Compose の material-icons は使わず、必要なアイコンは `res/drawable/ic_*.xml` に持つ。
 - 交通手段のアイコンと色は `ui/common/TransitIcons.kt` に集約する（`TransitMode.BUS` = 橙 + `ic_bus`、`TransitMode.JR` = 青 + `ic_train`、

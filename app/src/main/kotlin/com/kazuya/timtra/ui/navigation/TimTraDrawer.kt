@@ -2,12 +2,12 @@ package com.kazuya.timtra.ui.navigation
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
@@ -32,14 +33,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kazuya.timtra.R
-import com.kazuya.timtra.core.TimTraConstants
 import com.kazuya.timtra.ui.theme.TimTraColors
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
-private val headerTime: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy.M.d HH:mm")
-
-/** 左からのメニュー。上にアプリのアイコンと版、中に画面一覧、下にワードマーク。 */
+/**
+ * 左からのメニュー。黒地のまま、色数を絞って静かに見せる。
+ *
+ * 選択中の項目は塗りつぶしのピルではなく、左の細いアクセント棒と水色の文字で示す。
+ * 上にアプリのアイコンとワードマークと版、下に出典への入口（「このアプリについて」）が並ぶ。
+ */
 @Composable
 fun TimTraDrawer(
     currentRoute: String?,
@@ -52,47 +53,22 @@ fun TimTraDrawer(
             runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "-"
         }
     ModalDrawerSheet(
-        drawerContainerColor = TimTraColors.gradientEnd,
-        drawerContentColor = TimTraColors.onGradient,
+        drawerContainerColor = Color.Transparent,
+        drawerContentColor = TimTraColors.onSurface,
         drawerShape = RoundedCornerShape(topEnd = 28.dp, bottomEnd = 28.dp),
-        modifier = Modifier.width(280.dp),
+        modifier = Modifier.width(292.dp),
     ) {
         Column(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(TimTraColors.headerGradient)
-                    .padding(vertical = 24.dp),
+                    .background(TimTraColors.drawerGradient)
+                    .padding(vertical = 28.dp),
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 24.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Image(
-                        painter = painterResource(R.drawable.app_logo),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-                Spacer(Modifier.width(16.dp))
-                Column {
-                    Text(
-                        text = stringResource(R.string.drawer_version, versionName),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = TimTraColors.onGradient,
-                    )
-                    Text(
-                        text = LocalDateTime.now(TimTraConstants.ZONE).format(headerTime),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TimTraColors.onGradient.copy(alpha = 0.75f),
-                    )
-                }
-            }
-            Spacer(Modifier.height(28.dp))
+            Header(versionName)
+            Spacer(Modifier.height(22.dp))
+            HorizontalDivider(color = TimTraColors.outline, modifier = Modifier.padding(horizontal = 24.dp))
+            Spacer(Modifier.height(14.dp))
             items.forEach { item ->
                 DrawerItem(
                     iconRes = item.iconRes,
@@ -102,7 +78,12 @@ fun TimTraDrawer(
                 )
             }
             Spacer(Modifier.weight(1f))
-            Wordmark(modifier = Modifier.align(Alignment.CenterHorizontally))
+            Text(
+                text = stringResource(R.string.drawer_footer),
+                style = MaterialTheme.typography.labelSmall,
+                color = TimTraColors.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 28.dp),
+            )
         }
     }
 }
@@ -113,6 +94,30 @@ data class DrawerItemSpec(
     val iconRes: Int,
 )
 
+/** アイコン + ワードマーク + 版。 */
+@Composable
+private fun Header(versionName: String) {
+    Row(
+        modifier = Modifier.padding(horizontal = 24.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Image(
+            painter = painterResource(R.drawable.app_logo),
+            contentDescription = null,
+            modifier = Modifier.size(46.dp).clip(RoundedCornerShape(13.dp)),
+        )
+        Spacer(Modifier.width(14.dp))
+        Column {
+            Wordmark()
+            Text(
+                text = stringResource(R.string.drawer_version, versionName),
+                style = MaterialTheme.typography.labelMedium,
+                color = TimTraColors.onSurfaceVariant,
+            )
+        }
+    }
+}
+
 @Composable
 private fun DrawerItem(
     iconRes: Int,
@@ -120,42 +125,42 @@ private fun DrawerItem(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(22.dp)
-    val decorated =
-        if (selected) {
-            Modifier
-                .background(TimTraColors.pillFill, shape)
-                .border(1.dp, TimTraColors.pillBorder, shape)
-        } else {
-            Modifier
-        }
+    val tint = if (selected) TimTraColors.accentLight else TimTraColors.onSurfaceVariant
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 6.dp)
-                .clip(shape)
-                .then(decorated)
-                .clickable(onClick = onClick)
-                .padding(horizontal = 20.dp, vertical = 13.dp),
+                .height(52.dp)
+                .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(painterResource(iconRes), contentDescription = null, modifier = Modifier.size(22.dp), tint = TimTraColors.onGradient)
-        Spacer(Modifier.width(18.dp))
+        // 選択中の目印。塗りつぶさず、左端の細い棒だけで示す
+        Box(
+            modifier =
+                Modifier
+                    .padding(vertical = 10.dp)
+                    .width(3.dp)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(50))
+                    .background(if (selected) TimTraColors.accentLight else Color.Transparent),
+        )
+        Spacer(Modifier.width(21.dp))
+        Icon(painterResource(iconRes), contentDescription = null, modifier = Modifier.size(21.dp), tint = tint)
+        Spacer(Modifier.width(16.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            color = TimTraColors.onGradient,
+            color = if (selected) TimTraColors.onSurface else TimTraColors.onSurfaceVariant,
         )
     }
 }
 
 /** アプリアイコンと同じ配色のワードマーク。 */
 @Composable
-private fun Wordmark(modifier: Modifier = Modifier) {
-    Row(modifier = modifier.padding(bottom = 8.dp)) {
-        Text("Tim", fontSize = 24.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp, color = Color.White)
-        Text("Tra", fontSize = 24.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp, color = TimTraColors.accentLight)
+private fun Wordmark() {
+    Row {
+        Text("Tim", fontSize = 21.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp, color = Color.White)
+        Text("Tra", fontSize = 21.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp, color = TimTraColors.accentLight)
     }
 }

@@ -50,6 +50,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.PathEffect
@@ -145,7 +147,7 @@ fun RouteMapCard(
             onClose = { fullscreen = false },
         )
     }
-    TimTraCard(modifier = modifier.fillMaxWidth(), containerColor = Color.White) {
+    TimTraCard(modifier = modifier.fillMaxWidth(), containerColor = TransitColors.mapGround) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 8.dp),
@@ -396,7 +398,7 @@ private fun FullscreenMapDialog(
                     color = TimTraColors.primary,
                     modifier =
                         Modifier
-                            .background(Color.White.copy(alpha = 0.92f), RoundedCornerShape(50))
+                            .background(TransitColors.labelFill, RoundedCornerShape(50))
                             .padding(horizontal = 12.dp, vertical = 6.dp),
                 )
             }
@@ -437,7 +439,7 @@ private fun RoundButton(
     tint: Color = TimTraColors.primary,
     onClick: () -> Unit,
 ) {
-    Surface(shape = CircleShape, color = Color.White, shadowElevation = 4.dp) {
+    Surface(shape = CircleShape, color = TimTraColors.surfaceHigh, shadowElevation = 4.dp) {
         IconButton(onClick = onClick) {
             Icon(painter = painterResource(iconRes), contentDescription = contentDescription, tint = tint)
         }
@@ -547,12 +549,13 @@ private fun BoxScope.MapLayer(
                 dstOffset = IntOffset(floor(tile.left).toInt(), floor(tile.top).toInt()),
                 dstSize = IntSize(side, side),
                 filterQuality = FilterQuality.Medium,
+                colorFilter = darkTiles,
             )
             drewTile = true
         }
         if (drewTile) {
-            // 経路線とラベルを読みやすくするため、ほんの少し白をかける
-            drawRect(Color.White.copy(alpha = TILE_WASH_ALPHA))
+            // 経路線とラベルを読みやすくするため、ほんの少し黒をかける
+            drawRect(Color.Black.copy(alpha = TILE_WASH_ALPHA))
         } else {
             val grid = GRID_STEP.toPx()
             var x = grid
@@ -659,7 +662,7 @@ private fun BoxScope.MapLayer(
             Modifier
                 .align(Alignment.BottomEnd)
                 .padding(6.dp)
-                .background(Color.White.copy(alpha = 0.8f), RoundedCornerShape(50))
+                .background(TransitColors.labelFill, RoundedCornerShape(50))
                 .padding(horizontal = 6.dp, vertical = 1.dp),
     )
     if (!anyTile) {
@@ -672,7 +675,7 @@ private fun BoxScope.MapLayer(
                 Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 28.dp, start = 60.dp, end = 60.dp)
-                    .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(50))
+                    .background(TransitColors.labelFill, RoundedCornerShape(50))
                     .padding(horizontal = 10.dp, vertical = 3.dp),
         )
     }
@@ -741,7 +744,7 @@ private fun BoxScope.MapLayer(
                 Modifier
                     .align(Alignment.TopEnd)
                     .padding(8.dp)
-                    .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(50))
+                    .background(TransitColors.labelFill, RoundedCornerShape(50))
                     .padding(horizontal = 8.dp, vertical = 2.dp),
         )
     }
@@ -820,7 +823,7 @@ private fun LandmarkMarker(
             maxLines = 1,
             modifier =
                 Modifier
-                    .background(Color.White.copy(alpha = 0.92f), RoundedCornerShape(50))
+                    .background(TransitColors.labelFill, RoundedCornerShape(50))
                     .padding(horizontal = 6.dp, vertical = 1.dp),
         )
     }
@@ -944,7 +947,7 @@ private fun FloatingLabel(
             maxLines = 1,
             modifier =
                 Modifier
-                    .background(Color.White.copy(alpha = 0.95f), RoundedCornerShape(50))
+                    .background(TransitColors.labelFill, RoundedCornerShape(50))
                     .border(1.dp, color.copy(alpha = 0.5f), RoundedCornerShape(50))
                     .padding(horizontal = 8.dp, vertical = 2.dp),
         )
@@ -956,6 +959,9 @@ private fun scaleLabel(meters: Int): String = if (meters >= 1_000) "${meters / 1
 
 /** 拡大表示では近くにいるときだけ現在地を画面に収める。経路全体表示ではもう少し広く取る。 */
 private fun includeHereWithin(full: Boolean): Double = if (full) INCLUDE_HERE_FULL_METERS else INCLUDE_HERE_FOCUS_METERS
+
+/** 地図のタイルを黒地へ寄せる。OSM は白地なので、そのままでは画面から浮いてしまう。 */
+private val darkTiles = ColorFilter.colorMatrix(ColorMatrix(TransitColors.mapTileMatrix))
 
 private val MAP_HEIGHT = 210.dp
 private val MAP_PADDING = 40.dp

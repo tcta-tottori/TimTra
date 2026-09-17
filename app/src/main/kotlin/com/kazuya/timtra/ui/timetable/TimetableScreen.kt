@@ -137,7 +137,7 @@ fun TimetableScreen(
                 ExtendedFloatingActionButton(
                     onClick = { scope.launch { listState.animateScrollToItem((nowRowIndex - 1).coerceAtLeast(0)) } },
                     containerColor = TimTraColors.primary,
-                    contentColor = Color.White,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                     icon = { Icon(painterResource(R.drawable.ic_timer), contentDescription = null) },
                     text = { Text(stringResource(R.string.timetable_scroll_to_now)) },
                 )
@@ -227,55 +227,69 @@ private fun dateLabel(
             stringResource(R.string.timetable_date_day_type, stringResource(R.string.timetable_day_holiday_long), formattedDate)
     }
 
-/** 青い帯の中のタブ。選んだものは白いピルになり、アイコンで種別（バス / JR）が分かる。 */
+/**
+ * 青い帯の中のタブ。塗りつぶしのピルはやめ、下線と文字の濃さだけで選択を示す。
+ * アイコンで種別（バス / JR）が分かる。
+ */
 @Composable
 private fun HeaderTabs(
     selected: TimetableTab,
     onSelect: (TimetableTab) -> Unit,
 ) {
     Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
-                .background(TimTraColors.pillFill, RoundedCornerShape(50))
-                .padding(4.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         TimetableTab.entries.forEach { tab ->
             val active = tab == selected
-            Row(
+            val tone = if (active) Color.White else Color.White.copy(alpha = INACTIVE_TAB_ALPHA)
+            Column(
                 modifier =
                     Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(50))
-                        .background(if (active) Color.White else Color.Transparent)
-                        .clickable { onSelect(tab) }
-                        .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onSelect(tab) },
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                tab.modes().forEach { mode ->
-                    Icon(
-                        painter = painterResource(mode.iconRes),
-                        contentDescription = null,
-                        tint = if (active) mode.color else Color.White.copy(alpha = 0.9f),
-                        modifier = Modifier.size(16.dp),
+                Row(
+                    modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    tab.modes().forEach { mode ->
+                        Icon(
+                            painter = painterResource(mode.iconRes),
+                            contentDescription = null,
+                            tint = tone,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(Modifier.width(2.dp))
+                    }
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = stringResource(tab.labelRes()),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                        color = tone,
+                        maxLines = 1,
                     )
-                    Spacer(Modifier.width(2.dp))
                 }
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    text = stringResource(tab.labelRes()),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                    color = if (active) TimTraColors.gradientEnd else Color.White,
-                    maxLines = 1,
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                            .background(if (active) TimTraColors.accentLight else Color.Transparent),
                 )
             }
         }
     }
+    Spacer(Modifier.height(10.dp))
 }
+
+/** 選んでいないタブの文字の薄さ。 */
+private const val INACTIVE_TAB_ALPHA = 0.6f
 
 /** 今日 / 平日 / 土曜 / 日祝 の切り替え。初期表示は今日（CLAUDE.md 7-2）。 */
 @Composable

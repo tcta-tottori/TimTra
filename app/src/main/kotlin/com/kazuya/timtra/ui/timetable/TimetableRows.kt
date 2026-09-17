@@ -131,6 +131,7 @@ internal fun TimetableRow(
                 text = stringResource(R.string.timetable_bound_for, entry.destination),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = if (isNext) FontWeight.Bold else FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -162,7 +163,7 @@ internal fun TimetableRow(
                     text = stringResource(R.string.timetable_next_badge),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onPrimary,
                     modifier =
                         Modifier
                             .background(TimTraColors.primary, RoundedCornerShape(50))

@@ -9,14 +9,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -64,11 +67,22 @@ object TimTraColors {
     /** ヘッダー・メニュー・主要カードに使うグラデーション。 */
     val headerGradient: Brush = Brush.linearGradient(listOf(gradientStart, gradientEnd))
 
-    /** 画面の地。黒から上だけ濃紺に持ち上げる（時計版と同じ）。 */
-    val backgroundGradient: Brush = Brush.verticalGradient(listOf(Color(0xFF0A1730), background))
+    /**
+     * 画面の地。時計版と同じ考えで、右上へ向かって濃紺に持ち上げる。
+     * 左下は黒に落として、有機 EL でも締まって見えるようにする。
+     */
+    val backgroundGradient: Brush =
+        Brush.linearGradient(
+            colors = listOf(background, Color(0xFF0A1730), Color(0xFF123061)),
+            start = Offset.Zero,
+            end = Offset(Float.POSITIVE_INFINITY, 0f),
+        )
 
     /** カウントダウンのリング（明るい水色 → 青）。 */
     val ringGradient: Brush = Brush.linearGradient(listOf(accentLight, gradientStart))
+
+    /** 左メニューの地。画面の地より少しだけ青を強くして、手前にあることを示す。 */
+    val drawerGradient: Brush = Brush.verticalGradient(listOf(Color(0xFF12203C), Color(0xFF070D1A)))
 }
 
 /** 交通手段ごとの色。バスは日ノ丸バスを思わせる橙、JR は JR 西日本の青。地図・時刻表・ホームで共通。 */
@@ -86,6 +100,21 @@ object TransitColors {
     /** 地図の下地と罫線。 */
     val mapGround = Color(0xFF0F1B30)
     val mapGrid = Color(0xFF24334E)
+
+    /** 地図に浮かせるラベルの地。タイルの上でも読めるよう濃く敷く。 */
+    val labelFill = Color(0xE6081120)
+
+    /**
+     * 地図のタイル（OSM は白地）を黒地へ寄せる色変換。
+     * いったん明るさだけにしてから反転し、濃紺 → 明るい青灰の幅に写す。
+     */
+    val mapTileMatrix: FloatArray =
+        floatArrayOf(
+            -0.115f, -0.226f, -0.044f, 0f, 120f,
+            -0.123f, -0.242f, -0.047f, 0f, 140f,
+            -0.137f, -0.269f, -0.052f, 0f, 175f,
+            0f, 0f, 0f, 1f, 0f,
+        )
 }
 
 /** ステータスの色分け（CLAUDE.md 6: 緑 / オレンジ / 赤）。黒地で読める明るさ。 */
@@ -121,7 +150,9 @@ private val scheme =
         onBackground = TimTraColors.onSurface,
         surface = TimTraColors.background,
         onSurface = TimTraColors.onSurface,
-        surfaceVariant = TimTraColors.surface,
+        // surfaceVariant はカードの地（surface）と別の値にする。
+        // 同じにすると contentColorFor がカードの文字色を onSurfaceVariant（薄い青灰）に寄せてしまう
+        surfaceVariant = TimTraColors.surfaceHigh,
         onSurfaceVariant = TimTraColors.onSurfaceVariant,
         surfaceContainerLowest = Color(0xFF080F1E),
         surfaceContainerLow = TimTraColors.surface,
@@ -163,8 +194,11 @@ private val compactTypography =
 @Composable
 fun TimTraTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = scheme, typography = compactTypography) {
-        Box(modifier = Modifier.fillMaxSize().background(TimTraColors.backgroundGradient)) {
-            content()
+        // Surface に包まれていない文字は既定で黒になる。黒地なので明示的に白へ寄せる
+        CompositionLocalProvider(LocalContentColor provides TimTraColors.onSurface) {
+            Box(modifier = Modifier.fillMaxSize().background(TimTraColors.backgroundGradient)) {
+                content()
+            }
         }
     }
 }

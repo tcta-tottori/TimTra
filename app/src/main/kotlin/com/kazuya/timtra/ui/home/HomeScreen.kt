@@ -417,7 +417,7 @@ private fun LeaveCard(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                CircleIcon(iconRes = journey.bound.originIconRes(), color = TimTraColors.pillFill, size = 28.dp)
+                HeroMark(journey.bound.originIconRes())
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text = stringResource(if (journey.bound == Bound.OUTBOUND) R.string.home_leave_home else R.string.home_leave_work),
@@ -436,6 +436,17 @@ private fun LeaveCard(
             PaceRow(now, journey, here, landmarks)
         }
     }
+}
+
+/** 主役カードの先頭に置く目印。丸い塗りのバッジではなく、素のアイコンで静かに示す。 */
+@Composable
+private fun HeroMark(iconRes: Int) {
+    Icon(
+        painter = painterResource(iconRes),
+        contentDescription = null,
+        tint = TimTraColors.accentLight,
+        modifier = Modifier.size(22.dp),
+    )
 }
 
 /**
@@ -545,7 +556,7 @@ private fun NextDepartureCard(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                ModeBadge(mode = mode, size = 28.dp, color = TimTraColors.pillFill)
+                HeroMark(mode.iconRes)
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text =
@@ -619,7 +630,7 @@ private fun NextStationBusCard(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                ModeBadge(mode = TransitMode.BUS, size = 28.dp, color = TimTraColors.pillFill)
+                HeroMark(TransitMode.BUS.iconRes)
                 Spacer(Modifier.width(8.dp))
                 Text(
                     text =
