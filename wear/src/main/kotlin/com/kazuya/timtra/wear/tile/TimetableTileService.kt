@@ -213,7 +213,11 @@ class TimetableTileService : TileService() {
         next: Departure,
         left: DynamicInt32,
     ): LayoutElementBuilders.Text {
-        val twoDigits = DynamicInt32.IntFormatter.Builder().setMinIntegerDigits(2).build()
+        val twoDigits =
+            DynamicInt32.IntFormatter
+                .Builder()
+                .setMinIntegerDigits(2)
+                .build()
         val value =
             left
                 .div(SECONDS_PER_MINUTE)
