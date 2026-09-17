@@ -25,10 +25,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -70,7 +68,9 @@ import com.kazuya.timtra.core.model.Bound
 import com.kazuya.timtra.core.model.GeoPoint
 import com.kazuya.timtra.data.realtime.RealtimeState
 import com.kazuya.timtra.location.LocationProvider
+import com.kazuya.timtra.ui.common.ActionMenuFab
 import com.kazuya.timtra.ui.common.CircleIcon
+import com.kazuya.timtra.ui.common.FabAction
 import com.kazuya.timtra.ui.common.CountdownRing
 import com.kazuya.timtra.ui.common.GlyphNumber
 import com.kazuya.timtra.ui.common.InfoPill
@@ -97,7 +97,9 @@ import java.time.ZoneId
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onOpenDrawer: () -> Unit,
+    onOpenTimetable: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenAbout: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -109,33 +111,18 @@ fun HomeScreen(
     peek?.let { TimetablePeekSheet(peek = it, now = nowSecond.toLocalTime(), onDismiss = viewModel::closePeek) }
     Scaffold(
         containerColor = Color.Transparent,
-        topBar = {
-            TimTraTopBar(
-                title = { TopBarTitle(stringResource(R.string.nav_home)) },
-                navigationIcon = {
-                    IconButton(onClick = onOpenDrawer) {
-                        Icon(painterResource(R.drawable.ic_menu), contentDescription = stringResource(R.string.action_menu))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = viewModel::refresh) {
-                        Icon(painterResource(R.drawable.ic_refresh), contentDescription = stringResource(R.string.action_refresh))
-                    }
-                },
-            )
-        },
+        topBar = { TimTraTopBar(title = { TopBarTitle(stringResource(R.string.nav_home)) }) },
         floatingActionButton = {
-            val ready = state as? HomeUiState.Ready
-            if (ready != null) {
-                FloatingActionButton(
-                    onClick = { viewModel.setBound(if (ready.bound == Bound.OUTBOUND) Bound.INBOUND else Bound.OUTBOUND) },
-                    containerColor = TimTraColors.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    shape = CircleShape,
-                ) {
-                    Icon(painterResource(R.drawable.ic_swap_horiz), contentDescription = stringResource(R.string.home_toggle_bound))
-                }
-            }
+            // 左メニューはやめ、画面の行き来と更新はこのボタンに集約する
+            ActionMenuFab(
+                actions =
+                    listOf(
+                        FabAction(R.string.nav_timetable, R.drawable.ic_schedule, onOpenTimetable),
+                        FabAction(R.string.nav_settings, R.drawable.ic_settings, onOpenSettings),
+                        FabAction(R.string.nav_about, R.drawable.ic_info, onOpenAbout),
+                        FabAction(R.string.action_refresh, R.drawable.ic_refresh, viewModel::refresh),
+                    ),
+            )
         },
     ) { padding ->
         when (val s = state) {
@@ -298,6 +285,10 @@ private fun BasisFooter(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
         )
+        // 右下のボタンから切替を外したので、手動の往復切替はここに置く
+        TextButton(onClick = { onBoundChange(if (state.bound == Bound.OUTBOUND) Bound.INBOUND else Bound.OUTBOUND) }) {
+            Text(stringResource(R.string.home_toggle_bound), style = MaterialTheme.typography.labelMedium)
+        }
         if (state.boundBasis == BoundBasis.MANUAL) {
             TextButton(onClick = { onBoundChange(null) }) {
                 Text(stringResource(R.string.home_basis_reset), style = MaterialTheme.typography.labelMedium)

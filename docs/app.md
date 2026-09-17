@@ -48,12 +48,13 @@ AGP 9 系を採用した。AGP 9 では `org.jetbrains.kotlin.android` を適用
 - `TimTraTheme` は `LocalContentColor` に白を流す。Surface に包まれていない文字は Compose の既定で黒になり、
   黒地では読めなくなるため。`surfaceVariant` はカードの地と別の値にしてある（同じにすると
   `contentColorFor` がカードの文字色を薄い青灰に寄せてしまう）。
-- 左メニュー（`ui/navigation/TimTraDrawer`）は塗りつぶしのピルをやめ、
-  選択中は左端の細いアクセント棒と水色の文字で示す。上にアイコン + ワードマーク + 版、下に出典。
+- **左メニューは持たない。** 画面の行き来と更新は、ホーム右下の 1 つのボタンから展開する
+  （`ui/common/ActionMenuFab`。時刻表 / 設定 / このアプリについて / 更新）。
+  ホーム以外の画面は左上の戻るで 1 つ前へ帰る。往路 / 復路の手動切替はホーム脚注のボタンへ移した。
 - 時刻表の地点タブも塗りつぶしのピルをやめ、下線と文字の濃さだけで選択を示す。
 - 地図は OSM のタイル（白地）に色変換（`TransitColors.mapTileMatrix`）をかけて黒地に寄せる。
   浮かせるラベルの地も白から濃紺（`TransitColors.labelFill`）へ。
-  往路/復路の切替は右下の青い FAB。ステータスバーは白アイコン、ナビゲーションバーは黒アイコン（edge-to-edge）。
+  システムバーのアイコンは上下とも白（edge-to-edge）。
   Compose の material-icons は使わず、必要なアイコンは `res/drawable/ic_*.xml` に持つ。
 - 交通手段のアイコンと色は `ui/common/TransitIcons.kt` に集約する（`TransitMode.BUS` = 橙 + `ic_bus`、`TransitMode.JR` = 青 + `ic_train`、
   `ModeBadge` / `ModeChip` / `CircleIcon` / `InfoPill`）。ホーム・時刻表・地図はすべてこれを使い、画面ごとに色や絵柄を変えない。

@@ -28,7 +28,7 @@ import com.kazuya.timtra.ui.theme.TopBarTitle
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(
-    onOpenDrawer: () -> Unit,
+    onBack: () -> Unit,
     viewModel: AboutViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -38,8 +38,8 @@ fun AboutScreen(
             TimTraTopBar(
                 title = { TopBarTitle(stringResource(R.string.about_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onOpenDrawer) {
-                        Icon(painterResource(R.drawable.ic_menu), contentDescription = stringResource(R.string.action_menu))
+                    IconButton(onClick = onBack) {
+                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.action_back))
                     }
                 },
             )

@@ -86,7 +86,7 @@ private sealed interface RowItem {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimetableScreen(
-    onOpenDrawer: () -> Unit,
+    onBack: () -> Unit,
     viewModel: TimetableViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -106,8 +106,8 @@ fun TimetableScreen(
             Column(modifier = Modifier.fillMaxWidth().background(TimTraColors.headerGradient)) {
                 TopAppBar(
                     navigationIcon = {
-                        IconButton(onClick = onOpenDrawer) {
-                            Icon(painterResource(R.drawable.ic_menu), contentDescription = stringResource(R.string.action_menu))
+                        IconButton(onClick = onBack) {
+                            Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.action_back))
                         }
                     },
                     title = {

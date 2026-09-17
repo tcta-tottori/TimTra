@@ -67,7 +67,7 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    onOpenDrawer: () -> Unit,
+    onBack: () -> Unit,
     onOpenAbout: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -87,8 +87,8 @@ fun SettingsScreen(
             TimTraTopBar(
                 title = { TopBarTitle(stringResource(R.string.settings_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onOpenDrawer) {
-                        Icon(painterResource(R.drawable.ic_menu), contentDescription = stringResource(R.string.action_menu))
+                    IconButton(onClick = onBack) {
+                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.action_back))
                     }
                 },
             )
