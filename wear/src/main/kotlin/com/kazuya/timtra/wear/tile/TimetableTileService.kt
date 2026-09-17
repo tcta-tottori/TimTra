@@ -135,7 +135,7 @@ class TimetableTileService : TileService() {
             .addContent(text(name, PLACE_SP, WHITE, bold = true))
             .build()
 
-    /** リングに包まれたアイコンと、右に「次の便まで NN 分」。 */
+    /** 左に「次の便まで NN 分」、右にリングで囲んだアイコン（アプリのホームと同じ並び）。 */
     private fun countdownRow(
         snapshot: BoardSnapshot,
         next: Departure,
@@ -169,9 +169,9 @@ class TimetableTileService : TileService() {
         return LayoutElementBuilders.Row
             .Builder()
             .setVerticalAlignment(VERTICAL_ALIGN_CENTER)
-            .addContent(ring.build())
-            .addContent(hSpacer(GAP_DP))
             .addContent(label)
+            .addContent(hSpacer(GAP_DP))
+            .addContent(ring.build())
             .build()
     }
 

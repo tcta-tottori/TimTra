@@ -29,7 +29,7 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 1. 現在時刻（`TimeText`）
 2. 📍（青）+ 地点名（大きく太く）
 3. 行き先・路線（1 行）
-4. リングに包まれたバス / 電車アイコンと、右に「次の便まで」+ 大きな残り時間（単位は水色）
+4. 左に「次の便まで」+ 大きな残り時間（単位は水色）、右にリングで囲んだバス / 電車アイコン
 5. 画面下部の発時刻（`行き先 行き` + `H:MM`）
 
 発時刻は角丸カードに乗せない。丸い文字盤では隅が切れて見栄えが悪いので、
@@ -42,20 +42,16 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 
 ### リング（サークルバー）
 
-表すのは「発車まであと何割か」ではなく **「そろそろ出ないと間に合わない」** の度合い。
-計算は core の `board/CountdownGauge`（純 Kotlin、テストあり）で、`BoardSnapshot.gauge` に載る。
-
-`travel` はその地点まで行くのにかかる設定値（南吉成なら自宅→バス停の徒歩、宝木駅なら
-勤務先→駅、鳥取駅なら乗換時間）、`prep` は準備時間（バッファ）。
+砂時計と同じで **減っていく**。計算は core の `board/CountdownGauge`（純 Kotlin、テストあり）で、
+`BoardSnapshot.gauge` に載る。設定値には依らない。
 
 | 残り時間 | リング |
 | --- | --- |
-| `travel × 2 + prep` より多い | 空。動かない |
-| その間 | 0 → 1 へ線形に満ちる（`travel` ぶんかけて満ちる） |
-| `travel + prep` 以下（= 出発目安時刻を過ぎた） | フル |
+| `CountdownGauge.WINDOW`（15 分）より多い | 満タンのまま |
+| 15 分前 → 発車時刻 | 1 → 0 へ線形に減る |
+| 発車時刻（およびそれ以降） | 0 |
 
-既定値なら南吉成は 15 分前に動き出し、10 分前（出発目安時刻）でフル。
-宝木駅は 35 分前に動き出し、20 分前でフル。描画は `Canvas` の `drawArc` を 2 本重ねる。
+描画は `Canvas` の `drawArc` を 2 本（地と残量）重ねる。
 
 操作:
 
@@ -118,7 +114,7 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 
 残り時間は `TimeDifferenceComplicationText` なので毎分の書き換えは文字盤側が行う。
 アプリ側の再計算は `UPDATE_PERIOD_SECONDS`（600 秒）で、次の便へ切り替えるためだけに走る。
-RANGED_VALUE の値はホームのリングと同じ `BoardSnapshot.gauge`（`CountdownGauge`）。
+RANGED_VALUE の値はホームのリングと同じ `BoardSnapshot.gauge`（`CountdownGauge`）。発車が近いほど減る。
 
 ### 日付（`DateComplicationService`）
 

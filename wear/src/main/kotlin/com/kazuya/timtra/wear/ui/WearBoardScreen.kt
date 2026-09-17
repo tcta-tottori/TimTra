@@ -240,8 +240,8 @@ private fun PlaceHeader(place: BoardPlace) {
 }
 
 /**
- * 中央。リングにバス / 電車アイコンを重ね、右に「次の便まで」と大きな残り時間を置く。
- * リングは発車までの割合ではなく「そろそろ出ないと間に合わない」度合い
+ * 中央。左に「次の便まで」と大きな残り時間、右にリングで囲んだバス / 電車アイコンを置く。
+ * リングは砂時計と同じで、発車 15 分前から減りはじめ発車時刻で 0 になる
  * （core の `CountdownGauge`。[BoardSnapshot.gauge]）。
  */
 @Composable
@@ -251,6 +251,32 @@ private fun CountdownRing(
 ) {
     val context = LocalContext.current
     Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(horizontalAlignment = Alignment.Start) {
+            Text(
+                text = stringResource(R.string.board_next_in),
+                fontSize = CAPTION_SP.sp,
+                color = WearColors.onSurfaceSubtle,
+                maxLines = 1,
+            )
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = context.countdownValue(s.now, next.at),
+                    fontSize = COUNTDOWN_SP.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 1,
+                )
+                Text(
+                    text = context.countdownUnit(s.now, next.at),
+                    fontSize = UNIT_SP.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = WearColors.accentLight,
+                    maxLines = 1,
+                    modifier = Modifier.padding(bottom = 4.dp, start = 2.dp),
+                )
+            }
+        }
+        Spacer(Modifier.width(8.dp))
         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(RING_DP.dp)) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val stroke = RING_STROKE_DP.dp.toPx()
@@ -284,32 +310,6 @@ private fun CountdownRing(
                 tint = Color.White,
                 modifier = Modifier.size(RING_ICON_DP.dp),
             )
-        }
-        Spacer(Modifier.width(8.dp))
-        Column(horizontalAlignment = Alignment.End) {
-            Text(
-                text = stringResource(R.string.board_next_in),
-                fontSize = CAPTION_SP.sp,
-                color = WearColors.onSurfaceSubtle,
-                maxLines = 1,
-            )
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    text = context.countdownValue(s.now, next.at),
-                    fontSize = COUNTDOWN_SP.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    maxLines = 1,
-                )
-                Text(
-                    text = context.countdownUnit(s.now, next.at),
-                    fontSize = UNIT_SP.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = WearColors.accentLight,
-                    maxLines = 1,
-                    modifier = Modifier.padding(bottom = 4.dp, start = 2.dp),
-                )
-            }
         }
     }
 }
