@@ -3,7 +3,6 @@ package com.kazuya.timtra.ui.timetable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,7 +18,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -28,6 +26,7 @@ import com.kazuya.timtra.ui.common.InfoPill
 import com.kazuya.timtra.ui.common.ModeBadge
 import com.kazuya.timtra.ui.common.TransitMode
 import com.kazuya.timtra.ui.common.hhmm
+import com.kazuya.timtra.ui.common.riseIn
 import com.kazuya.timtra.ui.theme.StatusColors
 import com.kazuya.timtra.ui.theme.TimTraColors
 
@@ -68,28 +67,6 @@ internal fun HourHeader(
     }
 }
 
-/** 過ぎた便と次の便の境目に引く「現在 HH:mm」の線。 */
-@Composable
-internal fun NowMarker(nowText: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(modifier = Modifier.weight(1f).height(2.dp).background(StatusColors.risk))
-        Text(
-            text = stringResource(R.string.timetable_now_marker, nowText),
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
-            modifier =
-                Modifier
-                    .background(StatusColors.risk, RoundedCornerShape(50))
-                    .padding(horizontal = 10.dp, vertical = 3.dp),
-        )
-        Box(modifier = Modifier.weight(1f).height(2.dp).background(StatusColors.risk))
-    }
-}
-
 /** 便 1 行。時刻を大きく、種別を色付きアイコンで、行先と系統・のりばをピルで。 */
 @Composable
 internal fun TimetableRow(
@@ -104,6 +81,7 @@ internal fun TimetableRow(
         modifier =
             Modifier
                 .fillMaxWidth()
+                .riseIn()
                 .padding(horizontal = 12.dp, vertical = 3.dp)
                 .then(
                     if (isNext) {

@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kazuya.timtra.core.journey.JourneyStatus
+import com.kazuya.timtra.ui.common.riseIn
 
 /**
  * 配色。時計版（`wear/ui/WearTheme.kt`）に合わせた黒地・濃紺。
@@ -79,6 +80,15 @@ object TimTraColors {
 
     /** カウントダウンのリング（明るい水色 → 青）。 */
     val ringGradient: Brush = Brush.linearGradient(listOf(accentLight, gradientStart))
+
+    /** 右下の「+」。左上が明るく、右下へ落ちる青。 */
+    val fabGradient: Brush = Brush.linearGradient(listOf(Color(0xFF8FD4FF), gradientStart, gradientEnd))
+
+    /** 「+」の外側に敷く光。中心はボタンに隠れるので、縁だけがふわりと見える。 */
+    val fabHalo: Brush = Brush.radialGradient(0.55f to primary.copy(alpha = 0.45f), 1f to Color.Transparent)
+
+    /** 丸いボタン・バッジの縁。白をごく薄く回して、地から切り離す。 */
+    val fabRing: Color = Color.White.copy(alpha = 0.35f)
 
     /** 左メニューの地。画面の地より少しだけ青を強くして、手前にあることを示す。 */
     val drawerGradient: Brush = Brush.verticalGradient(listOf(Color(0xFF12203C), Color(0xFF070D1A)))
@@ -211,7 +221,7 @@ fun TimTraCard(
     content: @Composable () -> Unit,
 ) {
     Surface(
-        modifier = modifier,
+        modifier = modifier.riseIn(),
         shape = RoundedCornerShape(20.dp),
         color = containerColor,
         border = BorderStroke(1.dp, borderColor),
@@ -228,7 +238,7 @@ fun HeroSection(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    Box(modifier = modifier) { content() }
+    Box(modifier = modifier.riseIn()) { content() }
 }
 
 /** 青グラデーションのトップバー。ステータスバーの裏まで塗る。 */

@@ -18,7 +18,7 @@ object Routes {
 
 /**
  * 画面の行き来。左メニューはやめ、ホーム右下のボタン（[com.kazuya.timtra.ui.common.ActionMenuFab]）に
- * 集約した。ホーム以外は左上の戻るで 1 つ前へ帰る。
+ * 集約した。「このアプリについて」は設定の中に置く。時刻表は右下の戻るで、他は左上の戻るで 1 つ前へ帰る。
  */
 @Composable
 fun TimTraNavHost() {
@@ -29,7 +29,6 @@ fun TimTraNavHost() {
             HomeScreen(
                 onOpenTimetable = { navController.navigate(Routes.TIMETABLE) },
                 onOpenSettings = { navController.navigate(Routes.SETTINGS) },
-                onOpenAbout = { navController.navigate(Routes.ABOUT) },
             )
         }
         composable(Routes.TIMETABLE) { TimetableScreen(onBack = back) }

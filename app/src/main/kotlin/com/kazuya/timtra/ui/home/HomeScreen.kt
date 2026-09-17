@@ -80,6 +80,7 @@ import com.kazuya.timtra.ui.common.ModeChip
 import com.kazuya.timtra.ui.common.TransitMode
 import com.kazuya.timtra.ui.common.destinationIconRes
 import com.kazuya.timtra.ui.common.distanceText
+import com.kazuya.timtra.ui.common.fadeBottomEdge
 import com.kazuya.timtra.ui.common.hhmm
 import com.kazuya.timtra.ui.common.labelRes
 import com.kazuya.timtra.ui.common.originIconRes
@@ -100,7 +101,6 @@ import java.time.ZoneId
 fun HomeScreen(
     onOpenTimetable: () -> Unit,
     onOpenSettings: () -> Unit,
-    onOpenAbout: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -136,16 +136,15 @@ fun HomeScreen(
                     )
             }
         }
-        // 左メニューはやめ、画面の行き来と更新はこのボタンに集約する
+        // 左メニューはやめ、画面の行き来と更新はこのボタンに集約する（上・左・斜め上の順）
         ActionMenuFab(
             expanded = menuOpen,
             onExpandedChange = { menuOpen = it },
             actions =
                 listOf(
                     FabAction(R.string.nav_timetable, R.drawable.ic_schedule, onOpenTimetable),
-                    FabAction(R.string.nav_settings, R.drawable.ic_settings, onOpenSettings),
-                    FabAction(R.string.nav_about, R.drawable.ic_info, onOpenAbout),
                     FabAction(R.string.action_refresh, R.drawable.ic_refresh, viewModel::refresh),
+                    FabAction(R.string.nav_settings, R.drawable.ic_settings, onOpenSettings),
                 ),
         )
     }
@@ -165,6 +164,7 @@ private fun HomeContent(
         modifier =
             modifier
                 .fillMaxSize()
+                .fadeBottomEdge()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),

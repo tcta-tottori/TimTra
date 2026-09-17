@@ -181,7 +181,6 @@
     <string name="timetable_filter_all">すべて</string>
     <string name="timetable_filter_bus">バスのみ</string>
     <string name="timetable_filter_jr">JRのみ</string>
-    <string name="timetable_now_marker">現在 %1$s</string>
     <string name="timetable_bound_for">%1$s行</string>
     <string name="timetable_hour">%1$d</string>
     <string name="timetable_hour_suffix">時</string>
@@ -190,7 +189,6 @@
     <string name="timetable_departs_in">あと %1$d 分</string>
     <string name="timetable_departs_in_hours">あと %1$d 時間 %2$d 分</string>
     <string name="timetable_departs_now">まもなく</string>
-    <string name="timetable_scroll_to_now">現在時刻へ</string>
     <string name="timetable_summary_count">%1$d 本</string>
     <string name="timetable_summary_first_last">始発 %1$s ・ 最終 %2$s</string>
     <string name="timetable_platform_short">%1$s番</string>

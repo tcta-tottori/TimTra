@@ -17,14 +17,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -37,10 +38,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -53,14 +52,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kazuya.timtra.R
 import com.kazuya.timtra.ui.common.TransitMode
 import com.kazuya.timtra.ui.common.departsInText
+import com.kazuya.timtra.ui.common.fadeBottomEdge
 import com.kazuya.timtra.ui.common.hhmm
 import com.kazuya.timtra.ui.theme.TimTraColors
-import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 
 private val dateFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("M月d日(E)")
 
-/** LazyColumn の 1 行。時間帯の見出し・現在時刻の線・便のいずれか。 */
+/** LazyColumn の 1 行。時間帯の見出しか、便のいずれか。 */
 private sealed interface RowItem {
     val key: String
 
@@ -69,10 +68,6 @@ private sealed interface RowItem {
         val count: Int,
     ) : RowItem {
         override val key: String get() = "h$hour"
-    }
-
-    data object Now : RowItem {
-        override val key: String get() = "now"
     }
 
     data class Entry(
@@ -91,13 +86,12 @@ fun TimetableScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
     val rows = remember(state.entries, state.upcomingIndex, state.isToday) { buildRows(state) }
-    val nowRowIndex = rows.indexOfFirst { it is RowItem.Now }
+    // 今日の表示では次の便の位置に自動スクロール（CLAUDE.md 7-2）。他の日種別は先頭から。
+    val nextRowIndex = rows.indexOfFirst { it is RowItem.Entry && it.index == state.upcomingIndex }
 
-    // 今日の表示では現在時刻の位置に自動スクロール（CLAUDE.md 7-2）。他の日種別は先頭から。
     LaunchedEffect(state.tab, state.day, state.stationFilter, state.loading) {
-        if (!state.loading) listState.scrollToItem((nowRowIndex - 1).coerceAtLeast(0))
+        if (!state.loading) listState.scrollToItem((nextRowIndex - 1).coerceAtLeast(0))
     }
 
     Scaffold(
@@ -105,11 +99,6 @@ fun TimetableScreen(
         topBar = {
             Column(modifier = Modifier.fillMaxWidth().background(TimTraColors.headerGradient)) {
                 TopAppBar(
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.action_back))
-                        }
-                    },
                     title = {
                         Column {
                             Text(stringResource(R.string.timetable_title), style = MaterialTheme.typography.titleLarge)
@@ -132,17 +121,8 @@ fun TimetableScreen(
                 HeaderTabs(selected = state.tab, onSelect = viewModel::selectTab)
             }
         },
-        floatingActionButton = {
-            if (state.isToday && nowRowIndex >= 0) {
-                ExtendedFloatingActionButton(
-                    onClick = { scope.launch { listState.animateScrollToItem((nowRowIndex - 1).coerceAtLeast(0)) } },
-                    containerColor = TimTraColors.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    icon = { Icon(painterResource(R.drawable.ic_timer), contentDescription = null) },
-                    text = { Text(stringResource(R.string.timetable_scroll_to_now)) },
-                )
-            }
-        },
+        // ホームと同じ位置（右下）に戻るボタンを置く
+        floatingActionButton = { BackFab(onBack) },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             DaySelector(selected = state.day, onSelect = viewModel::selectDay)
@@ -155,11 +135,10 @@ fun TimetableScreen(
                 EmptyState(state)
             } else {
                 SummaryStrip(state)
-                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize().fadeBottomEdge()) {
                     itemsIndexed(rows, key = { _, row -> row.key }) { _, row ->
                         when (row) {
                             is RowItem.Header -> HourHeader(row.hour, row.count)
-                            RowItem.Now -> NowMarker(state.now.hhmm())
                             is RowItem.Entry -> {
                                 val upcoming = state.upcomingIndex
                                 TimetableRow(
@@ -183,25 +162,47 @@ fun TimetableScreen(
     }
 }
 
-/** 時間帯ごとの見出しを挟み、今日の表示では次の便の直前に「現在」の線を入れる。 */
+/** 時間帯ごとの見出しを挟んで、便を並べる。 */
 private fun buildRows(state: TimetableUiState): List<RowItem> {
-    val upcoming = state.upcomingIndex
     val rows = mutableListOf<RowItem>()
-    var nowInserted = !state.isToday
     for (group in state.hourGroups) {
         rows += RowItem.Header(group.hour, group.items.size)
-        for ((index, entry) in group.items) {
-            if (!nowInserted && index == upcoming) {
-                rows += RowItem.Now
-                nowInserted = true
-            }
-            rows += RowItem.Entry(index, entry)
-        }
+        for ((index, entry) in group.items) rows += RowItem.Entry(index, entry)
     }
-    // すべて過ぎている（最終便のあと）ときは末尾に
-    if (!nowInserted) rows += RowItem.Now
     return rows
 }
+
+/** 右下の戻る。ホームの「+」と同じ場所・同じ大きさにそろえる。 */
+@Composable
+private fun BackFab(onBack: () -> Unit) {
+    FloatingActionButton(
+        onClick = onBack,
+        modifier = Modifier.size(FAB_DP.dp),
+        containerColor = Color.Transparent,
+        contentColor = Color.White,
+        shape = CircleShape,
+        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(TimTraColors.fabGradient, CircleShape)
+                    .border(1.dp, TimTraColors.fabRing, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_arrow_back),
+                contentDescription = stringResource(R.string.action_back),
+                modifier = Modifier.size(FAB_ICON_DP.dp),
+            )
+        }
+    }
+}
+
+/** ホームの「+」と同じ寸法。 */
+private const val FAB_DP = 60f
+private const val FAB_ICON_DP = 28f
 
 /** ヘッダー 2 行目。今日はその旨を、日種別指定はどの日の例かを示す。 */
 @Composable
