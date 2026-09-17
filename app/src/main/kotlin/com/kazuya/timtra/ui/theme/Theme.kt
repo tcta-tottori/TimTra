@@ -18,7 +18,6 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -220,20 +219,16 @@ fun TimTraCard(
     )
 }
 
-/** 青グラデーションのカード（出発時刻など主役の情報）。中の文字は白。 */
+/**
+ * 主役の情報（出発時刻・残り時間）を置く場所。
+ * いちばん上はカードにせず、画面の地の上に文字だけを置く。
+ */
 @Composable
-fun GradientCard(
+fun HeroSection(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    Box(
-        modifier =
-            modifier
-                .clip(RoundedCornerShape(24.dp))
-                .background(TimTraColors.headerGradient),
-    ) {
-        content()
-    }
+    Box(modifier = modifier) { content() }
 }
 
 /** 青グラデーションのトップバー。ステータスバーの裏まで塗る。 */

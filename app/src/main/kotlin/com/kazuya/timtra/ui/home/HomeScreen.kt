@@ -39,6 +39,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -83,7 +84,7 @@ import com.kazuya.timtra.ui.common.hhmm
 import com.kazuya.timtra.ui.common.labelRes
 import com.kazuya.timtra.ui.common.originIconRes
 import com.kazuya.timtra.ui.common.statusLabel
-import com.kazuya.timtra.ui.theme.GradientCard
+import com.kazuya.timtra.ui.theme.HeroSection
 import com.kazuya.timtra.ui.theme.StatusColors
 import com.kazuya.timtra.ui.theme.TimTraCard
 import com.kazuya.timtra.ui.theme.TimTraColors
@@ -109,39 +110,44 @@ fun HomeScreen(
     // 権限画面から戻ったときに状態を取り直す
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
     peek?.let { TimetablePeekSheet(peek = it, now = nowSecond.toLocalTime(), onDismiss = viewModel::closePeek) }
-    Scaffold(
-        containerColor = Color.Transparent,
-        topBar = { TimTraTopBar(title = { TopBarTitle(stringResource(R.string.nav_home)) }) },
-        floatingActionButton = {
-            // 左メニューはやめ、画面の行き来と更新はこのボタンに集約する
-            ActionMenuFab(
-                actions =
-                    listOf(
-                        FabAction(R.string.nav_timetable, R.drawable.ic_schedule, onOpenTimetable),
-                        FabAction(R.string.nav_settings, R.drawable.ic_settings, onOpenSettings),
-                        FabAction(R.string.nav_about, R.drawable.ic_info, onOpenAbout),
-                        FabAction(R.string.action_refresh, R.drawable.ic_refresh, viewModel::refresh),
-                    ),
-            )
-        },
-    ) { padding ->
-        when (val s = state) {
-            HomeUiState.Loading ->
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    contentAlignment = Alignment.Center,
-                ) { CircularProgressIndicator() }
-            is HomeUiState.Ready ->
-                HomeContent(
-                    state = s,
-                    nowSecond = nowSecond,
-                    onBoundChange = viewModel::setBound,
-                    onPermissionsChanged = viewModel::refresh,
-                    onResumeReminders = viewModel::resumeTrainReminders,
-                    onOpenPeek = viewModel::openPeek,
-                    modifier = Modifier.padding(padding),
-                )
+    var menuOpen by rememberSaveable { mutableStateOf(false) }
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = { TimTraTopBar(title = { TopBarTitle(stringResource(R.string.app_name)) }) },
+            // メニューを開いているあいだは後ろをぼかす（Android 12 未満では暗幕だけが効く）
+            modifier = Modifier.blur(if (menuOpen) MENU_BLUR_DP.dp else 0.dp),
+        ) { padding ->
+            when (val s = state) {
+                HomeUiState.Loading ->
+                    Box(
+                        modifier = Modifier.fillMaxSize().padding(padding),
+                        contentAlignment = Alignment.Center,
+                    ) { CircularProgressIndicator() }
+                is HomeUiState.Ready ->
+                    HomeContent(
+                        state = s,
+                        nowSecond = nowSecond,
+                        onBoundChange = viewModel::setBound,
+                        onPermissionsChanged = viewModel::refresh,
+                        onResumeReminders = viewModel::resumeTrainReminders,
+                        onOpenPeek = viewModel::openPeek,
+                        modifier = Modifier.padding(padding),
+                    )
+            }
         }
+        // 左メニューはやめ、画面の行き来と更新はこのボタンに集約する
+        ActionMenuFab(
+            expanded = menuOpen,
+            onExpandedChange = { menuOpen = it },
+            actions =
+                listOf(
+                    FabAction(R.string.nav_timetable, R.drawable.ic_schedule, onOpenTimetable),
+                    FabAction(R.string.nav_settings, R.drawable.ic_settings, onOpenSettings),
+                    FabAction(R.string.nav_about, R.drawable.ic_info, onOpenAbout),
+                    FabAction(R.string.action_refresh, R.drawable.ic_refresh, viewModel::refresh),
+                ),
+        )
     }
 }
 
@@ -349,7 +355,7 @@ private fun RestCard(
     settings: CommuteSettings,
     now: LocalDateTime,
 ) {
-    GradientCard(modifier = Modifier.fillMaxWidth()) {
+    HeroSection(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -402,7 +408,7 @@ private fun LeaveCard(
     here: GeoPoint?,
     landmarks: RouteLandmarks,
 ) {
-    GradientCard(modifier = Modifier.fillMaxWidth()) {
+    HeroSection(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -541,7 +547,7 @@ private fun NextDepartureCard(
     val mode = if (outbound) TransitMode.BUS else TransitMode.JR
     val departAt = if (outbound) journey.busDepartureEstimatedAt else journey.train.departureAt
     val from = if (outbound) journey.bus.trip.boardStop.name else HOUGI
-    GradientCard(modifier = Modifier.fillMaxWidth()) {
+    HeroSection(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -615,7 +621,7 @@ private fun NextStationBusCard(
     landmarks: RouteLandmarks,
 ) {
     val departAt = bus.departureAt.plus(delay)
-    GradientCard(modifier = Modifier.fillMaxWidth()) {
+    HeroSection(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -1290,6 +1296,9 @@ private fun SummaryLeg(
 private val WARNING_CONTAINER = Color(0xFF4A3212)
 
 /** 主役の数字の高さ（dp）。 */
+/** メニューを開いているあいだ、後ろにかけるぼかしの強さ。 */
+private const val MENU_BLUR_DP = 14f
+
 private const val HERO_CAP_DP = 38f
 
 /** 主役以外の残り時間の高さ（dp）。 */
