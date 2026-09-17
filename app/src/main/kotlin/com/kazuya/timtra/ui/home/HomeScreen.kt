@@ -1284,7 +1284,9 @@ private fun SummaryLeg(
     }
 }
 
-private val WARNING_CONTAINER = Color(0xFFFFF4E0)
+/** 注意のバナーの地。黒地でも読めるよう、橙を暗く落としたもの。 */
+private val WARNING_CONTAINER = Color(0xFF4A3212)
+
 /** 主役の数字の高さ（dp）。 */
 private const val HERO_CAP_DP = 44f
 
