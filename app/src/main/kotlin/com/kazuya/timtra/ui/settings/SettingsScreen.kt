@@ -55,6 +55,7 @@ import com.kazuya.timtra.core.notify.SuppressReason
 import com.kazuya.timtra.data.repository.AppSettings
 import com.kazuya.timtra.data.repository.NotificationPlanSummary
 import com.kazuya.timtra.location.LocationProvider
+import com.kazuya.timtra.ui.common.BackFabOverlay
 import com.kazuya.timtra.ui.common.hhmm
 import com.kazuya.timtra.ui.theme.StatusColors
 import com.kazuya.timtra.ui.theme.TimTraTopBar
@@ -81,18 +82,24 @@ fun SettingsScreen(
             viewModel.consumeMessage()
         }
     }
+    Box(modifier = Modifier.fillMaxSize()) {
+        SettingsScaffold(settings, planSummary, viewModel, onOpenAbout)
+        // ホームの「+」とまったく同じ位置・大きさの戻る
+        BackFabOverlay(onBack)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsScaffold(
+    settings: AppSettings?,
+    planSummary: NotificationPlanSummary,
+    viewModel: SettingsViewModel,
+    onOpenAbout: () -> Unit,
+) {
     Scaffold(
         containerColor = Color.Transparent,
-        topBar = {
-            TimTraTopBar(
-                title = { TopBarTitle(stringResource(R.string.settings_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.action_back))
-                    }
-                },
-            )
-        },
+        topBar = { TimTraTopBar(title = { TopBarTitle(stringResource(R.string.settings_title)) }) },
     ) { padding ->
         val current = settings
         if (current == null) {
@@ -227,7 +234,7 @@ private fun SettingsContent(
             Spacer(Modifier.width(12.dp))
             Text(stringResource(R.string.nav_about), style = MaterialTheme.typography.bodyLarge)
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(96.dp))
     }
 }
 

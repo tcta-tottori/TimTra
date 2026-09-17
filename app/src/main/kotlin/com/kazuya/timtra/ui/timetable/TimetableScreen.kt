@@ -15,16 +15,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -50,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kazuya.timtra.R
+import com.kazuya.timtra.ui.common.BackFabOverlay
 import com.kazuya.timtra.ui.common.TransitMode
 import com.kazuya.timtra.ui.common.departsInText
 import com.kazuya.timtra.ui.common.fadeBottomEdge
@@ -94,6 +93,21 @@ fun TimetableScreen(
         if (!state.loading) listState.scrollToItem((nextRowIndex - 1).coerceAtLeast(0))
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
+        TimetableScaffold(state, listState, rows, viewModel)
+        // ホームの「+」とまったく同じ位置・大きさの戻る
+        BackFabOverlay(onBack)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimetableScaffold(
+    state: TimetableUiState,
+    listState: LazyListState,
+    rows: List<RowItem>,
+    viewModel: TimetableViewModel,
+) {
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
@@ -121,8 +135,6 @@ fun TimetableScreen(
                 HeaderTabs(selected = state.tab, onSelect = viewModel::selectTab)
             }
         },
-        // ホームと同じ位置（右下）に戻るボタンを置く
-        floatingActionButton = { BackFab(onBack) },
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             DaySelector(selected = state.day, onSelect = viewModel::selectDay)
@@ -171,38 +183,6 @@ private fun buildRows(state: TimetableUiState): List<RowItem> {
     }
     return rows
 }
-
-/** 右下の戻る。ホームの「+」と同じ場所・同じ大きさにそろえる。 */
-@Composable
-private fun BackFab(onBack: () -> Unit) {
-    FloatingActionButton(
-        onClick = onBack,
-        modifier = Modifier.size(FAB_DP.dp),
-        containerColor = Color.Transparent,
-        contentColor = Color.White,
-        shape = CircleShape,
-        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(TimTraColors.fabGradient, CircleShape)
-                    .border(1.dp, TimTraColors.fabRing, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_arrow_back),
-                contentDescription = stringResource(R.string.action_back),
-                modifier = Modifier.size(FAB_ICON_DP.dp),
-            )
-        }
-    }
-}
-
-/** ホームの「+」と同じ寸法。 */
-private const val FAB_DP = 60f
-private const val FAB_ICON_DP = 28f
 
 /** ヘッダー 2 行目。今日はその旨を、日種別指定はどの日の例かを示す。 */
 @Composable

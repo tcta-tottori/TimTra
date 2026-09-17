@@ -4,7 +4,6 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -13,12 +12,8 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,17 +21,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.kazuya.timtra.R
-import com.kazuya.timtra.ui.theme.TimTraColors
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -51,7 +42,8 @@ data class FabAction(
  * 右下の 1 つのボタンから、時刻表・更新・設定を展開して出す。左メニューの代わり。
  *
  * 並びは渡した順に 上・左・斜め上。上のものから少しずつ遅らせて、
- * 「+」の周りを弧を描きながら外へ出てくる。後ろの画面は呼び出し側でぼかす。
+ * 「+」の周りを弧を描きながら外へ出てくる。開いているあいだ「+」はグレーに変わる。
+ * 展開する項目も「+」と同じ大きさ・同じ見た目（[GlowFabFace]）。後ろの画面は呼び出し側でぼかす。
  */
 @Composable
 fun ActionMenuFab(
@@ -60,25 +52,20 @@ fun ActionMenuFab(
     actions: List<FabAction>,
     modifier: Modifier = Modifier,
 ) {
-    val rotation by animateFloatAsState(
-        targetValue = if (expanded) OPEN_ROTATION else 0f,
+    val open by animateFloatAsState(
+        targetValue = if (expanded) 1f else 0f,
         animationSpec = tween(durationMillis = SWEEP_MILLIS, easing = FastOutSlowInEasing),
         label = "fab",
     )
     // 上にあるものから順に出す（弧の上から下へ）
     val order = remember(actions.size) { actions.indices.sortedBy { angleOf(it, actions.size) } }
     Box(modifier = modifier.fillMaxSize()) {
-        val scrimAlpha by animateFloatAsState(
-            targetValue = if (expanded) 1f else 0f,
-            animationSpec = tween(durationMillis = SWEEP_MILLIS),
-            label = "scrim",
-        )
-        if (expanded || scrimAlpha > 0f) {
+        if (expanded || open > 0f) {
             Box(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .graphicsLayer { alpha = scrimAlpha }
+                        .graphicsLayer { alpha = open }
                         .background(Color.Black.copy(alpha = SCRIM_ALPHA))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
@@ -98,7 +85,14 @@ fun ActionMenuFab(
                 },
             )
         }
-        PlusButton(rotation = rotation, expanded = expanded, onClick = { onExpandedChange(!expanded) })
+        GlowFab(
+            iconRes = R.drawable.ic_add,
+            contentDescription = stringResource(if (expanded) R.string.action_close_menu else R.string.action_menu),
+            onClick = { onExpandedChange(!expanded) },
+            modifier = Modifier.align(Alignment.BottomEnd).fabInset(),
+            iconRotation = OPEN_ROTATION * open,
+            muted = open,
+        )
     }
 }
 
@@ -129,8 +123,7 @@ private fun BoxScope.ArcItem(
         modifier =
             Modifier
                 .align(Alignment.BottomEnd)
-                .navigationBarsPadding()
-                .padding(end = EDGE_DP.dp, bottom = EDGE_DP.dp)
+                .fabInset()
                 .offset(
                     x = (CENTER_X_DP - radius * sin(radians)).toFloat().dp,
                     y = (CENTER_Y_DP - radius * cos(radians)).toFloat().dp,
@@ -144,7 +137,7 @@ private fun BoxScope.ArcItem(
     }
 }
 
-/** 大きな丸いアイコンバッジと、その下の名前。 */
+/** 「+」と同じ丸ボタンと、その下の名前。 */
 @Composable
 private fun ActionItem(
     action: FabAction,
@@ -162,23 +155,8 @@ private fun ActionItem(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top,
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(BADGE_DP.dp)
-                    .shadow(BADGE_ELEVATION_DP.dp, CircleShape, spotColor = TimTraColors.gradientStart)
-                    .background(TimTraColors.headerGradient, CircleShape)
-                    .border(RING_DP.dp, TimTraColors.fabRing, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(action.iconRes),
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(BADGE_ICON_DP.dp),
-            )
-        }
-        Box(modifier = Modifier.height(6.dp))
+        GlowFabFace(iconRes = action.iconRes, contentDescription = null)
+        Box(modifier = Modifier.height(2.dp))
         Text(
             text = stringResource(action.labelRes),
             style = MaterialTheme.typography.labelSmall,
@@ -187,47 +165,6 @@ private fun ActionItem(
             textAlign = TextAlign.Center,
             maxLines = 2,
         )
-    }
-}
-
-/** 「+」。外側に淡い光を敷き、丸の中は青のグラデーションに白い縁を回す。 */
-@Composable
-private fun BoxScope.PlusButton(
-    rotation: Float,
-    expanded: Boolean,
-    onClick: () -> Unit,
-) {
-    Box(
-        modifier =
-            Modifier
-                .align(Alignment.BottomEnd)
-                .navigationBarsPadding()
-                .padding(end = (EDGE_DP - HALO_DP).dp, bottom = (EDGE_DP - HALO_DP).dp)
-                .size((FAB_DP + 2 * HALO_DP).dp)
-                .background(TimTraColors.fabHalo, CircleShape)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
-                ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(FAB_DP.dp)
-                    .shadow(FAB_ELEVATION_DP.dp, CircleShape, spotColor = TimTraColors.gradientStart)
-                    .background(TimTraColors.fabGradient, CircleShape)
-                    .border(RING_DP.dp, TimTraColors.fabRing, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_add),
-                contentDescription = stringResource(if (expanded) R.string.action_close_menu else R.string.action_menu),
-                tint = Color.White,
-                modifier = Modifier.size(FAB_ICON_DP.dp).rotate(rotation),
-            )
-        }
     }
 }
 
@@ -260,31 +197,17 @@ private const val SWEEP_DEGREES = 42f
 /** 出はじめの大きさ。 */
 private const val ITEM_MIN_SCALE = 0.55f
 
-/** 画面の隅からの余白と、押しボタンの大きさ。 */
-private const val EDGE_DP = 20f
-private const val FAB_DP = 60f
-private const val FAB_ICON_DP = 28f
-private const val FAB_ELEVATION_DP = 10f
-
-/** 「+」の外側に敷く光の幅。 */
-private const val HALO_DP = 12f
-
-/** 丸の縁の太さ。 */
-private const val RING_DP = 1f
-
-/** バッジの大きさと、その中のアイコン。 */
-private const val BADGE_DP = 56f
-private const val BADGE_ICON_DP = 26f
-private const val BADGE_ELEVATION_DP = 6f
-
-/** 1 項目ぶんの囲み（バッジ + 名前）。弧の上に中心を合わせるので、大きさを決め打ちにする。 */
-private const val ITEM_WIDTH_DP = 96f
-private const val ITEM_HEIGHT_DP = 92f
+/** 1 項目ぶんの囲み（丸ボタン + 名前）。弧の上に中心を合わせるので、大きさを決め打ちにする。 */
+private const val ITEM_WIDTH_DP = 100f
+private const val ITEM_HEIGHT_DP = FAB_OUTER_DP + 30f
 
 /** 弧の半径と、4 つ以上になったときの広がり（真上から左へ）。 */
-private const val RADIUS_DP = 128.0
+private const val RADIUS_DP = 136.0
 private const val ARC_DEGREES = 90f
 
-/** 右下ぞろえの囲みの「バッジの中心」を、押しボタンの中心に合わせるための補正。 */
-private const val CENTER_X_DP = (ITEM_WIDTH_DP - FAB_DP) / 2
-private const val CENTER_Y_DP = ITEM_HEIGHT_DP - BADGE_DP / 2 - FAB_DP / 2
+/**
+ * 右下ぞろえの囲みの「丸ボタンの中心」を、「+」の中心に合わせるための補正。
+ * 囲みは「+」と同じ余白（[fabInset]）で右下にそろえてあるので、大きさの差だけを見ればよい。
+ */
+private const val CENTER_X_DP = (ITEM_WIDTH_DP - FAB_OUTER_DP) / 2
+private const val CENTER_Y_DP = ITEM_HEIGHT_DP - FAB_OUTER_DP

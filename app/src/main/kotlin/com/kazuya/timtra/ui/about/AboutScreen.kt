@@ -1,13 +1,14 @@
 package com.kazuya.timtra.ui.about
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -15,12 +16,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kazuya.timtra.R
+import com.kazuya.timtra.ui.common.BackFabOverlay
 import com.kazuya.timtra.ui.theme.TimTraTopBar
 import com.kazuya.timtra.ui.theme.TopBarTitle
 
@@ -32,18 +33,19 @@ fun AboutScreen(
     viewModel: AboutViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    Box(modifier = Modifier.fillMaxSize()) {
+        AboutScaffold(state)
+        // ホームの「+」とまったく同じ位置・大きさの戻る
+        BackFabOverlay(onBack)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AboutScaffold(state: AboutUiState) {
     Scaffold(
         containerColor = Color.Transparent,
-        topBar = {
-            TimTraTopBar(
-                title = { TopBarTitle(stringResource(R.string.about_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.action_back))
-                    }
-                },
-            )
-        },
+        topBar = { TimTraTopBar(title = { TopBarTitle(stringResource(R.string.about_title)) }) },
     ) { padding ->
         Column(
             modifier =
@@ -94,6 +96,8 @@ fun AboutScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 16.dp),
             )
+            // 右下の戻るに隠れないだけの余白
+            Spacer(Modifier.height(96.dp))
         }
     }
 }
