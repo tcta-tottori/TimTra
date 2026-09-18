@@ -89,7 +89,7 @@ import com.kazuya.timtra.ui.theme.StatusColors
 import com.kazuya.timtra.ui.theme.TimTraCard
 import com.kazuya.timtra.ui.theme.TimTraColors
 import com.kazuya.timtra.ui.theme.TimTraTopBar
-import com.kazuya.timtra.ui.theme.TopBarTitle
+import com.kazuya.timtra.ui.theme.TopBarLogo
 import com.kazuya.timtra.ui.theme.TransitColors
 import com.kazuya.timtra.ui.timetable.TimetableFocus
 import java.time.Duration
@@ -113,7 +113,7 @@ fun HomeScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             containerColor = Color.Transparent,
-            topBar = { TimTraTopBar(title = { TopBarTitle(stringResource(R.string.app_name)) }) },
+            topBar = { TimTraTopBar(title = { TopBarLogo() }) },
         ) { padding ->
             when (val s = state) {
                 HomeUiState.Loading ->

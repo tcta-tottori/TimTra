@@ -81,9 +81,14 @@ AGP 9 系を採用した。AGP 9 では `org.jetbrains.kotlin.android` を適用
   `ModeBadge` / `ModeChip` / `CircleIcon` / `InfoPill`）。ホーム・時刻表・地図はすべてこれを使い、画面ごとに色や絵柄を変えない。
   地点（南吉成・鳥取駅・宝木駅・勤務先）のアイコンも同じファイルの `LandmarkKind` 拡張で決める。
 - 現在時刻は `data/di/AppClock` 経由で取得する（スマホ・Wear 共通。テストで差し替え可能）。
-- アプリアイコンは `docs/assets/icon-512.png`（青グラデーション、バスと電車）を元に、adaptive icon
-  （背景色 #1546AD + 中央 85% に縮小した前景 PNG、外側は透過）として `res/mipmap-*/` に生成している。
-  ドロワーのヘッダーと About で使う `drawable-nodpi/app_logo.png` も同じ元画像。
+- **ブランドの絵は `tools/brand_assets.py` が焼く**（元絵は `tools/brand/`。デザインを変えたときだけ実行）。
+  - ホームのヘッダーは題名ではなく **文字ロゴ**（`drawable-nodpi/logo_timtra.png`。白の「Tim」＋水色の「Tra」、
+    高さ 26dp の `TopBarLogo`）。元絵の輪郭のノイズは焼くときに落とし、2 色で塗り直している。
+    ホーム以外の画面は今までどおり題名（`TopBarTitle`）。
+  - アプリアイコンは adaptive icon。**地**は青のグラデーション（`drawable/ic_launcher_background.xml`。
+    元絵の左上と右下の色をそのまま拾ったベクタ）、**前景**はバス・電車・「TimTra」だけを抜いた PNG で、
+    安全圏（108dp のうち中央 72dp）に収めてある。旧式の四角・丸アイコンは元絵を型で抜いて作る。
+    スマホと時計で同じ絵を使う（`app` / `wear` の `res/mipmap-*`）。資料用は `docs/assets/icon-512.png`。
 - 通知まわりは `notify/`（docs/notify.md）。ウィジェットは `widget/`（docs/widget.md）。
 - サンプル時刻表で動いている間はホームに警告バナーを出す（`BusTimetable.isSampleData` / JR version が `sample` で始まる）。
 

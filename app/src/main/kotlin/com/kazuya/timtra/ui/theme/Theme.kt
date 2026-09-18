@@ -1,10 +1,12 @@
 package com.kazuya.timtra.ui.theme
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LocalContentColor
@@ -21,8 +23,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kazuya.timtra.R
 import com.kazuya.timtra.core.journey.JourneyStatus
 import com.kazuya.timtra.ui.common.riseIn
 
@@ -291,3 +296,19 @@ fun TimTraTopBar(
 fun TopBarTitle(text: String) {
     Text(text, style = MaterialTheme.typography.titleLarge)
 }
+
+/**
+ * トップバーに出す文字ロゴ。ホームだけはアプリ名の代わりにこれを置く。
+ * 絵は `tools/brand_assets.py` が元絵から焼いたもの（白の「Tim」＋水色の「Tra」）。
+ */
+@Composable
+fun TopBarLogo() {
+    Image(
+        painter = painterResource(R.drawable.logo_timtra),
+        contentDescription = stringResource(R.string.app_name),
+        modifier = Modifier.height(LOGO_HEIGHT.dp),
+    )
+}
+
+/** 文字ロゴの高さ。トップバーの 1 行に収まる大きさ。 */
+private const val LOGO_HEIGHT = 26
