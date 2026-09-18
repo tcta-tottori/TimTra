@@ -11,6 +11,7 @@
   data/.../data/glyph/Glyphs.kt                        寸法表と配置の比率
 
 「:」は見本に無いので、数字の大きさに合わせてここで作る。
+「/」は組み見本から芯だけを抜き、グローは作り直す（隣の字と近く、そのままでは混ざるため）。
 依存: pillow, numpy, scipy。デザインを変えたときだけ実行する。
 
   python3 tools/date_glyphs.py
@@ -92,13 +93,27 @@ def cut(lum, box, margin, name, limits=None, keep=None):
     return write(t, box, (mx0, my0), name)
 
 
-def soft_mask(lum, box, margin):
-    """[box] の中の字だけを残すぼかしマスク。隣の字のグローを持ち込まないために使う。"""
+def part_of(lum, box):
+    """[box] の中でいちばん大きい「つながった形」。隣の字と箱が重なっていても取り違えない。"""
     x0, x1, y0, y1 = box
-    core = np.zeros(lum.shape, dtype=np.float32)
-    core[y0:y1, x0:x1] = (lum[y0:y1, x0:x1] > INK).astype(np.float32)
-    grown = ndimage.gaussian_filter(ndimage.binary_dilation(core > 0, iterations=margin).astype(np.float32), margin / 3.0)
-    return np.clip(grown * 1.6, 0.0, 1.0)
+    labels, _ = ndimage.label(lum > INK)
+    inside = labels[y0:y1, x0:x1]
+    return labels == int(np.bincount(inside[inside > 0].ravel()).argmax())
+
+
+def make_slash(lum, box, margin):
+    """「/」を組み見本から起こす。芯だけをつながった形で抜き、グローは「:」と同じ作り方で足す。
+
+    組み見本の「9/1」は互いに近く、切り出すと隣の字の欠片とグローまで入ってしまう
+    （実際、日にちの「1」に被って字が欠けて見えた）。芯以外は捨てて作り直す。
+    """
+    x0, x1, y0, y1 = box
+    keep = ndimage.binary_dilation(part_of(lum, box), iterations=2)   # 縁のなめらかさは残す
+    soft = np.clip((lum - FLOOR) / (SOLID - FLOOR), 0.0, 1.0) * keep
+    core = soft[y0 - margin:y1 + margin, x0 - margin:x1 + margin]
+    glow = ndimage.gaussian_filter(core, (y1 - y0) * 0.055)
+    t = np.clip(np.maximum(core, glow * 1.2), 0.0, 1.0)
+    return write(t, (margin, margin + (x1 - x0), margin, margin + (y1 - y0)), (0, 0), "slash")
 
 
 def make_colon(cap):
@@ -183,7 +198,7 @@ def main():
         bweek = union(bottom)
         if cut_slash:
             margin = round((bslash[3] - bslash[2]) * MARGIN)
-            glyphs["slash"] = cut(ref, bslash, margin, "slash", keep=soft_mask(ref, bslash, margin))
+            glyphs["slash"] = make_slash(ref, bslash, margin)
         month_cap = (b9[3] - b9[2]) / (glyphs["d9"]["ih"] / caps["d"])
         week_cap = (bweek[3] - bweek[2]) / (glyphs[week_names[4]]["ih"] / caps[week_kind])
         return dict(

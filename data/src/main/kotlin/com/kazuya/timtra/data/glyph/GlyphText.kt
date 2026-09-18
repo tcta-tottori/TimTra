@@ -5,6 +5,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
 import android.graphics.RectF
 
 /**
@@ -24,7 +26,14 @@ object GlyphText {
     /** 字と字のあいだ（cap に対する割合）。見本の実測。 */
     const val TRACK = 0.07f
 
-    private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
+    /**
+     * 字を重ねるときは **明るいほうを残す**。字画像には周りのグローまで焼き込んであるので、
+     * そのまま上書きすると隣の字の暗いグローが手前の字を欠けさせてしまう（地が黒のときだけ使える手）。
+     */
+    private val paint =
+        Paint(Paint.FILTER_BITMAP_FLAG).apply {
+            xfermode = PorterDuffXfermode(PorterDuff.Mode.LIGHTEN)
+        }
     private val cache = HashMap<String, Bitmap>()
 
     fun glyphOf(char: Char): Glyph? =
