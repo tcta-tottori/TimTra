@@ -19,7 +19,12 @@ AGP 9 系を採用した。AGP 9 では `org.jetbrains.kotlin.android` を適用
 
 - `db/Entities.kt`: docs/db_schema.md と 1:1 のエンティティ。列名・NOT NULL・主キー順・インデックス名を変えない。
 - `db/TimTraDatabase.kt`: `createFromAsset("timtra_gtfs.db")`。端末内ファイル名にスキーマ版を含め、
-  assets 差し替え時は `fallbackToDestructiveMigration` で作り直す。
+  スキーマ版を上げたときは `fallbackToDestructiveMigration` で作り直す。
+  `createFromAsset` が assets から写すのは**端末にコピーが無いときだけ**なので、
+  ダイヤ改正で assets の DB だけ差し替えてもスキーマ版が同じなら写し直されず、古いダイヤのまま動いてしまう。
+  そこで開く前に「どの版のアプリで写したか」（`versionName` + `lastUpdateTime`）を SharedPreferences に覚えておき、
+  違っていれば端末内のコピー（`-wal` / `-shm` 含む）を消して写し直させる。
+  つまり**アプリを入れ直す・更新すると必ず最新のダイヤになる**。DB は読み取り専用なので消しても失う情報は無い。
 - `repository/BusTimetableRepository`: DB → core `BusTimetable`（初回のみ読み込み、以後キャッシュ）。
 - `repository/JrTimetableRepository`: `data/src/main/assets/jr_timetable.json` → core `JrTimetable`（app / wear で共有するため data に置く）。
 - `repository/SettingsRepository`: DataStore Preferences。`CommuteSettings` + 通知 ON/OFF + 「今日は休み」（日付で保持、翌日自動解除）。
