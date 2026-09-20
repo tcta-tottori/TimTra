@@ -53,6 +53,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kazuya.timtra.R
 import com.kazuya.timtra.core.board.Countdown
 import com.kazuya.timtra.core.board.CountdownGauge
+import com.kazuya.timtra.core.board.Departure
 import com.kazuya.timtra.core.geo.LandmarkKind
 import com.kazuya.timtra.core.geo.RouteLandmarks
 import com.kazuya.timtra.core.journey.BoundBasis
@@ -179,8 +180,9 @@ private fun HomeContent(
         val journey = state.journey
         val stationBus = state.stationBuses.firstOrNull()
         val board = state.board
-        if (board != null) {
-            // 休みの日・通勤の予定が無い日: 通勤の乗り継ぎではなく、最寄りの地点の次の便を主役にする
+        // 通勤の予定が無いとき（休みの日・帰宅後・運行が見つからない）は、近くの発車標そのものを主役にする
+        val boardIsHero = state.dayOff || state.resting || journey == null
+        if (boardIsHero) {
             BoardHero(board, nowSecond, onOpenTimetable)
             RouteMapCard(
                 landmarks = state.landmarks,
@@ -191,19 +193,9 @@ private fun HomeContent(
                 walkHomeMinutes = state.settings.walkHomeToStop.toMinutes(),
                 onOpenTimetable = onOpenTimetable,
             )
+            // 今日の通勤は終わり。残り時間は出さず、翌朝の予定だけ静かに添える
+            if (state.resting) RestCard(state.nextMorning, state.settings, state.now, onOpenTimetable)
             BoardUpcomingCard(board, nowSecond, onOpenTimetable)
-        } else if (state.resting) {
-            // 今日の通勤は終わり。残り時間は出さず、翌朝の予定だけ静かに示す
-            RestCard(state.nextMorning, state.settings, state.now, onOpenTimetable)
-            RouteMapCard(
-                landmarks = state.landmarks,
-                here = state.location,
-                bound = state.bound,
-                locationPermitted = state.locationPermitted,
-                walkToWorkMinutes = state.settings.walkStationToWork.toMinutes(),
-                walkHomeMinutes = state.settings.walkHomeToStop.toMinutes(),
-                onOpenTimetable = onOpenTimetable,
-            )
         } else if (state.inboundPhase == InboundPhase.TO_BUS && stationBus != null) {
             // 復路で宝木駅エリアを離れた（乗車中・鳥取駅到着後）: 電車の時刻はやめて、鳥取駅発のバスを主役にする
             val delay = state.realtime.delays[stationBus.trip.tripId] ?: Duration.ZERO
@@ -227,18 +219,7 @@ private fun HomeContent(
             StationBusCard(stationBus, delay, state.realtime) { onOpenPeek(PeekKind.BUS_STATION) }
             HomeArrivalCard(stationBus.arrivalAt.plus(delay).plus(state.settings.walkHomeToStop))
             state.stationBuses.getOrNull(1)?.let { NextStationBusCandidate(it) }
-        } else if (journey == null) {
-            Text(stringResource(R.string.home_empty), style = MaterialTheme.typography.bodyLarge)
-            RouteMapCard(
-                landmarks = state.landmarks,
-                here = state.location,
-                bound = state.bound,
-                locationPermitted = state.locationPermitted,
-                walkToWorkMinutes = state.settings.walkStationToWork.toMinutes(),
-                walkHomeMinutes = state.settings.walkHomeToStop.toMinutes(),
-                onOpenTimetable = onOpenTimetable,
-            )
-        } else {
+        } else if (journey != null) {
             // 1. 家 / 職場を出る時刻と残り時間。決まった時間帯の外では最初の便の発車を主役にする
             if (state.showLeaveTime) {
                 LeaveCard(nowSecond, journey, state.location, state.landmarks, onOpenTimetable)
@@ -262,6 +243,8 @@ private fun HomeContent(
                 walkHomeMinutes = state.settings.walkHomeToStop.toMinutes(),
                 onOpenTimetable = onOpenTimetable,
             )
+            // 通勤の便とは別に、いま近くにいるバス停 / 駅から次に出る便も出す
+            NearbyBoardCard(board, nowSecond, onOpenTimetable)
             // 各カードをタップすると、現在時刻から一番近い便以降の時刻表をポップアップで出す
             when (journey.bound) {
                 Bound.OUTBOUND -> {
@@ -469,9 +452,46 @@ private fun BoardUpcomingCard(
     board: HomeBoard,
     now: LocalDateTime,
     onOpenTimetable: (TimetableFocus?) -> Unit,
+) = BoardListCard(
+    board = board,
+    departures = board.departures.drop(1),
+    title = stringResource(R.string.board_next_ones),
+    now = now,
+    onOpenTimetable = onOpenTimetable,
+)
+
+/**
+ * 通勤の表示の下に添える発車標。通勤の乗り継ぎとは関係なく、
+ * いま近くにいるバス停 / 駅から次に出る便を並べる。タップでその地点の時刻表。
+ */
+@Composable
+private fun NearbyBoardCard(
+    board: HomeBoard,
+    now: LocalDateTime,
+    onOpenTimetable: (TimetableFocus?) -> Unit,
+) = BoardListCard(
+    board = board,
+    departures = board.departures,
+    title =
+        if (board.distanceMeters != null) {
+            stringResource(R.string.board_nearby_far, stringResource(board.place.nameRes()), distanceText(board.distanceMeters))
+        } else {
+            stringResource(R.string.board_nearby, stringResource(board.place.nameRes()))
+        },
+    now = now,
+    onOpenTimetable = onOpenTimetable,
+)
+
+/** 発車標を並べるカード。見出しと並べる便だけを変えて 2 か所で使う。 */
+@Composable
+private fun BoardListCard(
+    board: HomeBoard,
+    departures: List<Departure>,
+    title: String,
+    now: LocalDateTime,
+    onOpenTimetable: (TimetableFocus?) -> Unit,
 ) {
-    val rest = board.departures.drop(1)
-    if (rest.isEmpty()) return
+    if (departures.isEmpty()) return
     TimTraCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier =
@@ -482,11 +502,11 @@ private fun BoardUpcomingCard(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                text = stringResource(R.string.board_next_ones),
+                text = title,
                 style = MaterialTheme.typography.labelLarge,
                 color = TimTraColors.primary,
             )
-            rest.forEach { departure ->
+            departures.forEach { departure ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = departure.at.hhmm(),

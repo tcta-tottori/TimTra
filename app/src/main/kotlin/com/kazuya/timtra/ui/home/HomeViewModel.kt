@@ -89,9 +89,10 @@ data class TimetablePeek(
 )
 
 /**
- * 休みの日・通勤の予定が無い日に主役にする発車標。
- * 現在地から最寄りの地点（core の [com.kazuya.timtra.core.board.DepartureBoard.nearest]）の次の便を出す。
- * 時計のホームと同じ考え方で、通勤の乗り継ぎではなく「いまここから次に出る便」を見る。
+ * ホームに必ず出す発車標。現在地から最寄りの地点
+ * （core の [com.kazuya.timtra.core.board.DepartureBoard.nearest]）の次の便を出す。
+ * 時計のホームと同じ考え方で、通勤の乗り継ぎとは関係なく「いまここから次に出る便」を見る。
+ * 休みの日・帰宅後・通勤の予定が無い日はこれが主役、通勤中は乗り継ぎの下に添える。
  */
 data class HomeBoard(
     val place: BoardPlace,
@@ -144,10 +145,10 @@ sealed interface HomeUiState {
         val next: Journey?,
         val dayOff: Boolean,
         /**
-         * 休みの日・通勤の予定が無い日に出す発車標。null なら通常の通勤表示。
-         * 出しているあいだは「家を出る時刻」や乗り継ぎのカードは出さない。
+         * 現在地から最寄りのバス停 / 駅の発車標。通勤の予定があるかどうかに関係なく必ず出す。
+         * 休みの日・帰宅後・通勤の予定が無い日はこれが主役になる。
          */
-        val board: HomeBoard?,
+        val board: HomeBoard,
         val settings: CommuteSettings,
         /** バス時刻表が合成サンプルか。 */
         val sampleBus: Boolean,
@@ -352,9 +353,10 @@ class HomeViewModel
                             )
                     }
 
-            // 休みの日・通勤の予定が無い日は、通勤の乗り継ぎではなく最寄りの地点の発車標を主役にする
+            // 通勤に関係なく、いま近くにいるバス停 / 駅の次の発車を必ず出す
+            // （休みの日・帰宅後・通勤の予定が無い日はこれが主役になる）
             val dayOff = settings.isDayOff(now.toLocalDate())
-            val board = if (dayOff || primaryJourney == null) board(now, here, bound) else null
+            val board = board(now, here, bound)
 
             return HomeUiState.Ready(
                 now = now,

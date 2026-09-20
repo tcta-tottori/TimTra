@@ -108,7 +108,7 @@
     <string name="home_collapse">折りたたむ</string>
     <string name="home_day_off">今日は休みに設定されています。通知は送られません。</string>
 
-    <!-- 休みの日・通勤の予定が無い日に出す発車標（現在地から最寄りの地点） -->
+    <!-- 現在地から最寄りのバス停 / 駅の発車標（通勤に関係なく必ず出す） -->
     <string name="place_home_stop">南吉成 バス停</string>
     <string name="place_home_stop_dir">鳥取駅方面（日ノ丸バス）</string>
     <string name="place_station_bus">鳥取駅 バスのりば</string>
@@ -124,6 +124,8 @@
     <string name="board_basis_distance">現在地から %1$s</string>
     <string name="board_empty">この先の発車はありません</string>
     <string name="board_next_ones">この先の発車</string>
+    <string name="board_nearby">近くの発車 · %1$s</string>
+    <string name="board_nearby_far">近くの発車 · %1$s（%2$s）</string>
     <string name="board_open_timetable">時刻表を見る</string>
     <string name="home_empty">この先の運行が見つかりません。時刻表データを確認してください。</string>
     <string name="home_loading">計算中…</string>
