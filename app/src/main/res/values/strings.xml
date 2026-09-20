@@ -33,6 +33,8 @@
     <string name="home_next_departure_bus">次のバス</string>
     <string name="home_next_departure_jr">次の電車</string>
     <string name="home_countdown_label">発車まで</string>
+    <string name="home_open_timetable">タップで時刻表</string>
+    <string name="map_open_timetable">%1$s の時刻表を開く</string>
     <string name="home_countdown_departed">発車しました</string>
     <string name="home_pace_at_place">%1$s にいます。発車をお待ちください</string>
     <string name="home_pace_walk">歩いて間に合います（%1$s まで %2$s・徒歩 約%3$d分）</string>

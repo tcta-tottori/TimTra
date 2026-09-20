@@ -189,6 +189,7 @@ private fun HomeContent(
                 locationPermitted = state.locationPermitted,
                 walkToWorkMinutes = state.settings.walkStationToWork.toMinutes(),
                 walkHomeMinutes = state.settings.walkHomeToStop.toMinutes(),
+                onOpenTimetable = onOpenTimetable,
             )
             BoardUpcomingCard(board, nowSecond, onOpenTimetable)
         } else if (state.resting) {
@@ -201,6 +202,7 @@ private fun HomeContent(
                 locationPermitted = state.locationPermitted,
                 walkToWorkMinutes = state.settings.walkStationToWork.toMinutes(),
                 walkHomeMinutes = state.settings.walkHomeToStop.toMinutes(),
+                onOpenTimetable = onOpenTimetable,
             )
         } else if (state.inboundPhase == InboundPhase.TO_BUS && stationBus != null) {
             // 復路で宝木駅エリアを離れた（乗車中・鳥取駅到着後）: 電車の時刻はやめて、鳥取駅発のバスを主役にする
@@ -220,6 +222,7 @@ private fun HomeContent(
                     ),
                 walkToWorkMinutes = state.settings.walkStationToWork.toMinutes(),
                 walkHomeMinutes = state.settings.walkHomeToStop.toMinutes(),
+                onOpenTimetable = onOpenTimetable,
             )
             StationBusCard(stationBus, delay, state.realtime) { onOpenPeek(PeekKind.BUS_STATION) }
             HomeArrivalCard(stationBus.arrivalAt.plus(delay).plus(state.settings.walkHomeToStop))
@@ -233,6 +236,7 @@ private fun HomeContent(
                 locationPermitted = state.locationPermitted,
                 walkToWorkMinutes = state.settings.walkStationToWork.toMinutes(),
                 walkHomeMinutes = state.settings.walkHomeToStop.toMinutes(),
+                onOpenTimetable = onOpenTimetable,
             )
         } else {
             // 1. 家 / 職場を出る時刻と残り時間。決まった時間帯の外では最初の便の発車を主役にする
@@ -256,6 +260,7 @@ private fun HomeContent(
                     ),
                 walkToWorkMinutes = state.settings.walkStationToWork.toMinutes(),
                 walkHomeMinutes = state.settings.walkHomeToStop.toMinutes(),
+                onOpenTimetable = onOpenTimetable,
             )
             // 各カードをタップすると、現在時刻から一番近い便以降の時刻表をポップアップで出す
             when (journey.bound) {
@@ -453,6 +458,7 @@ private fun BoardHero(
                 style = MaterialTheme.typography.labelSmall,
                 color = Color.White.copy(alpha = 0.65f),
             )
+            TimetableHint()
         }
     }
 }
@@ -560,6 +566,7 @@ private fun RestCard(
                 color = TimTraColors.accentLight,
                 textAlign = TextAlign.Center,
             )
+            TimetableHint()
         }
     }
 }
@@ -600,6 +607,7 @@ private fun LeaveCard(
             Spacer(Modifier.height(12.dp))
             HeroLegStrip(journey, onOpenTimetable)
             PaceRow(now, journey, here, landmarks)
+            TimetableHint()
         }
     }
 }
@@ -610,6 +618,37 @@ private data class HeroLeg(
     val at: LocalDateTime,
     val focus: TimetableFocus,
 )
+
+/**
+ * 主役表示の下に置く「押すと時刻表が開く」の合図。
+ * ホームから時刻表へ行く道はこのタップだけなので、押せることが分かるようにする。
+ */
+@Composable
+private fun TimetableHint() {
+    Row(
+        modifier = Modifier.padding(top = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_list),
+            contentDescription = null,
+            tint = TimTraColors.accentLight,
+            modifier = Modifier.size(15.dp),
+        )
+        Spacer(Modifier.width(5.dp))
+        Text(
+            text = stringResource(R.string.home_open_timetable),
+            style = MaterialTheme.typography.labelMedium,
+            color = TimTraColors.accentLight,
+        )
+        Icon(
+            painter = painterResource(R.drawable.ic_arrow_forward),
+            contentDescription = null,
+            tint = TimTraColors.accentLight,
+            modifier = Modifier.padding(start = 2.dp).size(15.dp),
+        )
+    }
+}
 
 /** 主役カードの先頭に置く目印。丸い塗りのバッジではなく、素のアイコンで静かに示す。 */
 @Composable
@@ -784,6 +823,7 @@ private fun NextDepartureCard(
                 color = Color.White.copy(alpha = 0.65f),
                 textAlign = TextAlign.Center,
             )
+            TimetableHint()
         }
     }
 }
@@ -886,6 +926,7 @@ private fun NextStationBusCard(
                 color = Color.White.copy(alpha = 0.65f),
                 textAlign = TextAlign.Center,
             )
+            TimetableHint()
         }
     }
 }

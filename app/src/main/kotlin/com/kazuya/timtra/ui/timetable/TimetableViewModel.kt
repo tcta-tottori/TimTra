@@ -93,6 +93,9 @@ enum class TimetableFocus(
     /** JR 鳥取駅（往路の JR）。 */
     STATION_JR(TimetableTab.STATION, StationFilter.JR),
 
+    /** 鳥取駅のバスと JR の両方（地図の地点チップから開くとき）。 */
+    STATION_ALL(TimetableTab.STATION, StationFilter.ALL),
+
     /** JR 宝木駅（復路の JR）。 */
     HOUGI(TimetableTab.HOUGI, StationFilter.ALL),
     ;

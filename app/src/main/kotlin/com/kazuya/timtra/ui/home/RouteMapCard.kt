@@ -92,6 +92,7 @@ import com.kazuya.timtra.ui.map.MapTileStyle
 import com.kazuya.timtra.ui.theme.TimTraCard
 import com.kazuya.timtra.ui.theme.TimTraColors
 import com.kazuya.timtra.ui.theme.TransitColors
+import com.kazuya.timtra.ui.timetable.TimetableFocus
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDateTime
@@ -135,6 +136,8 @@ fun RouteMapCard(
     walkToWorkMinutes: Long = 0,
     /** 自宅 ⇔ 南吉成 の徒歩所要（設定値）。 */
     walkHomeMinutes: Long = 0,
+    /** 地点のチップを押したときに、その駅・バス停の時刻表を開く。渡さなければ押せないままにする。 */
+    onOpenTimetable: ((TimetableFocus?) -> Unit)? = null,
 ) {
     var full by rememberSaveable { mutableStateOf(false) }
     var fullscreen by rememberSaveable { mutableStateOf(false) }
@@ -206,7 +209,7 @@ fun RouteMapCard(
                         .clickable { fullscreen = true },
             )
             if (here != null) {
-                DistanceChips(landmarks, here)
+                DistanceChips(landmarks, here, onOpenTimetable)
             } else {
                 Text(
                     text = stringResource(R.string.map_no_location),
@@ -229,11 +232,15 @@ private fun nearestSummary(
     return stringResource(R.string.map_distance_to, stringResource(nearest.first.kind.labelRes), distanceText(nearest.second))
 }
 
-/** 現在地から各地点までの距離。近い順に横並び。 */
+/**
+ * 現在地から各地点までの距離。近い順に横並び。
+ * 時刻表がある地点（南吉成・鳥取駅・宝木）は押すとその時刻表が開く（矢印を添えて示す）。
+ */
 @Composable
 private fun DistanceChips(
     landmarks: RouteLandmarks,
     here: GeoPoint,
+    onOpenTimetable: ((TimetableFocus?) -> Unit)?,
 ) {
     Row(
         modifier =
@@ -244,17 +251,27 @@ private fun DistanceChips(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         landmarks.distancesFrom(here).forEach { (landmark, meters) ->
+            val focus = landmark.kind.timetableFocus()
+            val name = stringResource(landmark.kind.labelRes)
+            val open = if (focus != null && onOpenTimetable != null) ({ onOpenTimetable(focus) }) else null
             Row(
                 modifier =
                     Modifier
-                        .background(landmark.kind.color.copy(alpha = 0.10f), RoundedCornerShape(50))
+                        .clip(RoundedCornerShape(50))
+                        .then(
+                            if (open != null) {
+                                Modifier.clickable(onClickLabel = stringResource(R.string.map_open_timetable, name), onClick = open)
+                            } else {
+                                Modifier
+                            },
+                        ).background(landmark.kind.color.copy(alpha = 0.10f), RoundedCornerShape(50))
                         .padding(start = 4.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 CircleIcon(iconRes = landmark.kind.iconRes, color = landmark.kind.color, size = 20.dp)
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    text = stringResource(landmark.kind.labelRes),
+                    text = name,
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -265,10 +282,27 @@ private fun DistanceChips(
                     fontWeight = FontWeight.Bold,
                     color = landmark.kind.color,
                 )
+                if (open != null) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_list),
+                        contentDescription = null,
+                        tint = landmark.kind.color.copy(alpha = 0.8f),
+                        modifier = Modifier.padding(start = 6.dp).size(14.dp),
+                    )
+                }
             }
         }
     }
 }
+
+/** その地点の時刻表。時刻表を持たない地点（自宅・勤務先）は null。 */
+private fun LandmarkKind.timetableFocus(): TimetableFocus? =
+    when (this) {
+        LandmarkKind.HOME_STOP -> TimetableFocus.HOME_STOP
+        LandmarkKind.STATION -> TimetableFocus.STATION_ALL
+        LandmarkKind.HOUGI_STATION -> TimetableFocus.HOUGI
+        LandmarkKind.HOME, LandmarkKind.WORKPLACE -> null
+    }
 
 /** 収める地点: 拡大する側の地点に、近くにいれば現在地、近づいていれば乗るバスを加える。 */
 private fun fitPointsFor(
