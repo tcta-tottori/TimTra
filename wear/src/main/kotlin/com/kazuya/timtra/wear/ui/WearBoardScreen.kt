@@ -2,6 +2,8 @@ package com.kazuya.timtra.wear.ui
 
 import android.os.SystemClock
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -29,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -74,7 +77,9 @@ import com.kazuya.timtra.wear.R
 import com.kazuya.timtra.wear.board.BoardSnapshot
 import com.kazuya.timtra.wear.board.DayBoard
 import com.kazuya.timtra.wear.board.DaySelection
+import com.kazuya.timtra.wear.board.PlaceBasis
 import com.kazuya.timtra.wear.board.PlaceDistance
+import com.kazuya.timtra.wear.location.WearLocationProvider
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
@@ -95,6 +100,7 @@ private val dateLabelFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("M/
 @Composable
 fun WearBoardScreen(viewModel: WearBoardViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    RequestLocation(granted = state.locationPermitted, onResult = viewModel::start)
     when (state.step) {
         BoardStep.LOADING -> LoadingScreen()
         BoardStep.HOME ->
@@ -122,6 +128,38 @@ fun WearBoardScreen(viewModel: WearBoardViewModel = hiltViewModel()) {
                 onPick = { viewModel.openTimetable(it) },
                 onBack = viewModel::backHome,
             )
+        }
+    }
+}
+
+/**
+ * 現在地の許可を求める。発車標で「いまいる停留所・駅」を決めるためだけに使う。
+ *
+ * 前面の許可が下りたら、続けて「常に許可」も 1 回だけ求める。文字盤のタイルと
+ * コンプリケーションはアプリが前面に無いときに描かれるので、これが無いとその場で測位できない
+ * （断られても、アプリを開いたときに控えた位置で地点を決める）。
+ * 断られたらそれ以上は求めない。時刻帯で決めた地点で動き、地点はメニューから手で選べる。
+ */
+@Composable
+private fun RequestLocation(
+    granted: Boolean,
+    onResult: () -> Unit,
+) {
+    var asked by rememberSaveable { mutableStateOf(false) }
+    var askedBackground by rememberSaveable { mutableStateOf(false) }
+    val background =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { onResult() }
+    val foreground =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { onResult() }
+    LaunchedEffect(granted) {
+        if (!granted) {
+            if (!asked) {
+                asked = true
+                foreground.launch(WearLocationProvider.PERMISSIONS)
+            }
+        } else if (!askedBackground) {
+            askedBackground = true
+            background.launch(WearLocationProvider.BACKGROUND_PERMISSION)
         }
     }
 }
@@ -204,7 +242,7 @@ private fun HomeScreen(
                         .fillMaxWidth()
                         .padding(start = 12.dp, end = 12.dp, bottom = CENTER_LIFT_DP.dp),
             ) {
-                PlaceHeader(s.place)
+                PlaceHeader(s.place, fromHere = s.basis == PlaceBasis.NEAR_HERE)
                 Spacer(Modifier.height(8.dp))
                 if (next == null) {
                     Text(
@@ -224,15 +262,22 @@ private fun HomeScreen(
     }
 }
 
-/** 📍 + 地点名（大きく）と、その下の行き先。 */
+/**
+ * 📍 + 地点名（大きく）と、その下の行き先。
+ * 📍は**現在地から選べたときだけ青く**し、時刻帯で決めた / 手で固定したときは沈める。
+ * どちらで出ている地点なのかが一目で分かるようにする。
+ */
 @Composable
-private fun PlaceHeader(place: BoardPlace) {
+private fun PlaceHeader(
+    place: BoardPlace,
+    fromHere: Boolean,
+) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 painter = painterResource(R.drawable.ic_place),
                 contentDescription = null,
-                tint = WearColors.gradientStart,
+                tint = if (fromHere) WearColors.gradientStart else WearColors.onSurfaceSubtle,
                 modifier = Modifier.size(PLACE_ICON_DP.dp),
             )
             Spacer(Modifier.width(4.dp))

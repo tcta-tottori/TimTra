@@ -6,6 +6,11 @@
     <!-- 発車標で「いまいる停留所・駅」を選ぶために 1 回だけ取得する。常時取得・追跡はしない -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!--
+      タイルとコンプリケーションはアプリが前面に無いときに描かれるため、その場で測位するにはこれが要る。
+      許可されなくても、アプリを開いたときに控えた位置で地点を決める（WearLocationProvider）。
+    -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
     <application
         android:name=".WearApp"

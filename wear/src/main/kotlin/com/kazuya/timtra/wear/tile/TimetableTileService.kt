@@ -38,6 +38,7 @@ import com.kazuya.timtra.core.board.DepartureMode
 import com.kazuya.timtra.wear.MainActivity
 import com.kazuya.timtra.wear.R
 import com.kazuya.timtra.wear.board.BoardSnapshot
+import com.kazuya.timtra.wear.board.PlaceBasis
 import com.kazuya.timtra.wear.board.WearBoardProvider
 import com.kazuya.timtra.wear.location.WearLocationProvider
 import com.kazuya.timtra.wear.ui.directionRes
@@ -159,7 +160,7 @@ class TimetableTileService : TileService() {
                         ).build(),
                 )
         column
-            .addContent(placeRow(getString(snapshot.place.nameRes())))
+            .addContent(placeRow(getString(snapshot.place.nameRes()), snapshot.basis == PlaceBasis.NEAR_HERE))
             .addContent(text(getString(snapshot.place.directionRes()), DIRECTION_SP, SUBTLE))
             .addContent(spacer(SPACER_DP))
         if (next == null) {
@@ -177,12 +178,15 @@ class TimetableTileService : TileService() {
             .build()
     }
 
-    /** 📍 + 地点名。 */
-    private fun placeRow(name: String): LayoutElementBuilders.Row =
+    /** 📍 + 地点名。📍はアプリのホームと同じく、現在地から選べたときだけ青くする。 */
+    private fun placeRow(
+        name: String,
+        fromHere: Boolean,
+    ): LayoutElementBuilders.Row =
         LayoutElementBuilders.Row
             .Builder()
             .setVerticalAlignment(VERTICAL_ALIGN_CENTER)
-            .addContent(icon(ID_PLACE, PLACE_ICON_DP, ACCENT))
+            .addContent(icon(ID_PLACE, PLACE_ICON_DP, if (fromHere) ACCENT else SUBTLE))
             .addContent(hSpacer(GAP_DP))
             .addContent(text(name, PLACE_SP, WHITE, bold = true))
             .build()
