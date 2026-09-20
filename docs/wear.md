@@ -7,7 +7,7 @@ CLAUDE.md 7-4 の実装メモ。`wear` は `data` に依存し、同梱データ
 
 | 部品 | ファイル | 内容 |
 | --- | --- | --- |
-| タイル（ウィジェット） | `tile/TimetableTileService` | アプリのホームと同じ見た目を ProtoLayout で組む。タップでアプリを開く。更新間隔 60 秒 |
+| タイル（ウィジェット） | `tile/TimetableTileService` | アプリのホームと同じ見た目を ProtoLayout で組む。タップでアプリを開く。更新間隔 60 秒。組めなかったときは古い絵を残さず短い断りを出す |
 | コンプリケーション | `complication/LeaveCountdownComplicationService` | 次の便までの残り時間。`TimeDifferenceComplicationText` で文字盤側がカウントダウンする。SHORT_TEXT / RANGED_VALUE / LONG_TEXT。10 分ごとに次の便へ切り替え。クラス名は設定済みのコンプリケーションを壊さないため据え置き |
 | コンプリケーション | `complication/NextDepartureComplicationService` | 次の便の**発車時刻**（H:MM）。SHORT_TEXT / LONG_TEXT |
 | コンプリケーション | `complication/Date*ComplicationService` | ウォッチフェイスの**日付**（絵）。曜日あり日本語 / 英語 / 曜日なしの 3 つ |

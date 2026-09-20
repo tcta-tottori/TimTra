@@ -67,12 +67,16 @@ class TimetableTileService : TileService() {
 
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> =
         SuspendToFutureAdapter.launchFuture(Dispatchers.IO) {
-            val snapshot = provider.snapshot(limit = LIMIT, locationTimeoutMillis = WearLocationProvider.TILE_TIMEOUT_MILLIS)
+            // 作れなかったとき（DB が開けない等）に古い絵が残り続けないよう、短い断りを出す
+            val element =
+                runCatching {
+                    layout(provider.snapshot(limit = LIMIT, locationTimeoutMillis = WearLocationProvider.TILE_TIMEOUT_MILLIS))
+                }.getOrElse { notice(getString(R.string.board_empty)) }
             TileBuilders.Tile
                 .Builder()
                 .setResourcesVersion(RESOURCES_VERSION)
                 .setFreshnessIntervalMillis(FRESHNESS_MILLIS)
-                .setTileTimeline(TimelineBuilders.Timeline.fromLayoutElement(layout(snapshot)))
+                .setTileTimeline(TimelineBuilders.Timeline.fromLayoutElement(element))
                 .build()
         }
 
@@ -116,6 +120,22 @@ class TimetableTileService : TileService() {
         root.addContent(centerLayer(snapshot, next))
         return root.build()
     }
+
+    /** 何も作れなかったときの断り。タップするとアプリが開く。 */
+    private fun notice(message: String): LayoutElementBuilders.Box =
+        LayoutElementBuilders.Box
+            .Builder()
+            .setWidth(expand())
+            .setHeight(expand())
+            .setHorizontalAlignment(HORIZONTAL_ALIGN_CENTER)
+            .setVerticalAlignment(VERTICAL_ALIGN_CENTER)
+            .setModifiers(
+                ModifiersBuilders.Modifiers
+                    .Builder()
+                    .setClickable(openBoardClickable())
+                    .build(),
+            ).addContent(text(message, HEADSIGN_SP, WHITE, bold = true))
+            .build()
 
     /** 中央: 地点 → 行き先 → 残り時間とリング。グローに掛からないよう少し持ち上げる。 */
     private fun centerLayer(

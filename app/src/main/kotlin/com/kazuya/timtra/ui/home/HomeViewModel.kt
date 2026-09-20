@@ -3,6 +3,8 @@ package com.kazuya.timtra.ui.home
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kazuya.timtra.core.board.BoardPlace
+import com.kazuya.timtra.core.board.Departure
 import com.kazuya.timtra.core.geo.RouteLandmarks
 import com.kazuya.timtra.core.journey.BoundBasis
 import com.kazuya.timtra.core.journey.BoundDecision
@@ -24,6 +26,7 @@ import com.kazuya.timtra.data.realtime.RealtimeRepository
 import com.kazuya.timtra.data.realtime.RealtimeState
 import com.kazuya.timtra.data.repository.AppSettings
 import com.kazuya.timtra.data.repository.BusTimetableRepository
+import com.kazuya.timtra.data.repository.DepartureBoardRepository
 import com.kazuya.timtra.data.repository.JourneyRepository
 import com.kazuya.timtra.data.repository.JrTimetableRepository
 import com.kazuya.timtra.data.repository.SettingsRepository
@@ -85,6 +88,23 @@ data class TimetablePeek(
     val tomorrowHead: List<TimetableEntry>,
 )
 
+/**
+ * 休みの日・通勤の予定が無い日に主役にする発車標。
+ * 現在地から最寄りの地点（core の [com.kazuya.timtra.core.board.DepartureBoard.nearest]）の次の便を出す。
+ * 時計のホームと同じ考え方で、通勤の乗り継ぎではなく「いまここから次に出る便」を見る。
+ */
+data class HomeBoard(
+    val place: BoardPlace,
+    /** 現在時刻以降の便（早い順）。空なら今日の運行は終わっている。 */
+    val departures: List<Departure>,
+    /** 現在地から決めたか。false は位置が取れない / 通勤圏外で、時刻帯から決めた。 */
+    val fromLocation: Boolean,
+    /** 現在地からその地点までの距離（m）。位置が無ければ null。 */
+    val distanceMeters: Double?,
+) {
+    val next: Departure? get() = departures.firstOrNull()
+}
+
 sealed interface HomeUiState {
     data object Loading : HomeUiState
 
@@ -123,6 +143,11 @@ sealed interface HomeUiState {
         /** 1 本後の候補。 */
         val next: Journey?,
         val dayOff: Boolean,
+        /**
+         * 休みの日・通勤の予定が無い日に出す発車標。null なら通常の通勤表示。
+         * 出しているあいだは「家を出る時刻」や乗り継ぎのカードは出さない。
+         */
+        val board: HomeBoard?,
         val settings: CommuteSettings,
         /** バス時刻表が合成サンプルか。 */
         val sampleBus: Boolean,
@@ -144,6 +169,7 @@ class HomeViewModel
     constructor(
         @ApplicationContext private val context: Context,
         private val journeys: JourneyRepository,
+        private val boards: DepartureBoardRepository,
         private val settingsRepository: SettingsRepository,
         private val busTimetable: BusTimetableRepository,
         private val jrTimetable: JrTimetableRepository,
@@ -205,6 +231,26 @@ class HomeViewModel
         init {
             // 夜間ジョブの登録と、起動時点での予約の作り直し
             scheduler.ensureScheduled()
+        }
+
+        /**
+         * 最寄りの地点の発車標。位置が取れない・通勤圏外のときは時刻帯で決める
+         * （往路の時間帯なら南吉成、復路の時間帯なら宝木。時計版の既定と同じ）。
+         */
+        private suspend fun board(
+            now: LocalDateTime,
+            here: GeoPoint?,
+            bound: Bound,
+        ): HomeBoard {
+            val nearest = here?.let { boards.nearest(it, bound) }
+            val place = nearest ?: if (bound == Bound.OUTBOUND) BoardPlace.HOME_STOP else BoardPlace.HOUGI_JR
+            val distance = if (nearest != null && here != null) boards.locations()[place]?.let { here.distanceMetersTo(it) } else null
+            return HomeBoard(
+                place = place,
+                departures = boards.upcoming(place, now, BOARD_LIMIT),
+                fromLocation = nearest != null,
+                distanceMeters = distance,
+            )
         }
 
         private suspend fun compute(
@@ -306,6 +352,10 @@ class HomeViewModel
                             )
                     }
 
+            // 休みの日・通勤の予定が無い日は、通勤の乗り継ぎではなく最寄りの地点の発車標を主役にする
+            val dayOff = settings.isDayOff(now.toLocalDate())
+            val board = if (dayOff || primaryJourney == null) board(now, here, bound) else null
+
             return HomeUiState.Ready(
                 now = now,
                 bound = bound,
@@ -320,7 +370,8 @@ class HomeViewModel
                 stationBuses = stationBuses,
                 journey = primaryJourney,
                 next = candidates.getOrNull(1),
-                dayOff = settings.isDayOff(now.toLocalDate()),
+                dayOff = dayOff,
+                board = board,
                 settings = settings.commute,
                 sampleBus = timetable.isSampleData,
                 sampleJr = jrTimetable.timetable().version.startsWith("sample"),
@@ -398,6 +449,9 @@ class HomeViewModel
             const val PEEK_MIN_ROWS = 5
             const val PEEK_TOMORROW_ROWS = 5
             const val CANDIDATE_COUNT = 2
+
+            /** 休みの日の発車標に出す本数（主役の 1 本 + この先の候補）。 */
+            const val BOARD_LIMIT = 4
             val POLL_BEFORE_DEPARTURE: Duration = Duration.ofMinutes(90)
             val POLL_AFTER_ARRIVAL: Duration = Duration.ofMinutes(5)
         }

@@ -76,14 +76,19 @@ import com.kazuya.timtra.ui.common.ModeBadge
 import com.kazuya.timtra.ui.common.ModeChip
 import com.kazuya.timtra.ui.common.QuietFab
 import com.kazuya.timtra.ui.common.TransitMode
+import com.kazuya.timtra.ui.common.countdownText
 import com.kazuya.timtra.ui.common.destinationIconRes
+import com.kazuya.timtra.ui.common.directionRes
 import com.kazuya.timtra.ui.common.distanceText
 import com.kazuya.timtra.ui.common.fabInset
 import com.kazuya.timtra.ui.common.fadeBottomEdge
+import com.kazuya.timtra.ui.common.focus
 import com.kazuya.timtra.ui.common.hhmm
 import com.kazuya.timtra.ui.common.labelRes
+import com.kazuya.timtra.ui.common.nameRes
 import com.kazuya.timtra.ui.common.originIconRes
 import com.kazuya.timtra.ui.common.statusLabel
+import com.kazuya.timtra.ui.common.transitMode
 import com.kazuya.timtra.ui.theme.HeroSection
 import com.kazuya.timtra.ui.theme.StatusColors
 import com.kazuya.timtra.ui.theme.TimTraCard
@@ -173,7 +178,20 @@ private fun HomeContent(
 
         val journey = state.journey
         val stationBus = state.stationBuses.firstOrNull()
-        if (state.resting) {
+        val board = state.board
+        if (board != null) {
+            // 休みの日・通勤の予定が無い日: 通勤の乗り継ぎではなく、最寄りの地点の次の便を主役にする
+            BoardHero(board, nowSecond, onOpenTimetable)
+            RouteMapCard(
+                landmarks = state.landmarks,
+                here = state.location,
+                bound = state.bound,
+                locationPermitted = state.locationPermitted,
+                walkToWorkMinutes = state.settings.walkStationToWork.toMinutes(),
+                walkHomeMinutes = state.settings.walkHomeToStop.toMinutes(),
+            )
+            BoardUpcomingCard(board, nowSecond, onOpenTimetable)
+        } else if (state.resting) {
             // 今日の通勤は終わり。残り時間は出さず、翌朝の予定だけ静かに示す
             RestCard(state.nextMorning, state.settings, state.now, onOpenTimetable)
             RouteMapCard(
@@ -340,6 +358,152 @@ private fun Banner(
 ) {
     Surface(color = color, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
         Text(text, modifier = Modifier.padding(14.dp), style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/**
+ * 休みの日・通勤の予定が無い日の主役。現在地から最寄りの地点（バス停 / 駅）の次の発車までを出す。
+ * 時計のホームと同じ組み方で、上に地点名と行き先、下に残り時間と発時刻。タップでその地点の時刻表。
+ */
+@Composable
+private fun BoardHero(
+    board: HomeBoard,
+    now: LocalDateTime,
+    onOpenTimetable: (TimetableFocus) -> Unit,
+) {
+    val next = board.next
+    HeroSection(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenTimetable(board.place.focus()) }
+                    .padding(vertical = 18.dp, horizontal = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                HeroMark(R.drawable.ic_place)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = stringResource(board.place.nameRes()),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White.copy(alpha = 0.9f),
+                )
+            }
+            Text(
+                text = stringResource(board.place.directionRes()),
+                style = MaterialTheme.typography.bodySmall,
+                color = TimTraColors.onSurfaceSubtle,
+                textAlign = TextAlign.Center,
+            )
+            if (next == null) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = stringResource(R.string.board_empty),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                )
+            } else {
+                Text(
+                    text = stringResource(R.string.board_next_in),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = TimTraColors.accentLight,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+                CountdownRow(now = now, target = next.at, iconRes = board.place.transitMode().iconRes, capHeight = HERO_CAP_DP)
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier =
+                        Modifier
+                            .background(TimTraColors.pillFill, RoundedCornerShape(50))
+                            .border(1.dp, TimTraColors.pillBorder, RoundedCornerShape(50))
+                            .padding(horizontal = 14.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        painter = painterResource(board.place.transitMode().iconRes),
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = next.at.hhmm(),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.board_bound_for, next.headsign),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White.copy(alpha = 0.85f),
+                        maxLines = 1,
+                    )
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text =
+                    when {
+                        !board.fromLocation -> stringResource(R.string.board_basis_time)
+                        board.distanceMeters != null -> stringResource(R.string.board_basis_distance, distanceText(board.distanceMeters))
+                        else -> stringResource(R.string.board_basis_here)
+                    },
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White.copy(alpha = 0.65f),
+            )
+        }
+    }
+}
+
+/** 発車標の続き。主役の次から数本を並べる。タップでその地点の時刻表。 */
+@Composable
+private fun BoardUpcomingCard(
+    board: HomeBoard,
+    now: LocalDateTime,
+    onOpenTimetable: (TimetableFocus) -> Unit,
+) {
+    val rest = board.departures.drop(1)
+    if (rest.isEmpty()) return
+    TimTraCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenTimetable(board.place.focus()) }
+                    .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.board_next_ones),
+                style = MaterialTheme.typography.labelLarge,
+                color = TimTraColors.primary,
+            )
+            rest.forEach { departure ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = departure.at.hhmm(),
+                        style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.width(64.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.board_bound_for, departure.headsign),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = countdownText(now, departure.at),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = TimTraColors.accentLight,
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -798,7 +962,7 @@ private fun StationBusCard(
 
 @Composable
 private fun HomeArrivalCard(arriveAt: LocalDateTime) {
-    TimTraCard(modifier = Modifier.fillMaxWidth(), containerColor = Color.White) {
+    TimTraCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -1159,7 +1323,7 @@ private fun JrCard(
 
 @Composable
 private fun ArrivalCard(journey: Journey) {
-    TimTraCard(modifier = Modifier.fillMaxWidth(), containerColor = Color.White) {
+    TimTraCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
