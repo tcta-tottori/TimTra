@@ -18,15 +18,19 @@ object Routes {
     const val SETTINGS = "settings"
     const val ABOUT = "about"
 
-    /** 時刻表は「どの駅・バス停で開くか」を付けて呼ぶ（ホームの区間タップから）。 */
+    /**
+     * 時刻表は「どの駅・バス停で開くか」を付けて呼べる（ホームの区間タップから）。
+     * 付けずに開いたときは、時刻表側が現在地の最寄りで決める。
+     */
     const val TIMETABLE_ROUTE = "$TIMETABLE?${TimetableFocus.ARG}={${TimetableFocus.ARG}}"
 
-    fun timetable(focus: TimetableFocus): String = "$TIMETABLE?${TimetableFocus.ARG}=${focus.name}"
+    fun timetable(focus: TimetableFocus?): String = "$TIMETABLE?${TimetableFocus.ARG}=${focus?.name.orEmpty()}"
 }
 
 /**
- * 画面の行き来。時刻表はホームの主役表示（バス / JR の発時刻）をタップして開き、
- * どの駅・バス停で開くかを [TimetableFocus] で渡す。右下のボタンは設定だけ。
+ * 画面の行き来。時刻表はホームの主役表示（バス / JR の発時刻）をタップして開く。
+ * バス / JR のピルを押したときだけ、その区間の駅・バス停を [TimetableFocus] で渡し、
+ * それ以外を押したときは渡さない（＝現在地の最寄りで開く）。右下のボタンは設定だけ。
  * 「このアプリについて」は設定の中に置く。ホーム以外は右下の戻るで 1 つ前へ帰る。
  */
 @Composable

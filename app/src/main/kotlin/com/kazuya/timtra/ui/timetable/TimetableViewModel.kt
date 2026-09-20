@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalDate
 import java.time.LocalTime
 import javax.inject.Inject
@@ -76,8 +77,8 @@ enum class StationFilter {
 }
 
 /**
- * ホームから時刻表を開くときの初期表示。ホームの主役表示（バス / JR の発時刻）をタップすると、
- * その区間の駅・バス停のタブで開く。
+ * ホームから時刻表を開くときの初期表示。ホームの主役表示のバス / JR のピルをタップすると、
+ * その区間の駅・バス停のタブで開く。指定せずに開いたときは現在地の最寄りで決める。
  */
 enum class TimetableFocus(
     val tab: TimetableTab,
@@ -159,29 +160,43 @@ class TimetableViewModel
         /** タブを手で選んだら、あとから来る現在地の判定で勝手に動かさない。 */
         private var tabPicked = false
 
+        /** 現在地から初期タブを決めている間は true。決まる（か諦める）まで一覧を出さない。 */
+        private val resolving = MutableStateFlow(true)
+
         init {
-            // ホームから区間をタップして来たときは、その駅・バス停のタブで開く
-            TimetableFocus.of(savedStateHandle.get<String>(TimetableFocus.ARG))?.let { focus ->
+            val focus = TimetableFocus.of(savedStateHandle.get<String>(TimetableFocus.ARG))
+            if (focus != null) {
+                // ホームで区間を指定して来たときは、その駅・バス停のタブで開く
                 tabPicked = true
                 tab.value = focus.tab
                 stationFilter.value = focus.filter
+                resolving.value = false
+            } else {
+                openNearestTab()
             }
-            openNearestTab()
         }
 
         /**
-         * 初回表示のタブを現在地の最寄りにする。
-         * 位置が取れない・通勤圏外・すでに手で選んだあと、のいずれかなら何もしない（既定の南吉成のまま）。
+         * 初回表示のタブを現在地の最寄りにする。指定なしで開いたときはこちら。
+         *
+         * 位置が取れない・通勤圏外・待っても決まらない、のいずれかなら既定（南吉成）のまま出す。
+         * 決まるまで一覧を出さない（先に別の駅を見せてから差し替わると読み違える）。
+         * 位置は数分キャッシュされるので、ホームから開いた直後はたいてい待ち時間ゼロで決まる。
          */
         private fun openNearestTab() {
             viewModelScope.launch {
-                val here = location.currentFix()?.point ?: return@launch
-                if (tabPicked) return@launch
-                val bound = settings.current().commute.boundAt(clock.now().toLocalTime())
-                val place = board.nearest(here, bound) ?: return@launch
-                if (tabPicked) return@launch
-                tab.value = place.tab()
-                stationFilter.value = place.stationFilter()
+                try {
+                    withTimeoutOrNull(NEAREST_TIMEOUT_MILLIS) {
+                        val here = location.currentFix()?.point ?: return@withTimeoutOrNull
+                        val bound = settings.current().commute.boundAt(clock.now().toLocalTime())
+                        val place = board.nearest(here, bound) ?: return@withTimeoutOrNull
+                        if (tabPicked) return@withTimeoutOrNull
+                        tab.value = place.tab()
+                        stationFilter.value = place.stationFilter()
+                    }
+                } finally {
+                    resolving.value = false
+                }
             }
         }
 
@@ -195,12 +210,18 @@ class TimetableViewModel
             }
 
         val uiState: StateFlow<TimetableUiState> =
-            combine(tab, day, stationFilter, ticker) { t, d, f, _ -> Triple(t, d, f) }
-                .mapLatest { (t, d, f) -> load(t, d, f) }
-                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), TimetableUiState())
+            combine(tab, day, stationFilter, resolving, ticker) { t, d, f, waiting, _ -> Query(t, d, f, waiting) }
+                .mapLatest { q ->
+                    if (q.waiting) {
+                        TimetableUiState(tab = q.tab, day = q.day, stationFilter = q.filter)
+                    } else {
+                        load(q.tab, q.day, q.filter)
+                    }
+                }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), TimetableUiState())
 
         fun selectTab(newTab: TimetableTab) {
             tabPicked = true
+            resolving.value = false
             tab.value = newTab
         }
 
@@ -230,8 +251,19 @@ class TimetableViewModel
             )
         }
 
+        /** 一覧を引くための選択。現在地の判定待ちかどうかも一緒に流す。 */
+        private data class Query(
+            val tab: TimetableTab,
+            val day: DaySelection,
+            val filter: StationFilter,
+            val waiting: Boolean,
+        )
+
         private companion object {
             const val STOP_TIMEOUT_MILLIS = 5_000L
             const val TICK_MILLIS = 30_000L
+
+            /** 現在地を待つ上限。これを過ぎたら既定のタブで出す。 */
+            const val NEAREST_TIMEOUT_MILLIS = 3_000L
         }
     }

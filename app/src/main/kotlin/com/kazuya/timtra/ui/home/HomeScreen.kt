@@ -104,7 +104,7 @@ import java.time.ZoneId
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onOpenTimetable: (TimetableFocus) -> Unit,
+    onOpenTimetable: (TimetableFocus?) -> Unit,
     onOpenSettings: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
@@ -153,7 +153,7 @@ fun HomeScreen(
 private fun HomeContent(
     state: HomeUiState.Ready,
     nowSecond: LocalDateTime,
-    onOpenTimetable: (TimetableFocus) -> Unit,
+    onOpenTimetable: (TimetableFocus?) -> Unit,
     onBoundChange: (Bound?) -> Unit,
     onPermissionsChanged: () -> Unit,
     onResumeReminders: () -> Unit,
@@ -369,7 +369,7 @@ private fun Banner(
 private fun BoardHero(
     board: HomeBoard,
     now: LocalDateTime,
-    onOpenTimetable: (TimetableFocus) -> Unit,
+    onOpenTimetable: (TimetableFocus?) -> Unit,
 ) {
     val next = board.next
     HeroSection(modifier = Modifier.fillMaxWidth()) {
@@ -462,7 +462,7 @@ private fun BoardHero(
 private fun BoardUpcomingCard(
     board: HomeBoard,
     now: LocalDateTime,
-    onOpenTimetable: (TimetableFocus) -> Unit,
+    onOpenTimetable: (TimetableFocus?) -> Unit,
 ) {
     val rest = board.departures.drop(1)
     if (rest.isEmpty()) return
@@ -513,7 +513,7 @@ private fun RestCard(
     nextMorning: Journey?,
     settings: CommuteSettings,
     now: LocalDateTime,
-    onOpenTimetable: (TimetableFocus) -> Unit,
+    onOpenTimetable: (TimetableFocus?) -> Unit,
 ) {
     HeroSection(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -571,14 +571,14 @@ private fun LeaveCard(
     journey: Journey,
     here: GeoPoint?,
     landmarks: RouteLandmarks,
-    onOpenTimetable: (TimetableFocus) -> Unit,
+    onOpenTimetable: (TimetableFocus?) -> Unit,
 ) {
     HeroSection(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .clickable { onOpenTimetable(journey.bound.firstLegFocus()) }
+                    .clickable { onOpenTimetable(null) }
                     .padding(vertical = 18.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -610,13 +610,6 @@ private data class HeroLeg(
     val at: LocalDateTime,
     val focus: TimetableFocus,
 )
-
-/** 主役表示のどこを押しても開けるように、最初の区間の行き先を決めておく。 */
-private fun Bound.firstLegFocus(): TimetableFocus =
-    when (this) {
-        Bound.OUTBOUND -> TimetableFocus.HOME_STOP
-        Bound.INBOUND -> TimetableFocus.HOUGI
-    }
 
 /** 主役カードの先頭に置く目印。丸い塗りのバッジではなく、素のアイコンで静かに示す。 */
 @Composable
@@ -725,7 +718,7 @@ private fun NextDepartureCard(
     settings: CommuteSettings,
     here: GeoPoint?,
     landmarks: RouteLandmarks,
-    onOpenTimetable: (TimetableFocus) -> Unit,
+    onOpenTimetable: (TimetableFocus?) -> Unit,
 ) {
     val outbound = journey.bound == Bound.OUTBOUND
     val mode = if (outbound) TransitMode.BUS else TransitMode.JR
@@ -736,7 +729,7 @@ private fun NextDepartureCard(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .clickable { onOpenTimetable(journey.bound.firstLegFocus()) }
+                    .clickable { onOpenTimetable(null) }
                     .padding(vertical = 18.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -807,7 +800,7 @@ private fun NextStationBusCard(
     settings: CommuteSettings,
     here: GeoPoint?,
     landmarks: RouteLandmarks,
-    onOpenTimetable: (TimetableFocus) -> Unit,
+    onOpenTimetable: (TimetableFocus?) -> Unit,
 ) {
     val departAt = bus.departureAt.plus(delay)
     HeroSection(modifier = Modifier.fillMaxWidth()) {
@@ -1007,7 +1000,7 @@ private fun NextStationBusCandidate(bus: ScheduledBus) {
 @Composable
 private fun HeroLegStrip(
     journey: Journey,
-    onOpenTimetable: (TimetableFocus) -> Unit,
+    onOpenTimetable: (TimetableFocus?) -> Unit,
 ) {
     val legs =
         when (journey.bound) {
